@@ -37,7 +37,7 @@ class User extends Authenticatable
 
     public function cmsHomeRoute(): string
     {
-        return $this->canManageAdmins() ? 'admin.dashboard' : 'admin.government-ids.index';
+        return 'admin.dashboard';
     }
 
     /** @use HasFactory<UserFactory> */

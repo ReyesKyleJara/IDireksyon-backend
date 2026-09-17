@@ -1,47 +1,37 @@
 @extends('admin.layouts.app')
 
+@section('title', 'Dashboard | IDireksyon')
+
+@section('page_title', 'Dashboard')
+
 @section('content')
+    <div class="mx-auto max-w-7xl">
 
-    <h2 class="text-2xl font-semibold mb-2">
-        Dashboard
-    </h2>
+        <div class="mb-8">
+            <p class="admin-eyebrow mb-2">Overview</p>
 
-    <p class="text-gray-600 mb-6">
-        Welcome to the IDireksyon Admin Panel.
-    </p>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Dashboard
+            </h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <div class="bg-white rounded-xl shadow-sm p-6">
-            <p class="text-sm text-gray-500">
-                Total Government IDs
-            </p>
-
-            <p class="text-3xl font-bold mt-2">
-                {{ $totalGovernmentIds }}
+            <p class="mt-2 text-sm text-slate-500">
+                Manage the content used by IDireksyon.
             </p>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm p-6">
-            <p class="text-sm text-gray-500">
-                Added in the Last 30 Days
-            </p>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
-            <p class="text-3xl font-bold mt-2">
-                {{ $recentlyAdded }}
-            </p>
-        </div>
+            <div class="admin-panel p-6">
+                <p class="text-sm font-medium text-slate-500">
+                    Government IDs
+                </p>
 
-        <div class="bg-white rounded-xl shadow-sm p-6">
-            <p class="text-sm text-gray-500">
-                Needs Verification
-            </p>
+                <p class="mt-2 text-3xl font-bold text-slate-900">
+                    {{ $governmentIdCount }}
+                </p>
+            </div>
 
-            <p class="text-3xl font-bold mt-2">
-                {{ $needsVerification }}
-            </p>
         </div>
 
     </div>
-
 @endsection

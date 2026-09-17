@@ -9,24 +9,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $totalGovernmentIds = GovernmentId::count();
+        $governmentIdCount = GovernmentId::count();
 
-        $recentlyAdded = GovernmentId::where(
-            'created_at',
-            '>=',
-            now()->subDays(30)
-        )->count();
-
-        $needsVerification = GovernmentId::where(
-            'last_updated',
-            '<',
-            now()->subMonths(6)
-        )->count();
-
-        return view('admin.dashboard', compact(
-            'totalGovernmentIds',
-            'recentlyAdded',
-            'needsVerification'
-        ));
+        return view('admin.dashboard', compact('governmentIdCount'));
     }
 }
