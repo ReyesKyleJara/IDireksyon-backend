@@ -19,11 +19,16 @@
                 </div>
             </div>
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.delete-user-form')
+            @if(array_key_exists($user->role, \App\Models\User::CMS_ROLES))
+                <a href="{{ route('admin.dashboard') }}" class="inline-block text-sm text-[#012877] underline">Back to Admin Panel</a>
+                <p class="text-sm text-gray-600">Contact a Super Admin to deactivate your CMS account.</p>
+            @else
+                <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                    <div class="max-w-xl">
+                        @include('profile.partials.delete-user-form')
+                    </div>
                 </div>
-            </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

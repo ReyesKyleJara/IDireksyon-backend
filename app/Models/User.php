@@ -10,6 +10,36 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    public const CMS_ROLES = [
+        'super_admin' => 'Super Admin',
+        'researcher' => 'Researcher',
+    ];
+
+    protected $attributes = [
+        'role' => 'resident',
+        'is_active' => true,
+    ];
+
+    public function canAccessCms(): bool
+    {
+        return $this->is_active && array_key_exists($this->role, self::CMS_ROLES);
+    }
+
+    public function canManageAdmins(): bool
+    {
+        return $this->canAccessCms() && $this->role === 'super_admin';
+    }
+
+    public function setUsernameAttribute(?string $value): void
+    {
+        $this->attributes['username'] = $value === null ? null : strtolower(trim($value));
+    }
+
+    public function cmsHomeRoute(): string
+    {
+        return $this->canManageAdmins() ? 'admin.dashboard' : 'admin.government-ids.index';
+    }
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -20,6 +50,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
     ];
@@ -42,6 +73,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'is_active' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];

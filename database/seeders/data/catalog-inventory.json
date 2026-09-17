@@ -1,0 +1,809 @@
+{
+  "barangays": [
+    "Bagbaguin",
+    "Balasing",
+    "Buenavista",
+    "Bulac",
+    "Camangyanan",
+    "Catmon",
+    "Cay Pombo",
+    "Caysio",
+    "Guyong",
+    "Lalakhan",
+    "Mag-asawang Sapa",
+    "Mahabang Parang",
+    "Manggahan",
+    "Parada",
+    "Poblacion",
+    "Pulong Buhangin",
+    "San Gabriel",
+    "San Jose Patag",
+    "San Vicente",
+    "Santa Clara",
+    "Santa Cruz",
+    "Silangan",
+    "Tabing Bakod",
+    "Tumana"
+  ],
+  "barangay_source": "https://bulacan.gov.ph/cities-and-municipalities/santa-maria/",
+  "categories": [
+    {
+      "slug": "identity-credentials",
+      "name": "Identity Credentials",
+      "parent": null
+    },
+    {
+      "slug": "foundational-identity",
+      "name": "Foundational Identity",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "general-identity",
+      "name": "General Identity Credentials",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "social-insurance",
+      "name": "Social Insurance Credentials",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "sectoral-welfare",
+      "name": "Sectoral & Social Welfare IDs",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "tax-identity",
+      "name": "Tax Identity Credentials",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "professional",
+      "name": "Professional Credentials",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "overseas-worker",
+      "name": "Overseas Worker Credentials",
+      "parent": "identity-credentials"
+    },
+    {
+      "slug": "certificates-records",
+      "name": "Certificates & Records",
+      "parent": null
+    },
+    {
+      "slug": "civil-registry",
+      "name": "Civil Registry Records",
+      "parent": "certificates-records"
+    },
+    {
+      "slug": "residency",
+      "name": "Residency Documents",
+      "parent": "certificates-records"
+    },
+    {
+      "slug": "employment-assistance",
+      "name": "Employment & Assistance Documents",
+      "parent": "certificates-records"
+    },
+    {
+      "slug": "electoral",
+      "name": "Electoral Records",
+      "parent": "certificates-records"
+    },
+    {
+      "slug": "civic-reports",
+      "name": "Civic Reports",
+      "parent": "certificates-records"
+    },
+    {
+      "slug": "clearances",
+      "name": "Clearances",
+      "parent": null
+    },
+    {
+      "slug": "local-clearances",
+      "name": "Local / Barangay Clearances",
+      "parent": "clearances"
+    },
+    {
+      "slug": "background-clearances",
+      "name": "Background & Security Clearances",
+      "parent": "clearances"
+    },
+    {
+      "slug": "business-clearances",
+      "name": "Business Clearances",
+      "parent": "clearances"
+    },
+    {
+      "slug": "licenses-permits",
+      "name": "Licenses & Permits",
+      "parent": null
+    },
+    {
+      "slug": "driving",
+      "name": "Driving Credentials",
+      "parent": "licenses-permits"
+    },
+    {
+      "slug": "business-permits",
+      "name": "Business & Local Permits",
+      "parent": "licenses-permits"
+    },
+    {
+      "slug": "marriage-licensing",
+      "name": "Civil / Marriage Licensing",
+      "parent": "licenses-permits"
+    },
+    {
+      "slug": "tax-property",
+      "name": "Tax & Property Records",
+      "parent": null
+    },
+    {
+      "slug": "tax-records",
+      "name": "Tax Records",
+      "parent": "tax-property"
+    },
+    {
+      "slug": "property-records",
+      "name": "Property Records",
+      "parent": "tax-property"
+    }
+  ],
+  "entries": [
+    {
+      "key": "community-tax-certificate",
+      "name": "Community Tax Certificate (Cedula)",
+      "kind": "document",
+      "category_slug": "tax-records",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://region5.dilg.gov.ph/camarinessur/wp-content/uploads/2018/05/LGC-Book-II.pdf",
+      "notes": "Local tax document; municipal treasury and deputized barangay treasurers can collect. Not exclusively a barangay-issued certificate. Confirm Santa Maria collection outlets; no office availability or rules verified.",
+      "record_type": "tax_record",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "first-time-jobseeker-certification",
+      "name": "Barangay First-Time Jobseeker Certification",
+      "kind": "document",
+      "category_slug": "employment-assistance",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://csc.gov.ph/csc-gov-t-agencies-sign-implementing-guidelines-for-first-time-jobseekers-law",
+      "notes": "Barangay-issued certification under RA 11261. General issuer classification supported; Santa Maria requirements and procedure remain for research.",
+      "record_type": "certificate",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-business-clearance",
+      "name": "Barangay Business Clearance",
+      "kind": "document",
+      "category_slug": "business-clearances",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://boi.gov.ph/how-to-setup-business/setting-up/business-process-business-permit/",
+      "notes": "Separate from a municipal Business/Mayor's Permit. Integrated collection/processing may occur at the municipality; confirm local process.",
+      "record_type": "clearance",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "business-permit",
+      "name": "Business Permit (Mayor's Permit)",
+      "kind": "document",
+      "category_slug": "business-permits",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://boi.gov.ph/how-to-setup-business/setting-up/business-process-business-permit/",
+      "notes": "Separate municipal permit; added by splitting the user's Barangay Business Clearance / Permit entry. Santa Maria application details remain unverified.",
+      "record_type": "permit",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-clearance",
+      "name": "Barangay Clearance",
+      "kind": "document",
+      "category_slug": "local-clearances",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://dole.gov.ph/dole-issues-rules-on-free-documentary-requirements-for-first-time-jobseekers/",
+      "notes": "General barangay document; purpose and local process require validation. Do not infer identical requirements across all 24 barangays.",
+      "record_type": "clearance",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-residency",
+      "name": "Barangay Certificate of Residency",
+      "kind": "document",
+      "category_slug": "residency",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://diffunquirino.gov.ph/services/municipal-social-welfare-development-office/issuance-of-certifications/",
+      "notes": "The cited LGU identifies the barangay issuer, not Santa Maria service availability. Verify each local offering.",
+      "record_type": "certificate",
+      "aliases": [
+        "Certificate of Residency"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-indigency",
+      "name": "Barangay Certificate of Indigency",
+      "kind": "document",
+      "category_slug": "employment-assistance",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://diffunquirino.gov.ph/services/municipal-social-welfare-development-office/issuance-of-certifications/",
+      "notes": "Barangay-specific record; distinguish from a social welfare office's separate indigency/eligibility certification. Santa Maria details pending.",
+      "record_type": "certificate",
+      "aliases": [
+        "Certificate of Indigency"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-good-moral",
+      "name": "Barangay Certificate of Good Moral Character",
+      "kind": "document",
+      "category_slug": "local-clearances",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://calambacity.gov.ph/Users/Home/ViewServicesPage?createservicesId=31",
+      "notes": "General barangay-issued version supported by another LGU. Some similarly named certificates are issued by mayor's offices or schools; verify exact Santa Maria barangay service and title.",
+      "record_type": "certificate",
+      "aliases": [
+        "Certificate of Good Moral Character"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "barangay-blotter",
+      "name": "Barangay Blotter Report",
+      "kind": "document",
+      "category_slug": "civic-reports",
+      "issuance_level": "barangay",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://ncr.dswd.gov.ph/download/ARRS-CITIZENS-CHARTER-1.pdf",
+      "notes": "General barangay blotter/certification recognized by DSWD. This inventory is guidance for requesting a record, not storage of incident reports; Santa Maria access and issuance rules pending.",
+      "record_type": "report",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "senior-citizen-id",
+      "name": "Senior Citizen ID (OSCA)",
+      "kind": "id",
+      "category_slug": "sectoral-welfare",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://www.ncsc.gov.ph/ncsid",
+      "notes": "Physical OSCA ID is a local record. Keep distinct from the national digital NSCID presentation/channel; Santa Maria intake office and procedure pending.",
+      "record_type": "id",
+      "aliases": [
+        "Senior Citizen ID"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "pwd-id",
+      "name": "Persons with Disability (PWD) ID",
+      "kind": "id",
+      "category_slug": "sectoral-welfare",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://ncda.gov.ph/disability-laws/administrative-orders/ncda-administrative-order-no-001-series-of-2021/",
+      "notes": "NCDA guidelines identify LGU city/municipal office or PDAO as implementer. Exact Santa Maria office, eligibility evidence and current procedure pending.",
+      "record_type": "id",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "solo-parent-id",
+      "name": "Solo Parent Identification Card (SPIC)",
+      "kind": "id",
+      "category_slug": "sectoral-welfare",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://www.dswd.gov.ph/dswd-urges-solo-moms-dads-to-apply-update-solo-parent-ids-to-avail-of-services/",
+      "notes": "LGU Solo Parent Office registration, per DSWD. Confirm Santa Maria office assignment rather than assuming national DSWD issues it directly.",
+      "record_type": "id",
+      "aliases": [
+        "Solo Parent ID"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "local-birth-certificate",
+      "name": "Local Birth Certificate Copy (LCR)",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://marilao.gov.ph/wp-content/uploads/2026/03/MCR-Citizens-Charter-2026.pdf",
+      "notes": "Municipal civil registry copy, separate from PSA-issued copy. Nearby Marilao charter supports service classification only; Santa Maria process, record jurisdiction and availability pending.",
+      "record_type": "civil_record",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "local-marriage-certificate",
+      "name": "Local Marriage Certificate Copy (LCR)",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://marilao.gov.ph/wp-content/uploads/2026/03/MCR-Citizens-Charter-2026.pdf",
+      "notes": "Municipal civil registry copy, separate from PSA-issued copy. Nearby Marilao charter supports service classification only; Santa Maria process, record jurisdiction and availability pending.",
+      "record_type": "civil_record",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "local-death-certificate",
+      "name": "Local Death Certificate Copy (LCR)",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://marilao.gov.ph/wp-content/uploads/2026/03/MCR-Citizens-Charter-2026.pdf",
+      "notes": "Municipal civil registry copy, separate from PSA-issued copy. Nearby Marilao charter supports service classification only; Santa Maria process, record jurisdiction and availability pending.",
+      "record_type": "civil_record",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "marriage-license",
+      "name": "Marriage License",
+      "kind": "document",
+      "category_slug": "marriage-licensing",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://quezoncity.gov.ph/departments/city-civil-registry-department/",
+      "notes": "Local civil registrar license; distinct from a marriage certificate or no-marriage-record certification. Source supports distinction, not Santa Maria requirements.",
+      "record_type": "license",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "local-no-marriage-record",
+      "name": "Local Certification of No Marriage Record (LCR)",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://zamboangacity.gov.ph/office-of-the-city-civil-registrar/",
+      "notes": "Research placeholder for local negative certification. Other civil registrars use LCR negative marriage certifications; confirm Santa Maria title and availability. Not PSA CENOMAR and not automatically proof of single status.",
+      "record_type": "certificate",
+      "aliases": [
+        "Certificate of No Marriage Record"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "psa-cenomar",
+      "name": "PSA Certificate of No Marriage Record (CENOMAR)",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "issuance_level": "national",
+      "agency_name": "Philippine Statistics Authority",
+      "agency_abbreviation": "PSA",
+      "source_url": "https://psa.gov.ph/cenomar",
+      "notes": "PSA-issued national certification, distinct from Marriage License and local negative record certification. Added to resolve the user's combined marriage entry; process still pending.",
+      "record_type": "certificate",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "real-property-tax-clearance",
+      "name": "Real Property Tax Clearance",
+      "kind": "document",
+      "category_slug": "property-records",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://malinao-aklan.gov.ph/downloads/",
+      "notes": "Separate treasury document from Tax Declaration. Generic municipal service classification supported by another LGU; verify Santa Maria issuing office and procedure.",
+      "record_type": "clearance",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "tax-declaration",
+      "name": "Tax Declaration (Certified Copy)",
+      "kind": "document",
+      "category_slug": "property-records",
+      "issuance_level": "municipal",
+      "agency_name": "Municipal Government of Santa Maria, Bulacan",
+      "agency_abbreviation": null,
+      "source_url": "https://santamariabulacan.ph/documents/ordinances/2024/ord-668-2024.pdf",
+      "notes": "Santa Maria ordinance 668 (2024), Municipal Assessor job functions, explicitly includes issuing certified copies of tax declarations. This is an assessment record, separate from treasury tax clearance. Request details pending.",
+      "record_type": "tax_record",
+      "aliases": [
+        "Tax Declaration"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "police-clearance",
+      "name": "National Police Clearance",
+      "kind": "document",
+      "category_slug": "background-clearances",
+      "record_type": "clearance",
+      "issuance_level": "national",
+      "agency_name": "Philippine National Police",
+      "agency_abbreviation": "PNP",
+      "source_url": "https://ncrpo.pnp.gov.ph/wp-content/uploads/2024/12/NPCS-CITIZENS-CHARTER-HANDBOOK-CY-2024_1.pdf",
+      "notes": "Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "nbi-clearance",
+      "name": "NBI Clearance",
+      "kind": "document",
+      "category_slug": "background-clearances",
+      "record_type": "clearance",
+      "issuance_level": "national",
+      "agency_name": "National Bureau of Investigation",
+      "agency_abbreviation": "NBI",
+      "source_url": null,
+      "notes": "Thesis inventory; official application source still to be recorded. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "psa-birth-certificate",
+      "name": "PSA Birth Certificate",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "record_type": "civil_record",
+      "issuance_level": "national",
+      "agency_name": "Philippine Statistics Authority",
+      "agency_abbreviation": "PSA",
+      "source_url": "https://psa.gov.ph/civil-registration/citizens-charter",
+      "notes": "Keep separate from the local civil registrar copy. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "psa-marriage-certificate",
+      "name": "PSA Marriage Certificate",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "record_type": "civil_record",
+      "issuance_level": "national",
+      "agency_name": "Philippine Statistics Authority",
+      "agency_abbreviation": "PSA",
+      "source_url": "https://psa.gov.ph/civil-registration/citizens-charter",
+      "notes": "Keep separate from the local civil registrar copy. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "psa-death-certificate",
+      "name": "PSA Death Certificate",
+      "kind": "document",
+      "category_slug": "civil-registry",
+      "record_type": "civil_record",
+      "issuance_level": "national",
+      "agency_name": "Philippine Statistics Authority",
+      "agency_abbreviation": "PSA",
+      "source_url": "https://psa.gov.ph/civil-registration/citizens-charter",
+      "notes": "Keep separate from the local civil registrar copy. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "quarterly-itr",
+      "name": "Quarterly Income Tax Return (BIR Form 1701Q)",
+      "kind": "document",
+      "category_slug": "tax-records",
+      "record_type": "tax_record",
+      "issuance_level": "national",
+      "agency_name": "Bureau of Internal Revenue",
+      "agency_abbreviation": "BIR",
+      "source_url": "https://bir-cdn.bir.gov.ph/local/pdf/1701Q%20Guide%20Jan%202018_copy.pdf",
+      "notes": "Specific return for individuals, estates and trusts; not a universally required resident document. Broad BIR tax filings remain outside this specific record. No tax advice or eligibility inferred. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Quarterly Income Tax Return (ITR) / BIR Tax Filings"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "voter-id",
+      "name": "Voter's ID",
+      "kind": "id",
+      "category_slug": "general-identity",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Commission on Elections",
+      "agency_abbreviation": "COMELEC",
+      "source_url": null,
+      "notes": "Legacy issuance needs an up-to-date COMELEC source. Do not present as available for new applications. Kept separate from Voter’s Certification. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "voter-certification",
+      "name": "Voter's Certification",
+      "kind": "document",
+      "category_slug": "electoral",
+      "record_type": "certificate",
+      "issuance_level": "national",
+      "agency_name": "Commission on Elections",
+      "agency_abbreviation": "COMELEC",
+      "source_url": null,
+      "notes": "Separate electoral certification; exact issuing office and official application source pending. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "national-id",
+      "name": "National ID (PhilSys)",
+      "kind": "id",
+      "category_slug": "foundational-identity",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Philippine Statistics Authority",
+      "agency_abbreviation": "PSA",
+      "source_url": "https://philsys.gov.ph/",
+      "notes": "Do not split physical and digital presentations into separate acquisition prerequisites without researched rules. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "PhilSys ID",
+        "Philippine National ID"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "passport",
+      "name": "Philippine Passport",
+      "kind": "id",
+      "category_slug": "general-identity",
+      "record_type": "credential",
+      "issuance_level": "national",
+      "agency_name": "Department of Foreign Affairs",
+      "agency_abbreviation": "DFA",
+      "source_url": "https://consular.dfa.gov.ph/adult-new/",
+      "notes": "The thesis includes application variants; they are not encoded into the rule engine yet. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Passport",
+        "Passport ID",
+        "Philippine Passport (ePassport)"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "postal-id",
+      "name": "Postal ID",
+      "kind": "id",
+      "category_slug": "general-identity",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Philippine Postal Corporation",
+      "agency_abbreviation": "PHLPost",
+      "source_url": "https://phlpost.gov.ph/cpt-press-releases/phlpost-simplifies-postal-id-application-for-all/",
+      "notes": "PHLPost has newer issuance guidance; do not reuse the historical blanket suspension as current local availability. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "umid",
+      "name": "Unified Multi-Purpose ID (UMID)",
+      "kind": "id",
+      "category_slug": "social-insurance",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": null,
+      "agency_abbreviation": null,
+      "source_url": "https://www.sss.gov.ph/mysss-card/",
+      "notes": "Legacy credential associated with SSS/GSIS. SSS now has MySSS Card; GSIS has Digital ID. Existing-holder validity is different from new issuance. Consult issuer-specific guidance. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "UMID",
+        "UMID ID"
+      ],
+      "availability_status": "legacy"
+    },
+    {
+      "key": "sss-id",
+      "name": "SSS Digitized ID (legacy)",
+      "kind": "id",
+      "category_slug": "social-insurance",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Social Security System",
+      "agency_abbreviation": "SSS",
+      "source_url": "https://www.sss.gov.ph/mysss-card/",
+      "notes": "Old SSS ID retained as inventory for existing holders. Do not model it as a new application route. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Social Security System (SSS) ID",
+        "SSS ID"
+      ],
+      "availability_status": "legacy"
+    },
+    {
+      "key": "mysss-card",
+      "name": "MySSS Card",
+      "kind": "id",
+      "category_slug": "social-insurance",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Social Security System",
+      "agency_abbreviation": "SSS",
+      "source_url": "https://www.sss.gov.ph/news-and-updates/sss-launches-emv-equipped-dual-function-mysss-card/",
+      "notes": "Added to clarify the SSS-related credential in the thesis. SSS announced acceptance beginning 1 October 2025; local channels and detailed rules still need research. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "gsis-digital-id",
+      "name": "GSIS Digital ID",
+      "kind": "id",
+      "category_slug": "social-insurance",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Government Service Insurance System",
+      "agency_abbreviation": "GSIS",
+      "source_url": "https://pia.gov.ph/press-release/gsis-accelerates-digital-transformation-through-the-gsis-digital-id/",
+      "notes": "GSIS press release describes MC 054 s2024 discontinuing physical UMID/eCard production. Older physical-card instructions conflict with the transition and must be reviewed. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Government Service Insurance System (GSIS) ID",
+        "GSIS ID"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "prc-id",
+      "name": "Professional Identification Card (PRC ID)",
+      "kind": "id",
+      "category_slug": "professional",
+      "record_type": "credential",
+      "issuance_level": "national",
+      "agency_name": "Professional Regulation Commission",
+      "agency_abbreviation": "PRC",
+      "source_url": "https://www.prc.gov.ph/",
+      "notes": "Some thesis application references are third-party guides. Do not transfer fees and rules without primary-source checking. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "PRC ID",
+        "Professional Regulation Commission (PRC) ID"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "student-permit",
+      "name": "Student-Driver's Permit",
+      "kind": "document",
+      "category_slug": "driving",
+      "record_type": "permit",
+      "issuance_level": "national",
+      "agency_name": "Land Transportation Office",
+      "agency_abbreviation": "LTO",
+      "source_url": "https://lto.gov.ph/wp-content/uploads/2023/09/1-CC2024-SP.pdf",
+      "notes": "A learner permit is distinct from a driver’s license. Stored in Documents as record type permit; appears in the shared Driving Credentials category. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Student Permit",
+        "Student Permit (SP)"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "non-prof-license",
+      "name": "Non-Professional Driver's License",
+      "kind": "id",
+      "category_slug": "driving",
+      "record_type": "license",
+      "issuance_level": "national",
+      "agency_name": "Land Transportation Office",
+      "agency_abbreviation": "LTO",
+      "source_url": null,
+      "notes": "Thesis inventory. Confirm current LTO issuance/conversion rules; do not infer that each is an independent application. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Non-Professional Driver's License (Non-Pro)"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "prof-license",
+      "name": "Professional Driver's License",
+      "kind": "id",
+      "category_slug": "driving",
+      "record_type": "license",
+      "issuance_level": "national",
+      "agency_name": "Land Transportation Office",
+      "agency_abbreviation": "LTO",
+      "source_url": null,
+      "notes": "Thesis inventory. Confirm current LTO issuance/conversion rules; do not infer that each is an independent application. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "Professional Driver's License (PDL)"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "tin-card",
+      "name": "Tax Identification Number (TIN) Card",
+      "kind": "id",
+      "category_slug": "tax-identity",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Bureau of Internal Revenue",
+      "agency_abbreviation": "BIR",
+      "source_url": null,
+      "notes": "Physical TIN card and digital TIN presentation must be researched; taxpayer registration is not automatically the same service. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "TIN Card"
+      ],
+      "availability_status": "unknown"
+    },
+    {
+      "key": "owwa-id",
+      "name": "OWWA OFW e-Card",
+      "kind": "id",
+      "category_slug": "overseas-worker",
+      "record_type": "id",
+      "issuance_level": "national",
+      "agency_name": "Overseas Workers Welfare Administration",
+      "agency_abbreviation": "OWWA",
+      "source_url": "https://ecard.owwa.gov.ph/",
+      "notes": "Normalized OWWA ID to the named OWWA e-Card service; membership and application channels require verification. Inventory classification only. Application requirements, fees, variants and local availability still need research.",
+      "aliases": [
+        "OWWA ID",
+        "Overseas Workers Welfare Administration (OWWA) ID"
+      ],
+      "availability_status": "unknown"
+    }
+  ],
+  "offices": [
+    {
+      "name": "PSA Bulacan Provincial Office",
+      "agency_name": "Philippine Statistics Authority",
+      "municipality": "Malolos",
+      "province": "Bulacan",
+      "notes": "Thesis PDF page 56. Exact address, service availability, hours and coordinates require official confirmation."
+    },
+    {
+      "name": "SSS Santa Maria Branch",
+      "agency_name": "Social Security System",
+      "municipality": "Santa Maria",
+      "province": "Bulacan",
+      "notes": "Thesis PDF page 69 lists NEM Building, Gov. Fortunato Halili Avenue, Bagbaguin. Address is retained here as a research lead only; verify before using it for navigation. No UMID/MySSS office offering inferred."
+    },
+    {
+      "name": "GSIS Bulacan Branch Office",
+      "agency_name": "Government Service Insurance System",
+      "municipality": "Malolos",
+      "province": "Bulacan",
+      "notes": "Thesis PDF page 75. Current branch address, digital-ID assistance and hours need official confirmation."
+    },
+    {
+      "name": "PRC Regional Office III",
+      "agency_name": "Professional Regulation Commission",
+      "municipality": "San Fernando",
+      "province": "Pampanga",
+      "notes": "Thesis PDF page 78. Specific services, hours, address and coordinates still require official verification."
+    }
+  ]
+}

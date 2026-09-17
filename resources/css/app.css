@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+[x-cloak] { display: none !important; }
+
+@layer components {
+    .admin-panel { @apply rounded-xl border border-slate-200 bg-white; }
+    .admin-input { @apply block w-full rounded-lg border-slate-300 text-sm text-slate-900 shadow-sm focus:border-[#012877] focus:ring-[#012877]; }
+    .admin-primary { @apply inline-flex items-center justify-center gap-2 rounded-lg bg-[#012877] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#013894] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#012877]; }
+    .admin-secondary { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#012877]; }
+    .admin-eyebrow { @apply text-xs font-semibold uppercase tracking-widest text-[#012877]; }
+}
