@@ -18,7 +18,7 @@
         </h1>
 
         <p class="mt-2 text-sm text-slate-500">
-            Update the information for {{ $governmentId->name }}.
+            Update the researched information for {{ $governmentId->name }}.
         </p>
 
     </div>
@@ -27,249 +27,655 @@
     <form
         method="POST"
         action="{{ route('admin.government-ids.update', $governmentId) }}"
-        class="admin-panel p-6"
+        class="space-y-6"
     >
 
         @csrf
         @method('PUT')
 
 
-        <div class="grid gap-6 sm:grid-cols-2">
+        @if ($errors->any())
 
-            {{-- NAME --}}
-            <div class="sm:col-span-2">
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4">
 
-                <label for="name" class="mb-2 block text-sm font-medium">
-                    Name *
-                </label>
+                <p class="text-sm font-semibold text-red-700">
+                    Please check the highlighted fields.
+                </p>
 
-                <input
-                    id="name"
-                    name="name"
-                    value="{{ old('name', $governmentId->name) }}"
-                    class="admin-input"
-                    required
-                >
+            </div>
+
+        @endif
+
+
+        {{-- BASIC INFORMATION --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Basic Information
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    General identification and classification details.
+                </p>
 
             </div>
 
 
-            {{-- LEVEL --}}
-            <div>
+            <div class="grid gap-6 sm:grid-cols-2">
 
-                <label for="level" class="mb-2 block text-sm font-medium">
-                    Level
-                </label>
+                {{-- ID NAME --}}
+                <div class="sm:col-span-2">
 
-                <select
-                    id="level"
-                    name="level"
-                    class="admin-input"
-                >
-                    <option value="">Select level</option>
-
-                    <option
-                        value="Barangay"
-                        @selected(old('level', $governmentId->level) === 'Barangay')
+                    <label
+                        for="name"
+                        class="mb-2 block text-sm font-medium"
                     >
-                        Barangay
-                    </option>
+                        ID Name *
+                    </label>
 
-                    <option
-                        value="Municipal / LGU"
-                        @selected(old('level', $governmentId->level) === 'Municipal / LGU')
+                    <input
+                        id="name"
+                        name="name"
+                        value="{{ old('name', $governmentId->name) }}"
+                        class="admin-input"
+                        required
                     >
-                        Municipal / LGU
-                    </option>
 
-                    <option
-                        value="National"
-                        @selected(old('level', $governmentId->level) === 'National')
+                    @error('name')
+                        <p class="mt-2 text-sm text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+
+                </div>
+
+
+                {{-- LEVEL --}}
+                <div>
+
+                    <label
+                        for="level"
+                        class="mb-2 block text-sm font-medium"
                     >
-                        National
-                    </option>
+                        Level
+                    </label>
 
-                </select>
+                    <select
+                        id="level"
+                        name="level"
+                        class="admin-input"
+                    >
 
-            </div>
-
-
-            {{-- CATEGORY --}}
-            <div>
-
-                <label for="category" class="mb-2 block text-sm font-medium">
-                    Category
-                </label>
-
-                <select
-                    id="category"
-                    name="category"
-                    class="admin-input"
-                >
-                    <option value="">Select category</option>
-
-                    @foreach([
-                        'Identity ID',
-                        'Sector-Specific ID',
-                        'Driving Credential',
-                        'Professional Credential',
-                        'Tax ID',
-                        'Travel Document'
-                    ] as $category)
-
-                        <option
-                            value="{{ $category }}"
-                            @selected(old('category', $governmentId->category) === $category)
-                        >
-                            {{ $category }}
+                        <option value="">
+                            Select level
                         </option>
 
-                    @endforeach
+                        <option
+                            value="Barangay"
+                            @selected(
+                                old(
+                                    'level',
+                                    $governmentId->level
+                                ) === 'Barangay'
+                            )
+                        >
+                            Barangay
+                        </option>
 
-                </select>
+                        <option
+                            value="Municipal / LGU"
+                            @selected(
+                                old(
+                                    'level',
+                                    $governmentId->level
+                                ) === 'Municipal / LGU'
+                            )
+                        >
+                            Municipal / LGU
+                        </option>
+
+                        <option
+                            value="National"
+                            @selected(
+                                old(
+                                    'level',
+                                    $governmentId->level
+                                ) === 'National'
+                            )
+                        >
+                            National
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                {{-- CATEGORY --}}
+                <div>
+
+                    <label
+                        for="category"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Category
+                    </label>
+
+                    <select
+                        id="category"
+                        name="category"
+                        class="admin-input"
+                    >
+
+                        <option value="">
+                            Select category
+                        </option>
+
+                        @foreach([
+                            'Identity ID',
+                            'Sector-Specific ID',
+                            'Driving Credential',
+                            'Professional Credential',
+                            'Tax ID',
+                            'Travel Document'
+                        ] as $category)
+
+                            <option
+                                value="{{ $category }}"
+                                @selected(
+                                    old(
+                                        'category',
+                                        $governmentId->category
+                                    ) === $category
+                                )
+                            >
+                                {{ $category }}
+                            </option>
+
+                        @endforeach
+
+                    </select>
+
+                </div>
+
+
+                {{-- ISSUING AGENCY --}}
+                <div class="sm:col-span-2">
+
+                    @include(
+                        'admin.government_ids.partials.agency-field',
+                        [
+                            'selectedAgencyId' => $governmentId->agency_id,
+                        ]
+                    )
+
+                </div>
+
+
+                {{-- PURPOSE --}}
+                <div class="sm:col-span-2">
+
+                    <label
+                        for="purpose"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Purpose / Use
+                    </label>
+
+                    <textarea
+                        id="purpose"
+                        name="purpose"
+                        rows="3"
+                        class="admin-input"
+                    >{{ old('purpose', $governmentId->purpose) }}</textarea>
+
+                </div>
+
+
+                {{-- DESCRIPTION --}}
+                <div class="sm:col-span-2">
+
+                    <label
+                        for="description"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="4"
+                        class="admin-input"
+                    >{{ old('description', $governmentId->description) }}</textarea>
+
+                </div>
+
+
+                {{-- STRUCTURED VALIDITY --}}
+                @include(
+                    'admin.government_ids.partials.validity-field',
+                    [
+                        'selectedValidityType' => $governmentId->validity_type,
+                        'selectedValidityValue' => $governmentId->validity_value,
+                        'selectedValidityUnit' => $governmentId->validity_unit,
+                    ]
+                )
+
+            </div>
+
+        </section>
+
+
+        {{-- REQUIREMENTS & ELIGIBILITY --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Requirements & Eligibility
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Human-readable application requirements for residents.
+                </p>
 
             </div>
 
 
-            {{-- ISSUED BY --}}
-            <div>
+            <div class="grid gap-6">
 
-                <label for="issued_by" class="mb-2 block text-sm font-medium">
-                    Issued By
-                </label>
+                {{-- ELIGIBILITY --}}
+                <div>
 
-                <input
-                    id="issued_by"
-                    name="issued_by"
-                    value="{{ old('issued_by', $governmentId->issued_by) }}"
-                    class="admin-input"
-                >
+                    <label
+                        for="eligibility"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Eligibility
+                    </label>
+
+                    <textarea
+                        id="eligibility"
+                        name="eligibility"
+                        rows="4"
+                        class="admin-input"
+                    >{{ old('eligibility', $governmentId->eligibility) }}</textarea>
+
+                </div>
+
+
+                {{-- REQUIREMENTS --}}
+                <div>
+
+                    <label
+                        for="requirements"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Requirements
+                    </label>
+
+                    <textarea
+                        id="requirements"
+                        name="requirements"
+                        rows="6"
+                        class="admin-input"
+                    >{{ old('requirements', $governmentId->requirements) }}</textarea>
+
+                </div>
+
+
+                {{-- PREREQUISITES --}}
+                <div>
+
+                    <label
+                        for="prerequisite_notes"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Prerequisites / Dependencies
+                    </label>
+
+                    <textarea
+                        id="prerequisite_notes"
+                        name="prerequisite_notes"
+                        rows="4"
+                        class="admin-input"
+                    >{{ old('prerequisite_notes', $governmentId->prerequisite_notes) }}</textarea>
+
+                    <p class="mt-2 text-xs text-slate-500">
+                        This is for readable guidance. Smart sequencing rules will be stored separately.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        {{-- APPLICATION GUIDE --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Application Guide
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Costs, processing information, and application procedures.
+                </p>
 
             </div>
 
 
-            {{-- OFFICE LOCATION --}}
-            <div>
+            <div class="grid gap-6 sm:grid-cols-2">
 
-                <label for="office_location" class="mb-2 block text-sm font-medium">
-                    Office Location
-                </label>
+                {{-- FEES --}}
+                @include(
+                    'admin.government_ids.partials.fee-items-field',
+                    [
+                        'selectedFees' => $governmentId->fees,
+                    ]
+                )
 
-                <input
-                    id="office_location"
-                    name="office_location"
-                    value="{{ old('office_location', $governmentId->office_location) }}"
-                    class="admin-input"
-                >
+
+                {{-- PROCESSING TIME --}}
+                @include(
+                    'admin.government_ids.partials.processing-time-field',
+                    [
+                        'selectedProcessingType' => $governmentId->processing_time_type,
+                        'selectedProcessingMin' => $governmentId->processing_time_min,
+                        'selectedProcessingMax' => $governmentId->processing_time_max,
+                        'selectedProcessingUnit' => $governmentId->processing_time_unit,
+                    ]
+                )
+
+
+                {{-- APPLICATION PROCESS --}}
+                <div class="sm:col-span-2">
+
+                    <label
+                        for="application_process"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Application Process / Steps
+                    </label>
+
+                    <textarea
+                        id="application_process"
+                        name="application_process"
+                        rows="7"
+                        class="admin-input"
+                    >{{ old('application_process', $governmentId->application_process) }}</textarea>
+
+                </div>
+
+
+                {{-- RENEWAL PROCESS --}}
+                <div class="sm:col-span-2">
+
+                    <label
+                        for="renewal_process"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Renewal Process
+                    </label>
+
+                    <textarea
+                        id="renewal_process"
+                        name="renewal_process"
+                        rows="4"
+                        class="admin-input"
+                    >{{ old('renewal_process', $governmentId->renewal_process) }}</textarea>
+
+                </div>
+
+
+                {{-- REPLACEMENT PROCESS --}}
+                <div class="sm:col-span-2">
+
+                    <label
+                        for="replacement_process"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Replacement Process
+                    </label>
+
+                    <textarea
+                        id="replacement_process"
+                        name="replacement_process"
+                        rows="4"
+                        class="admin-input"
+                    >{{ old('replacement_process', $governmentId->replacement_process) }}</textarea>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        {{-- OFFICE INFORMATION --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Office Information
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Location and operating-hour information relevant to applicants.
+                </p>
 
             </div>
 
 
-            {{-- DESCRIPTION --}}
-            <div class="sm:col-span-2">
+            <div class="grid gap-6 sm:grid-cols-2">
 
-                <label for="description" class="mb-2 block text-sm font-medium">
-                    Description / Purpose
-                </label>
+                {{-- OFFICE LOCATION --}}
+                <div>
 
-                <textarea
-                    id="description"
-                    name="description"
-                    rows="3"
-                    class="admin-input"
-                >{{ old('description', $governmentId->description) }}</textarea>
+                    <label
+                        for="office_location"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Government Office / Location
+                    </label>
+
+                    <input
+                        id="office_location"
+                        name="office_location"
+                        value="{{ old(
+                            'office_location',
+                            $governmentId->office_location
+                        ) }}"
+                        class="admin-input"
+                    >
+
+                </div>
+
+
+                {{-- OFFICE HOURS --}}
+                <div>
+
+                    <label
+                        for="office_hours"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Office Hours
+                    </label>
+
+                    <input
+                        id="office_hours"
+                        name="office_hours"
+                        value="{{ old(
+                            'office_hours',
+                            $governmentId->office_hours
+                        ) }}"
+                        class="admin-input"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        {{-- SOURCES & VERIFICATION --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Sources & Verification
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Record the official sources used and the current verification status.
+                </p>
 
             </div>
 
 
-            {{-- ELIGIBILITY --}}
-            <div class="sm:col-span-2">
+            <div class="grid gap-6">
 
-                <label for="eligibility" class="mb-2 block text-sm font-medium">
-                    Eligibility
-                </label>
+                {{-- OFFICIAL LINK --}}
+                <div>
 
-                <textarea
-                    id="eligibility"
-                    name="eligibility"
-                    rows="3"
-                    class="admin-input"
-                >{{ old('eligibility', $governmentId->eligibility) }}</textarea>
+                    <label
+                        for="official_link"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Official Website / Application Link
+                    </label>
+
+                    <input
+                        id="official_link"
+                        name="official_link"
+                        type="url"
+                        value="{{ old(
+                            'official_link',
+                            $governmentId->official_link
+                        ) }}"
+                        class="admin-input"
+                        placeholder="https://..."
+                    >
+
+                    @error('official_link')
+                        <p class="mt-2 text-sm text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+
+                </div>
+
+
+                {{-- OFFICIAL SOURCES --}}
+                <div>
+
+                    <label
+                        for="official_sources"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Official Sources
+                    </label>
+
+                    <textarea
+                        id="official_sources"
+                        name="official_sources"
+                        rows="5"
+                        class="admin-input"
+                    >{{ old('official_sources', $governmentId->official_sources) }}</textarea>
+
+                </div>
+
+
+                {{-- VERIFICATION STATUS --}}
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
+
+                    <p class="text-sm font-semibold text-slate-900">
+                        Verification Status
+                    </p>
+
+
+                    @if ($governmentId->last_verified_at)
+
+                        <div class="mt-3 space-y-1 text-sm text-slate-600">
+
+                            <p>
+
+                                <span class="font-medium text-slate-700">
+                                    Last verified:
+                                </span>
+
+                                {{ $governmentId->last_verified_at->format('F j, Y') }}
+
+                            </p>
+
+
+                            <p>
+
+                                <span class="font-medium text-slate-700">
+                                    Verified by:
+                                </span>
+
+                                {{
+                                    $governmentId->lastVerifier?->name
+                                    ?? $governmentId->lastVerifier?->email
+                                    ?? 'Unknown user'
+                                }}
+
+                            </p>
+
+                        </div>
+
+                    @else
+
+                        <p class="mt-2 text-sm text-amber-700">
+                            This record has not yet been verified.
+                        </p>
+
+                    @endif
+
+
+                    <label class="mt-5 flex items-start gap-3">
+
+                        <input
+                            type="checkbox"
+                            name="verify_today"
+                            value="1"
+                            class="mt-1 rounded border-slate-300"
+                            @checked(old('verify_today', false))
+                        >
+
+                        <span>
+
+                            <span class="block text-sm font-medium text-slate-900">
+                                Re-verify this information today
+                            </span>
+
+                            <span class="mt-1 block text-xs text-slate-500">
+                                Check this only if you reviewed the current information against official sources.
+                            </span>
+
+                        </span>
+
+                    </label>
+
+                </div>
 
             </div>
 
-
-            {{-- REQUIREMENTS --}}
-            <div class="sm:col-span-2">
-
-                <label for="requirements" class="mb-2 block text-sm font-medium">
-                    Requirements
-                </label>
-
-                <textarea
-                    id="requirements"
-                    name="requirements"
-                    rows="4"
-                    class="admin-input"
-                >{{ old('requirements', $governmentId->requirements) }}</textarea>
-
-            </div>
+        </section>
 
 
-            {{-- FEE --}}
-            <div>
-
-                <label for="fee" class="mb-2 block text-sm font-medium">
-                    Fee
-                </label>
-
-                <input
-                    id="fee"
-                    name="fee"
-                    value="{{ old('fee', $governmentId->fee) }}"
-                    class="admin-input"
-                >
-
-            </div>
-
-
-            {{-- PROCESSING TIME --}}
-            <div>
-
-                <label for="processing_time" class="mb-2 block text-sm font-medium">
-                    Processing Time
-                </label>
-
-                <input
-                    id="processing_time"
-                    name="processing_time"
-                    value="{{ old('processing_time', $governmentId->processing_time) }}"
-                    class="admin-input"
-                >
-
-            </div>
-
-
-            {{-- VALIDITY --}}
-            <div>
-
-                <label for="validity" class="mb-2 block text-sm font-medium">
-                    Validity
-                </label>
-
-                <input
-                    id="validity"
-                    name="validity"
-                    value="{{ old('validity', $governmentId->validity) }}"
-                    class="admin-input"
-                >
-
-            </div>
-
-        </div>
-
-
-        <div class="mt-8 flex justify-end gap-3">
+        {{-- ACTIONS --}}
+        <div class="flex justify-end gap-3">
 
             <a
                 href="{{ route('admin.government-ids.index') }}"

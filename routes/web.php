@@ -5,7 +5,9 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\GovernmentIdController;
 use App\Http\Controllers\Admin\DocumentController;
+use App\Http\Controllers\Admin\AgencyController;
 use Illuminate\Support\Facades\Route;
+
 
 Route::get('/', fn () => redirect()->route('login'));
 
@@ -24,11 +26,14 @@ Route::prefix('admin')
 
 
         // Government IDs
-        Route::resource('government-ids', GovernmentIdController::class)
-            ->except(['show']);
+        Route::resource('government-ids', GovernmentIdController::class);
 
         Route::resource('documents', DocumentController::class)
             ->except(['show']);
+
+        // Agencies
+        Route::post('agencies', [AgencyController::class, 'store'])
+            ->name('agencies.store');
 
 
         // CMS Admin Accounts
