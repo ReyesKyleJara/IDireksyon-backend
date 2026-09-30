@@ -266,6 +266,7 @@
 
                     this.selected = String(data.agency.id);
 
+                    this.saving = false;
                     this.closeModal();
 
                 } catch (error) {

@@ -258,27 +258,29 @@
 
 
         {{-- VALIDITY --}}
-        <section class="admin-panel p-6">
+        @if($governmentId->validity_type !== 'not_applicable')
+            <section class="admin-panel p-6">
 
-            <h2 class="mb-3 text-base font-bold text-slate-900">
-                Validity Period
-            </h2>
+                <h2 class="mb-3 text-base font-bold text-slate-900">
+                    Validity Period
+                </h2>
 
-            @if(filled($governmentId->validity))
+                @if(filled($governmentId->validity))
 
-                <p class="text-sm font-medium text-slate-700">
-                    {{ $governmentId->validity }}
-                </p>
+                    <p class="text-sm font-medium text-slate-700">
+                        {{ $governmentId->validity }}
+                    </p>
 
-            @else
+                @else
 
-                <p class="text-sm text-slate-400">
-                    Not available yet.
-                </p>
+                    <p class="text-sm text-slate-400">
+                        Not available yet.
+                    </p>
 
-            @endif
+                @endif
 
-        </section>
+            </section>
+        @endif
 
 
         {{-- PROCESSING TIME --}}

@@ -20,6 +20,13 @@ class GovernmentId extends Model
         'description',
         'purpose',
         'eligibility',
+        'eligibility_age_type',
+        'eligibility_min_age',
+        'eligibility_max_age',
+        'eligibility_citizenship',
+        'eligibility_residency',
+        'eligibility_residency_custom',
+        'eligibility_other_conditions',
 
         'requirements',
         'prerequisite_notes',
@@ -55,6 +62,8 @@ class GovernmentId extends Model
     {
         return [
             'last_verified_at' => 'datetime',
+            'eligibility_min_age' => 'integer',
+            'eligibility_max_age' => 'integer',
             'validity_value' => 'integer',
             'processing_time_min' => 'integer',
             'processing_time_max' => 'integer',

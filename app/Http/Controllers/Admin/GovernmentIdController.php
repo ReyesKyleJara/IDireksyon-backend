@@ -95,7 +95,9 @@ class GovernmentIdController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $this->validateGovernmentId($request);
+        $validated = $this->prepareEligibility(
+            $this->validateGovernmentId($request)
+        );
 
         $feeRows = $this->prepareFeeRows(
             $validated['fees'] ?? []
@@ -193,8 +195,8 @@ class GovernmentIdController extends Controller
         Request $request,
         GovernmentId $governmentId
     ) {
-        $validated = $this->validateGovernmentId(
-            $request
+        $validated = $this->prepareEligibility(
+            $this->validateGovernmentId($request)
         );
 
         /*
@@ -343,6 +345,25 @@ class GovernmentIdController extends Controller
                 'nullable',
                 'string',
             ],
+
+
+            'eligibility_age_type' => ['nullable', 'string', 'in:none,minimum,range'],
+            'eligibility_min_age' => [
+                'exclude_unless:eligibility_age_type,minimum,range',
+                'required', 'integer', 'min:0', 'max:150',
+            ],
+            'eligibility_max_age' => [
+                'exclude_unless:eligibility_age_type,range',
+                'required', 'integer', 'min:0', 'max:150',
+                'gte:eligibility_min_age',
+            ],
+            'eligibility_citizenship' => ['nullable', 'string', 'in:none,filipino'],
+            'eligibility_residency' => ['nullable', 'string', 'in:none,philippines,santa_maria,custom'],
+            'eligibility_residency_custom' => [
+                'exclude_unless:eligibility_residency,custom',
+                'required', 'string', 'max:255',
+            ],
+            'eligibility_other_conditions' => ['nullable', 'string', 'max:10000'],
 
             'requirements' => [
                 'nullable',
@@ -591,6 +612,76 @@ class GovernmentIdController extends Controller
                 'boolean',
             ],
         ]);
+    }
+
+    private function prepareEligibility(array $validated): array
+    {
+        $fields = [
+            'eligibility_age_type',
+            'eligibility_min_age',
+            'eligibility_max_age',
+            'eligibility_citizenship',
+            'eligibility_residency',
+            'eligibility_residency_custom',
+            'eligibility_other_conditions',
+        ];
+
+        // Requests without the editor fields retain the existing text behavior.
+        if (array_intersect($fields, array_keys($validated)) === []) {
+            return $validated;
+        }
+
+        foreach ($fields as $field) {
+            $validated[$field] = $validated[$field] ?? null;
+        }
+
+        $ageType = $validated['eligibility_age_type'];
+        if (! in_array($ageType, ['minimum', 'range'], true)) {
+            $validated['eligibility_min_age'] = null;
+        }
+        if ($ageType !== 'range') {
+            $validated['eligibility_max_age'] = null;
+        }
+        if ($validated['eligibility_residency'] !== 'custom') {
+            $validated['eligibility_residency_custom'] = null;
+        }
+
+        // Normalize numbers so entries such as 018 never reach the readable summary.
+        foreach (['eligibility_min_age', 'eligibility_max_age'] as $field) {
+            if ($validated[$field] !== null) {
+                $validated[$field] = (int) $validated[$field];
+            }
+        }
+
+        $min = $validated['eligibility_min_age'];
+        $max = $validated['eligibility_max_age'];
+        $lines = [
+            match ($ageType) {
+                'none' => 'Age: No age requirement.',
+                'minimum' => "Age: {$min} ".($min === 1 ? 'year' : 'years').' old and above.',
+                'range' => "Age: {$min}–{$max} years old (inclusive).",
+                default => null,
+            },
+            match ($validated['eligibility_citizenship']) {
+                'none' => 'Citizenship: No specific citizenship requirement.',
+                'filipino' => 'Citizenship: Filipino citizen required.',
+                default => null,
+            },
+            match ($validated['eligibility_residency']) {
+                'none' => 'Residency: No specific residency requirement.',
+                'philippines' => 'Residency: Philippine resident required.',
+                'santa_maria' => 'Residency: Santa Maria, Bulacan resident required.',
+                'custom' => 'Residency: '.$validated['eligibility_residency_custom'],
+                default => null,
+            },
+            $validated['eligibility_other_conditions'],
+        ];
+
+        // Keep the existing CMS/API string in sync with the structured selections.
+        $summary = implode("\n", array_filter($lines, fn ($line) => $line !== null && $line !== ''));
+        $validated['eligibility'] = $summary !== '' ? $summary : null;
+
+        return $validated;
     }
 
     private function prepareValidity(

@@ -250,13 +250,21 @@
         </section>
 
 
-        {{-- REQUIREMENTS & ELIGIBILITY --}}
+        {{-- ELIGIBILITY --}}
+        <section class="admin-panel p-6" aria-label="Eligibility">
+            @include('admin.government_ids.partials.eligibility-fields', [
+                'eligibilityRecord' => null,
+            ])
+        </section>
+
+
+        {{-- REQUIREMENTS & PREREQUISITES --}}
         <section class="admin-panel p-6">
 
             <div class="mb-6">
 
                 <h2 class="text-lg font-semibold text-slate-900">
-                    Requirements & Eligibility
+                    Requirements & Prerequisites
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
@@ -267,27 +275,6 @@
 
 
             <div class="grid gap-6">
-
-                {{-- ELIGIBILITY --}}
-                <div>
-
-                    <label
-                        for="eligibility"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Eligibility
-                    </label>
-
-                    <textarea
-                        id="eligibility"
-                        name="eligibility"
-                        rows="4"
-                        class="admin-input"
-                        placeholder="Who may apply for this ID?"
-                    >{{ old('eligibility') }}</textarea>
-
-                </div>
-
 
                 {{-- REQUIREMENTS --}}
                 <div>
