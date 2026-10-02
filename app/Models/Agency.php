@@ -17,4 +17,9 @@ class Agency extends Model
     {
         return $this->hasMany(GovernmentId::class);
     }
+
+    public function offices(): HasMany
+    {
+        return $this->hasMany(Office::class);
+    }
 }

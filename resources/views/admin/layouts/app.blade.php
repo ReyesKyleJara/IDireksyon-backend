@@ -214,6 +214,19 @@
 
 </a>
 
+    {{-- Offices --}}
+    <a href="{{ route('admin.offices.index') }}"
+        @if(request()->routeIs('admin.offices.*')) aria-current="page" @endif
+        class="mt-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition
+        {{ request()->routeIs('admin.offices.*') ? 'bg-[#012877] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-[#012877]' }}">
+        <svg aria-hidden="true" class="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"></path>
+            <circle cx="12" cy="10" r="2.5"></circle>
+        </svg>
+        Offices
+    </a>
+
+
 </div>
 
 

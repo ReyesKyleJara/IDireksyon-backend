@@ -446,73 +446,9 @@
         </section>
 
 
-        {{-- OFFICE INFORMATION --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Office Information
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Location and operating-hour information relevant to applicants.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6 sm:grid-cols-2">
-
-                {{-- OFFICE LOCATION --}}
-                <div>
-
-                    <label
-                        for="office_location"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Government Office / Location
-                    </label>
-
-                    <input
-                        id="office_location"
-                        name="office_location"
-                        value="{{ old(
-                            'office_location',
-                            $governmentId->office_location
-                        ) }}"
-                        class="admin-input"
-                    >
-
-                </div>
-
-
-                {{-- OFFICE HOURS --}}
-                <div>
-
-                    <label
-                        for="office_hours"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Office Hours
-                    </label>
-
-                    <input
-                        id="office_hours"
-                        name="office_hours"
-                        value="{{ old(
-                            'office_hours',
-                            $governmentId->office_hours
-                        ) }}"
-                        class="admin-input"
-                    >
-
-                </div>
-
-            </div>
-
-        </section>
-
+        @include('admin.government_ids.partials.office-links-field', [
+            'selectedOffices' => $governmentId->offices,
+        ])
 
         {{-- SOURCES & VERIFICATION --}}
         <section class="admin-panel p-6">
@@ -520,11 +456,11 @@
             <div class="mb-6">
 
                 <h2 class="text-lg font-semibold text-slate-900">
-                    Sources & Verification
+                    Sources
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Record the official sources used and the current verification status.
+                    Record useful official websites and reference material.
                 </p>
 
             </div>
@@ -582,80 +518,6 @@
 
                 </div>
 
-
-                {{-- VERIFICATION STATUS --}}
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-
-                    <p class="text-sm font-semibold text-slate-900">
-                        Verification Status
-                    </p>
-
-
-                    @if ($governmentId->last_verified_at)
-
-                        <div class="mt-3 space-y-1 text-sm text-slate-600">
-
-                            <p>
-
-                                <span class="font-medium text-slate-700">
-                                    Last verified:
-                                </span>
-
-                                {{ $governmentId->last_verified_at->format('F j, Y') }}
-
-                            </p>
-
-
-                            <p>
-
-                                <span class="font-medium text-slate-700">
-                                    Verified by:
-                                </span>
-
-                                {{
-                                    $governmentId->lastVerifier?->name
-                                    ?? $governmentId->lastVerifier?->email
-                                    ?? 'Unknown user'
-                                }}
-
-                            </p>
-
-                        </div>
-
-                    @else
-
-                        <p class="mt-2 text-sm text-amber-700">
-                            This record has not yet been verified.
-                        </p>
-
-                    @endif
-
-
-                    <label class="mt-5 flex items-start gap-3">
-
-                        <input
-                            type="checkbox"
-                            name="verify_today"
-                            value="1"
-                            class="mt-1 rounded border-slate-300"
-                            @checked(old('verify_today', false))
-                        >
-
-                        <span>
-
-                            <span class="block text-sm font-medium text-slate-900">
-                                Re-verify this information today
-                            </span>
-
-                            <span class="mt-1 block text-xs text-slate-500">
-                                Check this only if you reviewed the current information against official sources.
-                            </span>
-
-                        </span>
-
-                    </label>
-
-                </div>
 
             </div>
 

@@ -96,58 +96,11 @@
     {{-- MAIN ID HEADER --}}
     <article class="admin-panel overflow-hidden">
 
-        <div
-            class="flex h-44 items-center justify-center
-                   bg-slate-100 text-slate-400"
-        >
-
-            <div class="text-center">
-
-                <svg
-                    aria-hidden="true"
-                    class="mx-auto mb-2 h-12 w-12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                >
-                    <rect
-                        x="2"
-                        y="4"
-                        width="20"
-                        height="16"
-                        rx="3"
-                    />
-
-                    <circle
-                        cx="8"
-                        cy="10"
-                        r="2"
-                    />
-
-                    <path
-                        d="M5 16c0-3 6-3 6 0M14 9h5M14 13h5"
-                    />
-                </svg>
-
-                <span class="text-xs">
-                    No image yet
-                </span>
-
-            </div>
-
-        </div>
-
-
         <div class="p-6 sm:p-8">
 
-            <p class="admin-eyebrow mb-3">
-                {{ $governmentId->category ?: 'No category' }}
-
-                |
-
-                {{ $governmentId->level ?: 'No level' }}
-            </p>
+            @if(filled($governmentId->category) || filled($governmentId->level))
+                <p class="admin-eyebrow mb-3">{{ collect([$governmentId->category, $governmentId->level])->filter(fn ($value) => filled($value))->implode(' | ') }}</p>
+            @endif
 
 
             <h1
@@ -158,27 +111,11 @@
             </h1>
 
 
-            <p class="mt-3 break-words text-sm text-slate-500">
-
-                Issued by:
-
-                @if($governmentId->agency)
-
-                    <span class="font-medium text-slate-700">
-                        {{ $governmentId->agency->name }}
-
-                        @if($governmentId->agency->acronym)
-                            ({{ $governmentId->agency->acronym }})
-                        @endif
-                    </span>
-
-                @else
-
-                    Not available yet.
-
-                @endif
-
-            </p>
+            @if($governmentId->agency)
+                <p class="mt-3 break-words text-sm text-slate-500">
+                    Issued by: <span class="font-medium text-slate-700">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</span>
+                </p>
+            @endif
 
 
             @if($governmentId->agency?->official_website)
@@ -201,187 +138,38 @@
 
 
     {{-- BASIC INFORMATION --}}
-    <div class="mt-6 grid gap-5 md:grid-cols-2">
-
-        {{-- PURPOSE --}}
-        <section class="admin-panel p-6 md:col-span-2">
-
-            <h2 class="mb-3 text-base font-bold text-slate-900">
-                Purpose / Use
-            </h2>
-
-            @if(filled($governmentId->purpose))
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{ $governmentId->purpose }}
-                </p>
-
-            @else
-
-                <p class="text-sm text-slate-400">
-                    Not available yet.
-                </p>
-
-            @endif
-
-        </section>
-
-
-        {{-- DESCRIPTION --}}
-        <section class="admin-panel p-6 md:col-span-2">
-
-            <h2 class="mb-3 text-base font-bold text-slate-900">
-                Description
-            </h2>
-
-            @if(filled($governmentId->description))
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{ $governmentId->description }}
-                </p>
-
-            @else
-
-                <p class="text-sm text-slate-400">
-                    Not available yet.
-                </p>
-
-            @endif
-
-        </section>
-
-
-        {{-- VALIDITY --}}
-        @if($governmentId->validity_type !== 'not_applicable')
-            <section class="admin-panel p-6">
-
-                <h2 class="mb-3 text-base font-bold text-slate-900">
-                    Validity Period
-                </h2>
-
-                @if(filled($governmentId->validity))
-
-                    <p class="text-sm font-medium text-slate-700">
-                        {{ $governmentId->validity }}
-                    </p>
-
-                @else
-
-                    <p class="text-sm text-slate-400">
-                        Not available yet.
-                    </p>
-
+    @if(filled($governmentId->purpose) || filled($governmentId->description) || ($governmentId->validity_type !== 'not_applicable' && filled($governmentId->validity)) || filled($governmentId->processing_time))
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
+            @foreach(['purpose' => 'Purpose / Use', 'description' => 'Description', 'validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
+                @if(filled($governmentId->$field) && ! ($field === 'validity' && $governmentId->validity_type === 'not_applicable'))
+                    <section @class(['admin-panel p-6', 'md:col-span-2' => in_array($field, ['purpose', 'description'], true)])>
+                        <h2 class="mb-3 text-base font-bold text-slate-900">{{ $label }}</h2>
+                        <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->$field }}</p>
+                    </section>
                 @endif
-
-            </section>
-        @endif
-
-
-        {{-- PROCESSING TIME --}}
-        <section class="admin-panel p-6">
-
-            <h2 class="mb-3 text-base font-bold text-slate-900">
-                Processing Time
-            </h2>
-
-            @if(filled($governmentId->processing_time))
-
-                <p class="text-sm font-medium text-slate-700">
-                    {{ $governmentId->processing_time }}
-                </p>
-
-            @else
-
-                <p class="text-sm text-slate-400">
-                    Not available yet.
-                </p>
-
-            @endif
-
-        </section>
-
-    </div>
-
+            @endforeach
+        </div>
+    @endif
 
     {{-- REQUIREMENTS --}}
-    <section class="admin-panel mt-6 p-6">
-
-        <div class="mb-6">
-
-            <h2 class="text-lg font-semibold text-slate-900">
-                Requirements & Eligibility
-            </h2>
-
-        </div>
-
-
-        <div class="space-y-6">
-
-            {{-- ELIGIBILITY --}}
-            <div>
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Eligibility
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{ $governmentId->eligibility ?: 'Not available yet.' }}
-                </p>
-
+    @if(filled($governmentId->eligibility) || filled($governmentId->requirements) || filled($governmentId->prerequisite_notes))
+        <section class="admin-panel mt-6 p-6">
+            <h2 class="mb-6 text-lg font-semibold text-slate-900">Requirements & Eligibility</h2>
+            <div class="space-y-6">
+                @foreach(['eligibility' => 'Eligibility', 'requirements' => 'Requirements', 'prerequisite_notes' => 'Prerequisites / Dependencies'] as $field => $label)
+                    @if(filled($governmentId->$field))
+                        <div>
+                            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ $label }}</h3>
+                            <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->$field }}</p>
+                        </div>
+                    @endif
+                @endforeach
             </div>
-
-
-            {{-- REQUIREMENTS --}}
-            <div class="border-t border-slate-100 pt-5">
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Requirements
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{ $governmentId->requirements ?: 'Not available yet.' }}
-                </p>
-
-            </div>
-
-
-            {{-- PREREQUISITES --}}
-            <div class="border-t border-slate-100 pt-5">
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Prerequisites / Dependencies
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->prerequisite_notes
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
-        </div>
-
-    </section>
-
+        </section>
+    @endif
 
     {{-- APPLICATION GUIDE --}}
+    @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee) || filled($governmentId->application_process) || filled($governmentId->renewal_process) || filled($governmentId->replacement_process))
     <section class="admin-panel mt-6 p-6">
 
         <h2 class="mb-6 text-lg font-semibold text-slate-900">
@@ -392,6 +180,7 @@
         <div class="space-y-7">
 
             {{-- MULTIPLE FEES --}}
+            @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee))
             <div>
 
                 <h3 class="mb-3 text-sm font-semibold text-slate-700">
@@ -513,11 +302,6 @@
 
                                             @break
 
-
-                                        @default
-
-                                            Not available
-
                                     @endswitch
 
                                 </p>
@@ -539,280 +323,158 @@
                         {{ $governmentId->fee }}
                     </p>
 
-
-                @else
-
-                    <p class="text-sm text-slate-400">
-                        Not available yet.
-                    </p>
-
                 @endif
 
             </div>
 
 
-            {{-- APPLICATION PROCESS --}}
-            <div class="border-t border-slate-100 pt-6">
+            @endif
 
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Application Process / Steps
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->application_process
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
-
-            {{-- RENEWAL PROCESS --}}
-            <div class="border-t border-slate-100 pt-6">
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Renewal Process
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->renewal_process
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
-
-            {{-- REPLACEMENT PROCESS --}}
-            <div class="border-t border-slate-100 pt-6">
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Replacement Process
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->replacement_process
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
+            @foreach(['application_process' => 'Application Process / Steps', 'renewal_process' => 'Renewal Process', 'replacement_process' => 'Replacement Process'] as $field => $label)
+                @if(filled($governmentId->$field))
+                    <div>
+                        <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ $label }}</h3>
+                        <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->$field }}</p>
+                    </div>
+                @endif
+            @endforeach
         </div>
-
     </section>
+    @endif
 
-
-    {{-- OFFICE --}}
+    {{-- LINKED OFFICES --}}
+    @if($governmentId->offices->isNotEmpty())
     <section class="admin-panel mt-6 p-6">
-
-        <h2 class="mb-6 text-lg font-semibold text-slate-900">
-            Office Information
-        </h2>
-
-
-        <div class="grid gap-6 md:grid-cols-2">
-
-            {{-- LOCATION --}}
-            <div>
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Government Office / Location
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->office_location
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
-
-            {{-- OFFICE HOURS --}}
-            <div>
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Office Hours
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->office_hours
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
-            </div>
-
+        <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
+        <p class="mt-1 text-sm text-slate-500">Branches researched for this ID. Draft and inactive branches remain hidden from residents.</p>
+        <div class="mt-5 space-y-4">
+            @foreach($governmentId->offices as $office)
+                <article class="rounded-xl border border-slate-200 p-5">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="font-semibold text-slate-900">{{ $office->name }}</h3>
+                            @if(filled($office->agency?->name))
+                                <p class="mt-1 text-sm text-slate-500">{{ $office->agency->name }}</p>
+                            @endif
+                            @php
+                                $officeAddress = collect([$office->address, $office->municipality, $office->province])
+                                    ->filter(fn ($value) => filled($value))
+                                    ->implode(', ');
+                            @endphp
+                            @if(filled($officeAddress))
+                                <p class="mt-1 text-sm text-slate-500">{{ $officeAddress }}</p>
+                            @endif
+                        </div>
+                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{{ ucfirst($office->status) }}</span>
+                    </div>
+                    @php
+                        $services = collect(['new_application_status' => 'New Application', 'renewal_status' => 'Renewal', 'replacement_status' => 'Replacement'])
+                            ->filter(fn ($label, $field) => in_array($office->pivot->$field, ['available', 'unavailable'], true));
+                        $schedules = $office->schedules->filter(fn ($schedule) => $schedule->status === 'closed' || ($schedule->status === 'open' && $schedule->intervals->isNotEmpty()));
+                        $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    @endphp
+                    @if($services->isNotEmpty())
+                        <dl class="mt-4 grid gap-3 sm:grid-cols-3">
+                            @foreach($services as $field => $label)
+                                <div>
+                                    <dt class="text-xs text-slate-500">{{ $label }}</dt>
+                                    <dd class="mt-1 text-sm font-medium text-slate-800">{{ $office->pivot->$field === 'available' ? 'Available' : 'Not available' }}</dd>
+                                </div>
+                            @endforeach
+                        </dl>
+                    @endif
+                    @if($schedules->isNotEmpty())
+                        <div class="mt-4">
+                            <h4 class="mb-2 text-sm font-semibold text-slate-700">Office Hours</h4>
+                            <dl class="space-y-2 text-sm">
+                                @foreach($schedules as $schedule)
+                                    <div class="flex flex-wrap gap-x-4 gap-y-1">
+                                        <dt class="w-24 font-medium text-slate-700">{{ $dayNames[$schedule->day_of_week] }}</dt>
+                                        <dd class="text-slate-600">
+                                            @if($schedule->status === 'closed')
+                                                Closed
+                                            @else
+                                                @foreach($schedule->intervals as $interval)
+                                                    {{ \Carbon\Carbon::createFromFormat('H:i', substr($interval->opens_at, 0, 5))->format('g:i A') }}–{{ \Carbon\Carbon::createFromFormat('H:i', substr($interval->closes_at, 0, 5))->format('g:i A') }}@unless($loop->last), @endunless
+                                                @endforeach
+                                            @endif
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    @endif
+                    @if(filled($office->pivot->service_notes))
+                        <p class="mt-4 whitespace-pre-line break-words text-sm text-slate-600">{{ $office->pivot->service_notes }}</p>
+                    @endif
+                    <div class="mt-3 flex flex-wrap gap-4 text-sm">
+                        <a href="{{ route('admin.offices.edit', $office) }}" class="font-medium text-[#012877] hover:underline">Office details & hours</a>
+                        @if($office->pivot->source_url && in_array(strtolower(parse_url($office->pivot->source_url, PHP_URL_SCHEME) ?? ''), ['http', 'https'], true))
+                            <a href="{{ $office->pivot->source_url }}" target="_blank" rel="noopener noreferrer" class="font-medium text-[#012877] hover:underline">Service source ↗</a>
+                        @endif
+                    </div>
+                </article>
+            @endforeach
         </div>
-
     </section>
+    @endif
 
+    {{-- LEGACY OFFICE INFORMATION --}}
+    @if($governmentId->offices->isEmpty() && (filled($governmentId->office_location) || filled($governmentId->office_hours)))
+        <section class="admin-panel mt-6 p-6">
+            <h2 class="mb-6 text-lg font-semibold text-slate-900">Office Information</h2>
+            <div class="grid gap-6 md:grid-cols-2">
+                @foreach(['office_location' => 'Government Office / Location', 'office_hours' => 'Office Hours'] as $field => $label)
+                    @if(filled($governmentId->$field))
+                        <div>
+                            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ $label }}</h3>
+                            <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->$field }}</p>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     {{-- SOURCES --}}
+    @if(filled($governmentId->official_link) || filled($governmentId->official_sources))
+        <section class="admin-panel mt-6 p-6">
+            <h2 class="mb-6 text-lg font-semibold text-slate-900">Sources</h2>
+            <div class="space-y-6">
+                @if(filled($governmentId->official_link))
+                    <div>
+                        <h3 class="mb-2 text-sm font-semibold text-slate-700">Official Website / Application Link</h3>
+                        <a href="{{ $governmentId->official_link }}" target="_blank" rel="noopener noreferrer" class="break-all text-sm font-medium text-[#012877] hover:underline">{{ $governmentId->official_link }}</a>
+                    </div>
+                @endif
+                @if(filled($governmentId->official_sources))
+                    <div>
+                        <h3 class="mb-2 text-sm font-semibold text-slate-700">Official Sources</h3>
+                        <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->official_sources }}</p>
+                    </div>
+                @endif
+            </div>
+        </section>
+    @endif
+
     <section class="admin-panel mt-6 p-6">
-
-        <h2 class="mb-6 text-lg font-semibold text-slate-900">
-            Sources & Verification
-        </h2>
-
-
-        <div class="space-y-6">
-
-            {{-- OFFICIAL LINK --}}
+        <h2 class="mb-4 text-lg font-semibold text-slate-900">Edit History</h2>
+        <dl class="grid gap-4 sm:grid-cols-2">
             <div>
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Official Website / Application Link
-                </h3>
-
-
-                @if($governmentId->official_link)
-
-                    <a
-                        href="{{ $governmentId->official_link }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="break-all text-sm font-medium
-                               text-[#012877] hover:underline"
-                    >
-                        {{ $governmentId->official_link }}
-                    </a>
-
-                @else
-
-                    <p class="text-sm text-slate-400">
-                        Not available yet.
-                    </p>
-
-                @endif
-
+                <dt class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created by' : 'Last edited by' }}</dt>
+                <dd class="mt-1 font-medium text-slate-800">{{ $lastEdit?->user?->name ?? 'Editor not recorded' }}</dd>
             </div>
-
-
-            {{-- OFFICIAL SOURCES --}}
-            <div class="border-t border-slate-100 pt-5">
-
-                <h3 class="mb-2 text-sm font-semibold text-slate-700">
-                    Official Sources
-                </h3>
-
-                <p
-                    class="whitespace-pre-line break-words
-                           text-sm leading-7 text-slate-600"
-                >
-                    {{
-                        $governmentId->official_sources
-                        ?: 'Not available yet.'
-                    }}
-                </p>
-
+            <div>
+                <dt class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created on' : 'Last edited' }}</dt>
+                <dd class="mt-1 text-sm text-slate-700">
+                    @php($editTime = $lastEdit?->created_at ?? $governmentId->updated_at)
+                    {{ $editTime ? $editTime->copy()->timezone('Asia/Manila')->format('F j, Y · g:i A').' PHT' : 'Not recorded' }}
+                </dd>
             </div>
-
-
-            {{-- VERIFICATION STATUS --}}
-            <div class="border-t border-slate-100 pt-5">
-
-                <h3 class="mb-3 text-sm font-semibold text-slate-700">
-                    Verification Status
-                </h3>
-
-
-                @if($governmentId->last_verified_at)
-
-                    <div class="space-y-2">
-
-                        <div
-                            class="inline-flex items-center gap-2 rounded-full
-                                   bg-emerald-50 px-3 py-1
-                                   text-xs font-medium text-emerald-700"
-                        >
-                            <span
-                                class="h-2 w-2 rounded-full
-                                       bg-emerald-500"
-                            ></span>
-
-                            Verified
-                        </div>
-
-
-                        <div class="space-y-1 text-sm text-slate-600">
-
-                            <p>
-
-                                <span class="font-medium text-slate-700">
-                                    Last verified:
-                                </span>
-
-                                {{
-                                    $governmentId
-                                        ->last_verified_at
-                                        ->format('F j, Y')
-                                }}
-
-                            </p>
-
-
-                            <p>
-
-                                <span class="font-medium text-slate-700">
-                                    Verified by:
-                                </span>
-
-                                {{
-                                    $governmentId->lastVerifier?->name
-                                    ?? $governmentId->lastVerifier?->email
-                                    ?? 'Unknown user'
-                                }}
-
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                @else
-
-                    <div
-                        class="inline-flex items-center gap-2 rounded-full
-                               bg-amber-50 px-3 py-1
-                               text-xs font-medium text-amber-700"
-                    >
-                        <span
-                            class="h-2 w-2 rounded-full bg-amber-500"
-                        ></span>
-
-                        Not yet verified
-                    </div>
-
-                @endif
-
-            </div>
-
-        </div>
-
+        </dl>
+        @if(! $lastEdit)
+            <p class="mt-3 text-xs text-slate-500">No recorded CMS edit history is available. The date above is the record’s last update time.</p>
+        @endif
     </section>
-
 </div>
-
 @endsection

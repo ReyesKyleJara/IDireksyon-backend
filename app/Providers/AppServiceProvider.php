@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\GovernmentId;
 use App\Models\User;
 use App\Models\Document;
+use App\Models\Office;
 use App\Observers\CmsAuditObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -26,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         GovernmentId::observe(CmsAuditObserver::class);
         Document::observe(CmsAuditObserver::class);
+        Office::observe(CmsAuditObserver::class);
         User::observe(CmsAuditObserver::class);
 
         Gate::define('access-cms', fn (User $user) => $user->canAccessCms());

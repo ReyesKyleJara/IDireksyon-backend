@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\GovernmentIdController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\AgencyController;
+use App\Http\Controllers\Admin\OfficeController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -30,6 +31,9 @@ Route::prefix('admin')
 
         Route::resource('documents', DocumentController::class)
             ->except(['show']);
+
+        Route::resource('offices', OfficeController::class)
+            ->only(['index', 'create', 'store', 'edit', 'update']);
 
         // Agencies
         Route::post('agencies', [AgencyController::class, 'store'])

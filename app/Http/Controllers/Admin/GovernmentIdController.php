@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
 use App\Models\GovernmentId;
+use App\Models\GovernmentIdOffice;
+use App\Models\Office;
+use App\Models\ContentChangeLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -71,25 +74,34 @@ class GovernmentIdController extends Controller
     {
         $governmentId->load([
             'agency',
-            'lastVerifier',
+            'offices.agency',
+            'offices.schedules.intervals',
             'fees' => fn ($query) => $query->orderBy('sort_order'),
         ]);
 
+        $lastEdit = ContentChangeLog::with('user')
+            ->where('entity_type', 'government_id')
+            ->where('entity_id', $governmentId->id)
+            ->whereIn('action', ['created', 'updated'])
+            ->latest('created_at')->orderByDesc('id')->first();
+
         return view(
             'admin.government_ids.show',
-            compact('governmentId')
+            compact('governmentId', 'lastEdit')
         );
     }
 
     public function create()
     {
+        $offices = Office::with('agency')->orderBy('name')->get();
+
         $agencies = Agency::query()
             ->orderBy('name')
             ->get();
 
         return view(
             'admin.government_ids.create',
-            compact('agencies')
+            compact('agencies', 'offices')
         );
     }
 
@@ -99,16 +111,13 @@ class GovernmentIdController extends Controller
             $this->validateGovernmentId($request)
         );
 
+        $officeRows = $this->prepareOfficeLinks($request);
+
         $feeRows = $this->prepareFeeRows(
             $validated['fees'] ?? []
         );
 
-        $verifyToday = $request->boolean('verify_today');
-
-        unset(
-            $validated['fees'],
-            $validated['verify_today']
-        );
+        unset($validated['fees']);
 
         /*
          * The new government_id_fees table
@@ -135,7 +144,7 @@ class GovernmentIdController extends Controller
         $governmentId = DB::transaction(function () use (
             $validated,
             $feeRows,
-            $verifyToday
+            $officeRows
         ) {
             $governmentId = GovernmentId::create(
                 $validated
@@ -146,11 +155,10 @@ class GovernmentIdController extends Controller
                 $feeRows
             );
 
-            if ($verifyToday) {
-                $governmentId->last_verified_at = now();
-                $governmentId->last_verified_by = auth()->id();
-                $governmentId->save();
+            if ($officeRows !== null) {
+                $this->syncOfficeLinks($governmentId, $officeRows);
             }
+
 
             return $governmentId;
         });
@@ -174,9 +182,11 @@ class GovernmentIdController extends Controller
     {
         $governmentId->load([
             'agency',
-            'lastVerifier',
+            'offices.agency',
             'fees' => fn ($query) => $query->orderBy('sort_order'),
         ]);
+
+        $offices = Office::with('agency')->orderBy('name')->get();
 
         $agencies = Agency::query()
             ->orderBy('name')
@@ -186,7 +196,8 @@ class GovernmentIdController extends Controller
             'admin.government_ids.edit',
             compact(
                 'governmentId',
-                'agencies'
+                'agencies',
+                'offices'
             )
         );
     }
@@ -203,22 +214,17 @@ class GovernmentIdController extends Controller
          * Get the dynamic fee rows before removing
          * them from the main GovernmentId data.
          */
+        $officeRows = $this->prepareOfficeLinks($request);
+
         $feeRows = $this->prepareFeeRows(
             $validated['fees'] ?? []
-        );
-
-        $verifyToday = $request->boolean(
-            'verify_today'
         );
 
         /*
          * These values do not belong directly
          * in GovernmentId::update().
          */
-        unset(
-            $validated['fees'],
-            $validated['verify_today']
-        );
+        unset($validated['fees']);
 
         /*
          * Stop using the old one-fee structured
@@ -244,7 +250,7 @@ class GovernmentIdController extends Controller
             $governmentId,
             $validated,
             $feeRows,
-            $verifyToday
+            $officeRows
         ) {
             /*
              * Update the main Government ID record.
@@ -261,15 +267,10 @@ class GovernmentIdController extends Controller
                 $feeRows
             );
 
-            /*
-             * Only update verification information
-             * when explicitly selected by researcher.
-             */
-            if ($verifyToday) {
-                $governmentId->last_verified_at = now();
-                $governmentId->last_verified_by = auth()->id();
-                $governmentId->save();
+            if ($officeRows !== null) {
+                $this->syncOfficeLinks($governmentId, $officeRows);
             }
+
         });
 
         /*
@@ -301,6 +302,57 @@ class GovernmentIdController extends Controller
                 'success',
                 'ID or credential deleted successfully.'
             );
+    }
+
+    private function prepareOfficeLinks(Request $request): ?array
+    {
+        $data = $request->validate([
+            'office_links_present' => ['sometimes', 'boolean'],
+            'office_links' => ['sometimes', 'array', 'max:100'],
+            'office_links.*' => ['array:office_id,new_application_status,renewal_status,replacement_status,service_notes'],
+            'office_links.*.office_id' => ['required', 'integer', 'distinct', 'exists:offices,id'],
+            'office_links.*.new_application_status' => ['required', 'in:unknown,available,unavailable'],
+            'office_links.*.renewal_status' => ['required', 'in:unknown,available,unavailable'],
+            'office_links.*.replacement_status' => ['required', 'in:unknown,available,unavailable'],
+            'office_links.*.service_notes' => ['nullable', 'string', 'max:10000'],
+        ]);
+
+        // A request from outside the editor must not silently remove existing links.
+        if (! $request->boolean('office_links_present') && ! array_key_exists('office_links', $data)) {
+            return null;
+        }
+
+        return $data['office_links'] ?? [];
+    }
+
+    private function syncOfficeLinks(GovernmentId $governmentId, array $rows): void
+    {
+        $retained = [];
+        $changed = false;
+        foreach ($rows as $row) {
+            $retained[] = (int) $row['office_id'];
+            $link = GovernmentIdOffice::firstOrNew([
+                'government_id_id' => $governmentId->id,
+                'office_id' => $row['office_id'],
+            ]);
+            $link->fill([
+                'new_application_status' => $row['new_application_status'],
+                'renewal_status' => $row['renewal_status'],
+                'replacement_status' => $row['replacement_status'],
+                'service_notes' => $row['service_notes'] ?? null,
+            ]);
+
+            if (! $link->exists || $link->isDirty()) {
+                $link->save();
+                $changed = true;
+            }
+        }
+
+        $removed = GovernmentIdOffice::where('government_id_id', $governmentId->id)
+            ->whereNotIn('office_id', $retained)->delete();
+        if ($changed || $removed) {
+            ContentChangeLog::record($governmentId, 'updated', ['offices']);
+        }
     }
 
     private function validateGovernmentId(
@@ -601,16 +653,6 @@ class GovernmentIdController extends Controller
                 'string',
             ],
 
-            /*
-             * =====================================================
-             * VERIFICATION
-             * =====================================================
-             */
-
-            'verify_today' => [
-                'nullable',
-                'boolean',
-            ],
         ]);
     }
 
@@ -1084,6 +1126,9 @@ class GovernmentIdController extends Controller
         GovernmentId $governmentId,
         array $feeRows
     ): void {
+        $feeFields = ['label', 'type', 'amount_min', 'amount_max', 'currency', 'is_optional', 'notes', 'sort_order'];
+        $previousFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->get($feeFields)->toArray();
+
         /*
          * Replace current fee rows with
          * the latest submitted list.
@@ -1197,5 +1242,10 @@ class GovernmentIdController extends Controller
         $governmentId->fee_notes = null;
 
         $governmentId->save();
+
+        $currentFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->get($feeFields)->toArray();
+        if ($previousFees !== $currentFees) {
+            ContentChangeLog::record($governmentId, 'updated', ['fees']);
+        }
     }
 }

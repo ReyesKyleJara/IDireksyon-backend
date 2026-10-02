@@ -432,69 +432,9 @@
         </section>
 
 
-        {{-- OFFICE INFORMATION --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Office Information
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Location and operating-hour information relevant to applicants.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6 sm:grid-cols-2">
-
-                {{-- OFFICE LOCATION --}}
-                <div>
-
-                    <label
-                        for="office_location"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Government Office / Location
-                    </label>
-
-                    <input
-                        id="office_location"
-                        name="office_location"
-                        value="{{ old('office_location') }}"
-                        class="admin-input"
-                        placeholder="Office or branch information"
-                    >
-
-                </div>
-
-
-                {{-- OFFICE HOURS --}}
-                <div>
-
-                    <label
-                        for="office_hours"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Office Hours
-                    </label>
-
-                    <input
-                        id="office_hours"
-                        name="office_hours"
-                        value="{{ old('office_hours') }}"
-                        class="admin-input"
-                        placeholder="e.g. Monday–Friday, 8:00 AM–5:00 PM"
-                    >
-
-                </div>
-
-            </div>
-
-        </section>
-
+        @include('admin.government_ids.partials.office-links-field', [
+            'selectedOffices' => collect(),
+        ])
 
         {{-- SOURCES & VERIFICATION --}}
         <section class="admin-panel p-6">
@@ -502,11 +442,11 @@
             <div class="mb-6">
 
                 <h2 class="text-lg font-semibold text-slate-900">
-                    Sources & Verification
+                    Sources
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Record the official sources used to verify this information.
+                    Record useful official websites and reference material.
                 </p>
 
             </div>
@@ -557,40 +497,11 @@
                         name="official_sources"
                         rows="5"
                         class="admin-input"
-                        placeholder="List the official pages, advisories, or documents used for verification."
+                        placeholder="List the official pages, advisories, or documents used for research."
                     >{{ old('official_sources') }}</textarea>
 
                 </div>
 
-
-                {{-- VERIFICATION --}}
-                <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-
-                    <label class="flex items-start gap-3">
-
-                        <input
-                            type="checkbox"
-                            name="verify_today"
-                            value="1"
-                            class="mt-1 rounded border-slate-300"
-                            @checked(old('verify_today', true))
-                        >
-
-                        <span>
-
-                            <span class="block text-sm font-semibold text-slate-900">
-                                Mark this information as verified today
-                            </span>
-
-                            <span class="mt-1 block text-xs text-slate-600">
-                                Keep this checked only if the information has been reviewed against official sources.
-                            </span>
-
-                        </span>
-
-                    </label>
-
-                </div>
 
             </div>
 

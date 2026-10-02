@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GovernmentId extends Model
@@ -80,6 +81,18 @@ class GovernmentId extends Model
     public function lastVerifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_verified_by');
+    }
+
+    public function offices(): BelongsToMany
+    {
+        return $this->belongsToMany(Office::class, 'government_id_office')
+            ->using(GovernmentIdOffice::class)
+            ->withPivot([
+                'id', 'new_application_status', 'renewal_status',
+                'replacement_status', 'service_notes', 'source_url',
+                'last_verified_at', 'last_verified_by',
+            ])
+            ->withTimestamps();
     }
 
     public function fees(): HasMany
