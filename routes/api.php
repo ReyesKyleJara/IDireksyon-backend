@@ -42,6 +42,8 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [ResidentAuthController::class, 'me']);
         Route::post('profile-setup', [ResidentAuthController::class, 'setup']);
+        Route::post('account', [ResidentAuthController::class, 'updateAccount'])->middleware('throttle:5,1');
+        Route::post('password', [ResidentAuthController::class, 'updatePassword'])->middleware('throttle:5,1');
         Route::post('logout', [ResidentAuthController::class, 'logout']);
     });
 });

@@ -104,4 +104,42 @@ class ResidentAuthController extends Controller
 
         return response()->json(['message' => 'Logged out.']);
     }
+
+    public function updateAccount(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->is_active && $user->role === 'resident', 403);
+        $contact = $user->email !== null ? 'email' : 'phone';
+        $value = $request->input($contact);
+        $request->merge([
+            'name' => is_string($request->name) ? trim($request->name) : $request->name,
+            $contact => is_string($value) ? ($contact === 'email' ? strtolower(trim($value)) : $this->phone($value)) : $value,
+        ]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            $contact => ['required', 'string', 'max:255', $contact === 'email' ? 'email' : 'regex:/^\+639\d{9}$/', Rule::unique('users', $contact)->ignore($user->id)],
+        ]);
+        if ($contact === 'email' && $data['email'] !== $user->email) {
+            $user->email_verified_at = null;
+        }
+        $user->fill($data)->save();
+
+        return response()->json(['user' => $this->profile($user)]);
+    }
+
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->is_active && $user->role === 'resident', 403);
+        $data = $request->validate([
+            'current_password' => ['required', 'string', 'max:128'],
+            'password' => ['required', 'string', 'min:8', 'max:128', 'confirmed', 'different:current_password'],
+        ]);
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages(['current_password' => 'Your current password is incorrect.']);
+        }
+        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+
+        return response()->json(['message' => 'Password updated.']);
+    }
 }
