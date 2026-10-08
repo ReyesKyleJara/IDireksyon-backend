@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\GovernmentIdController;
 use App\Http\Controllers\Api\ResidentAuthController;
+use App\Http\Controllers\Api\ResidentInventoryController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -45,5 +46,7 @@ Route::prefix('auth')->group(function () {
         Route::post('account', [ResidentAuthController::class, 'updateAccount'])->middleware('throttle:5,1');
         Route::post('password', [ResidentAuthController::class, 'updatePassword'])->middleware('throttle:5,1');
         Route::post('logout', [ResidentAuthController::class, 'logout']);
+        Route::get('inventory', [ResidentInventoryController::class, 'show']);
+        Route::put('inventory', [ResidentInventoryController::class, 'update']);
     });
 });

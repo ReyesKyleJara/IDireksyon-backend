@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -82,5 +83,21 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function ownedGovernmentIds(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            GovernmentId::class,
+            'resident_government_ids'
+        )->withTimestamps();
+    }
+
+    public function ownedDocuments(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Document::class,
+            'resident_documents'
+        )->withTimestamps();
     }
 }
