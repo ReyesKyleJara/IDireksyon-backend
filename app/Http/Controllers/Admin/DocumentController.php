@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Document;
+use App\Models\GovernmentIdRequirementItem;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DocumentController extends Controller
 {
@@ -71,7 +74,18 @@ class DocumentController extends Controller
 
     public function destroy(Document $document)
     {
-        $document->delete();
+        $isReferenced = fn () => GovernmentIdRequirementItem::where('document_id', $document->id)->exists();
+        if ($isReferenced()) {
+            return redirect()->route('admin.documents.index')->with('error', 'This document is used in requirement items. Remove those references before deleting it.');
+        }
+        try {
+            DB::transaction(fn () => $document->delete());
+        } catch (QueryException $exception) {
+            if (! $isReferenced()) {
+                throw $exception;
+            }
+            return redirect()->route('admin.documents.index')->with('error', 'This document is used in requirement items. Remove those references before deleting it.');
+        }
 
         return redirect()
             ->route('admin.documents.index')

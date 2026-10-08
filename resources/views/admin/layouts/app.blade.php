@@ -26,9 +26,10 @@
 
         <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
 
-            <span class="text-sm font-semibold text-[#012877]">
-                IDireksyon Admin Panel
-            </span>
+            <div class="flex items-center gap-3">
+                <img src="{{ asset('images/idireksyon-logo.svg') }}" alt="" width="40" height="27" />
+                <span class="text-sm font-semibold text-[#012877]">IDireksyon Admin Panel</span>
+            </div>
 
             <button
                 type="button"
@@ -63,14 +64,7 @@
 
                 <div class="flex items-center gap-3">
 
-                    <div
-                        class="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style="background-color: #012877;"
-                    >
-                        <span class="text-white font-bold text-sm">
-                            ID
-                        </span>
-                    </div>
+                    <img src="{{ asset('images/idireksyon-logo.svg') }}" alt="" width="48" height="33" class="shrink-0" />
 
                     <div>
 
@@ -429,167 +423,30 @@
             {{-- TOAST NOTIFICATIONS --}}
             {{-- ========================================================= --}}
 
-            <div
-                class="pointer-events-none fixed right-4 top-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3 sm:right-6 sm:top-6"
-            >
-
-                {{-- SUCCESS TOAST --}}
-                @if(session('success'))
-
-                    <div
-                        x-data="{ show: true }"
-                        x-show="show"
-                        x-init="setTimeout(() => show = false, 3000)"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        x-transition:leave="transition ease-in duration-200"
-                        x-transition:leave-start="opacity-100 translate-y-0"
-                        x-transition:leave-end="opacity-0 translate-y-2"
-                        class="pointer-events-auto rounded-xl border border-emerald-200 bg-white p-4 shadow-xl"
-                        role="status"
-                    >
-
-                        <div class="flex items-start gap-3">
-
-                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-
-                                <svg
-                                    aria-hidden="true"
-                                    class="h-5 w-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path d="m5 12 4 4L19 6"></path>
-                                </svg>
-
-                            </div>
-
-
-                            <div class="min-w-0 flex-1">
-
-                                <p class="text-sm font-semibold text-slate-900">
-                                    Success
-                                </p>
-
-                                <p class="mt-1 text-sm leading-5 text-slate-600">
-                                    {{ session('success') }}
-                                </p>
-
-                            </div>
-
-
-                            <button
-                                type="button"
-                                @click="show = false"
-                                class="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                                aria-label="Close notification"
-                            >
-
-                                <svg
-                                    aria-hidden="true"
-                                    class="h-4 w-4"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path d="M6 6l12 12"></path>
-                                    <path d="M18 6 6 18"></path>
-                                </svg>
-
+            @php
+                $notifications = collect(['success', 'error', 'warning', 'info'])
+                    ->filter(fn ($type) => is_string(session($type)) && filled(session($type)))
+                    ->map(fn ($type) => ['type' => $type, 'message' => session($type)])
+                    ->values()->all();
+                if (session('status') === 'password-updated') {
+                    $notifications[] = ['type' => 'success', 'message' => 'Password changed.'];
+                }
+            @endphp
+            <div x-data="adminNotifications(@js($notifications))" @notify.window="add($event.detail)">
+                <div x-ref="stack" popover="manual" class="admin-toasts" aria-label="Notifications">
+                    <template x-for="item in messages" :key="item.id">
+                        <div class="admin-toast" :data-type="item.type" :role="item.type === 'error' ? 'alert' : 'status'" aria-atomic="true"
+                             @mouseenter="item.hovered = true; pause(item.id)" @mouseleave="item.hovered = false; resume(item.id)"
+                             @focusin="item.focused = true; pause(item.id)" @focusout="if (!$el.contains($event.relatedTarget)) { item.focused = false; resume(item.id); }">
+                            <span class="admin-toast-icon" aria-hidden="true" x-text="item.type === 'success' ? '✓' : item.type === 'info' ? 'i' : '!'"></span>
+                            <p x-text="item.message"></p>
+                            <button type="button" class="admin-toast-close" @click="dismiss(item.id)" aria-label="Dismiss notification">
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg>
                             </button>
-
                         </div>
-
-                    </div>
-
-                @endif
-
-
-
-                {{-- ERROR TOAST --}}
-                @if(session('error'))
-
-                    <div
-                        x-data="{ show: true }"
-                        x-show="show"
-                        x-init="setTimeout(() => show = false, 4000)"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        x-transition:leave="transition ease-in duration-200"
-                        x-transition:leave-start="opacity-100 translate-y-0"
-                        x-transition:leave-end="opacity-0 translate-y-2"
-                        class="pointer-events-auto rounded-xl border border-red-200 bg-white p-4 shadow-xl"
-                        role="alert"
-                    >
-
-                        <div class="flex items-start gap-3">
-
-                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
-
-                                <svg
-                                    aria-hidden="true"
-                                    class="h-5 w-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <circle cx="12" cy="12" r="9"></circle>
-                                    <path d="M12 8v5"></path>
-                                    <path d="M12 16h.01"></path>
-                                </svg>
-
-                            </div>
-
-
-                            <div class="min-w-0 flex-1">
-
-                                <p class="text-sm font-semibold text-slate-900">
-                                    Error
-                                </p>
-
-                                <p class="mt-1 text-sm leading-5 text-slate-600">
-                                    {{ session('error') }}
-                                </p>
-
-                            </div>
-
-
-                            <button
-                                type="button"
-                                @click="show = false"
-                                class="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                                aria-label="Close notification"
-                            >
-
-                                <svg
-                                    aria-hidden="true"
-                                    class="h-4 w-4"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path d="M6 6l12 12"></path>
-                                    <path d="M18 6 6 18"></path>
-                                </svg>
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                @endif
-
+                    </template>
+                </div>
             </div>
-
-
 
             {{-- ========================================================= --}}
             {{-- PAGE CONTENT --}}

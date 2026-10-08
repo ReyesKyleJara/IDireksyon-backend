@@ -25,6 +25,9 @@
         return $safe;
     })->values()->all();
 @endphp
+@if($officeModal ?? false)
+    @include('admin.government_ids.partials.office-links-modal')
+@else
 <section class="admin-panel p-6" x-data="{
     options: @js($officeOptions),
     links: @js($initialLinks),
@@ -98,3 +101,5 @@
         </template>
     </div>
 </section>
+
+@endif

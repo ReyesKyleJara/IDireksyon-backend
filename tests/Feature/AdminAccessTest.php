@@ -7,7 +7,7 @@ it('requires login and rejects ordinary accounts across CMS routes', function ()
     $this->get('/admin')->assertRedirect('/login');
     $this->post('/admin/documents', ['name' => 'Denied'])->assertRedirect('/login');
     $this->actingAs(User::factory()->create());
-    foreach (['/admin', '/admin/documents', '/admin/government-ids', '/admin/reference/offices', '/admin/users'] as $url) {
+    foreach (['/admin', '/admin/documents', '/admin/government-ids', '/admin/offices', '/admin/users'] as $url) {
         $this->get($url)->assertForbidden();
     }
     $this->post('/admin/documents', ['name' => 'Denied'])->assertForbidden();

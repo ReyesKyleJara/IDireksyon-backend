@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+@extends(($embedded ?? false) ? 'admin.offices.embedded-layout' : 'admin.layouts.app')
 @section('title', ($office->exists ? 'Edit Office' : 'Add Office').' | IDireksyon')
 @section('page_title', $office->exists ? 'Edit Office' : 'Add Office')
 @section('content')
@@ -9,7 +9,9 @@
     };
 @endphp
 <div class="mx-auto max-w-4xl">
+    @unless($embedded ?? false)
     <a href="{{ route('admin.offices.index') }}" class="text-sm text-slate-500">← Back to offices</a>
+    @endunless
     <div class="mb-7 mt-5">
         <p class="admin-eyebrow mb-2">Office Research</p>
         <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $office->exists ? 'Edit Office' : 'Add Office' }}</h1>
@@ -21,7 +23,7 @@
             <ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
-    <form method="POST" action="{{ $office->exists ? route('admin.offices.update', $office) : route('admin.offices.store') }}" class="space-y-6">
+    <form method="POST" action="{{ $office->exists ? route('admin.offices.update', $office) : route('admin.offices.store', ($embedded ?? false) ? ['embedded' => 1] : []) }}" class="space-y-6">
         @csrf
         @if($office->exists) @method('PUT') @endif
         <section class="admin-panel p-6">
@@ -66,7 +68,9 @@
             </div>
         </section>
         <div class="flex justify-end gap-3">
+            @unless($embedded ?? false)
             <a href="{{ route('admin.offices.index') }}" class="admin-secondary">Cancel</a>
+            @endunless
             <button type="submit" class="admin-primary">{{ $office->exists ? 'Save Changes' : 'Save Draft' }}</button>
         </div>
     </form>

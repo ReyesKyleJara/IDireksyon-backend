@@ -17,146 +17,110 @@
         request('view') === 'table'
             ? 'table'
             : 'grid';
+    $hasStructuredRequirements = $governmentId->requirementSets->contains(fn ($set) => $set->groups->isNotEmpty());
+    $structuredGuideTypes = $governmentId->requirementSets
+        ->filter(fn ($set) => $set->applicationSteps->isNotEmpty())
+        ->pluck('application_type');
+    $legacyGuideFields = collect([
+        'application_process' => ['new', 'Application Process / Steps'],
+        'renewal_process' => ['renewal', 'Renewal Process'],
+        'replacement_process' => ['replacement', 'Replacement Process'],
+    ])->filter(fn ($guide, $field) => filled($governmentId->$field) && ! $structuredGuideTypes->contains($guide[0]))
+        ->map(fn ($guide) => $guide[1]);
 @endphp
 
 
-<div class="mx-auto max-w-5xl">
+<style>
+    .id-record { width: 100%; max-width: none; margin: 0 auto; color: #1e293b; }
+    .id-record .record-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+    .id-record .record-actions { display: flex; align-items: center; gap: 10px; }
+    .id-record .record-sheet { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 32px; }
+    .id-record .record-header { padding-bottom: 28px; }
+    .id-record .record-header h1 { font-size: 26px; line-height: 1.3; font-weight: 650; letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .id-record .record-meta { margin-bottom: 8px; color: #64748b; font-size: 13px; }
+    .id-record .record-sheet > .admin-panel { margin: 0; padding: 26px 0; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; box-shadow: none; }
+    .id-record .record-sheet h2 { font-size: 16px; line-height: 1.5; font-weight: 600; margin-bottom: 14px; }
+    .id-record .record-facts { display: grid; gap: 20px; }
+    .id-record .record-fact { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; font-size: 14px; line-height: 1.75; }
+    .id-record .record-fact dt { color: #64748b; }
+    .id-record .record-fact dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+    .id-record .record-offices > article { padding: 18px 0; border: 0; border-bottom: 1px solid #e2e8f0; border-radius: 0; }
+    .id-record .record-offices > article:last-child { border-bottom: 0; padding-bottom: 0; }
+    .id-record .record-history { color: #64748b; }
+    .id-record .record-history h2 { font-size: 14px; }
+    @media (max-width: 640px) {
+        .id-record .record-sheet { padding: 20px; }
+        .id-record .record-header h1 { font-size: 23px; }
+        .id-record .record-fact { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+        .id-record .record-toolbar { gap: 8px; }
+    }
+</style>
+
+<div class="id-record">
+
 
     {{-- SUCCESS MESSAGE --}}
-    @if(session('success'))
-        <div
-            class="mb-6 rounded-xl border border-emerald-200
-                   bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-        >
-            {{ session('success') }}
+
+
+    <div class="record-toolbar">
+        <a href="{{ route('admin.government-ids.index', $directoryQuery) }}" class="text-sm text-slate-600 hover:underline">← Back to directory</a>
+        <div class="record-actions">
+            <a href="{{ route('admin.government-ids.edit', $governmentId) }}" class="admin-primary">Edit details</a>
+            <details class="relative">
+                <summary aria-label="More actions for this ID" class="admin-secondary cursor-pointer list-none">⋮</summary>
+                <div class="absolute right-0 z-40 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                    <form method="POST" action="{{ route('admin.government-ids.destroy', $governmentId) }}" onsubmit="return confirm('Delete this ID or credential? This cannot be undone.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="block w-full rounded-lg px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50">Delete ID</button>
+                    </form>
+                </div>
+            </details>
         </div>
-    @endif
-
-
-    {{-- HEADER ACTIONS --}}
-    <div class="mb-6 flex items-center justify-between gap-4">
-
-        <a
-            href="{{ route('admin.government-ids.index', $directoryQuery) }}"
-            class="admin-secondary"
-        >
-            ← Back to directory
-        </a>
-
-
-        <details class="relative">
-
-            <summary
-                aria-label="Actions for this ID"
-                class="admin-secondary cursor-pointer list-none text-xl"
-            >
-                ⋮
-            </summary>
-
-            <div
-                class="absolute right-0 z-40 mt-2 w-44 rounded-xl
-                       border border-slate-200 bg-white p-2 shadow-xl"
-            >
-
-                <a
-                    href="{{ route('admin.government-ids.edit', $governmentId) }}"
-                    class="block rounded-lg px-4 py-3 text-sm hover:bg-slate-50"
-                >
-                    Edit
-                </a>
-
-
-                <form
-                    method="POST"
-                    action="{{ route('admin.government-ids.destroy', $governmentId) }}"
-                    onsubmit="return confirm(
-                        'Delete this ID or credential? This cannot be undone.'
-                    );"
-                >
-                    @csrf
-                    @method('DELETE')
-
-                    <button
-                        type="submit"
-                        class="block w-full rounded-lg px-4 py-3
-                               text-left text-sm text-red-600 hover:bg-red-50"
-                    >
-                        Delete
-                    </button>
-
-                </form>
-
-            </div>
-
-        </details>
-
     </div>
 
-
-    {{-- MAIN ID HEADER --}}
-    <article class="admin-panel overflow-hidden">
-
-        <div class="p-6 sm:p-8">
-
+    <div class="record-sheet">
+        <header class="record-header">
             @if(filled($governmentId->category) || filled($governmentId->level))
-                <p class="admin-eyebrow mb-3">{{ collect([$governmentId->category, $governmentId->level])->filter(fn ($value) => filled($value))->implode(' | ') }}</p>
+                <p class="record-meta">{{ collect([$governmentId->category, $governmentId->level])->filter(fn ($value) => filled($value))->implode(' · ') }}</p>
             @endif
-
-
-            <h1
-                class="break-words text-3xl font-bold
-                       tracking-tight text-slate-900"
-            >
-                {{ $governmentId->name }}
-            </h1>
-
-
+            <h1>{{ $governmentId->name }}</h1>
             @if($governmentId->agency)
-                <p class="mt-3 break-words text-sm text-slate-500">
-                    Issued by: <span class="font-medium text-slate-700">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</span>
-                </p>
+                <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</p>
             @endif
+        </header>
 
+        @if(filled($governmentId->purpose) || filled($governmentId->description) || ($governmentId->validity_type !== 'not_applicable' && filled($governmentId->validity)) || filled($governmentId->processing_time))
+            <section class="admin-panel">
+                <h2>Basic information</h2>
+                <dl class="record-facts">
+                    @foreach(['description' => 'Description', 'purpose' => 'Purpose / Use', 'validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
+                        @if(filled($governmentId->$field) && ! ($field === 'validity' && $governmentId->validity_type === 'not_applicable'))
+                            <div class="record-fact">
+                                <dt>{{ $label }}</dt>
+                                <dd>{{ $governmentId->$field }}</dd>
+                            </div>
+                        @endif
+                    @endforeach
+                </dl>
+            </section>
+        @endif
 
-            @if($governmentId->agency?->official_website)
-
-                <a
-                    href="{{ $governmentId->agency->official_website }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="mt-2 inline-block text-sm font-medium
-                           text-[#012877] hover:underline"
-                >
-                    Agency Website
-                </a>
-
-            @endif
-
-        </div>
-
-    </article>
-
-
-    {{-- BASIC INFORMATION --}}
-    @if(filled($governmentId->purpose) || filled($governmentId->description) || ($governmentId->validity_type !== 'not_applicable' && filled($governmentId->validity)) || filled($governmentId->processing_time))
-        <div class="mt-6 grid gap-5 md:grid-cols-2">
-            @foreach(['purpose' => 'Purpose / Use', 'description' => 'Description', 'validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
-                @if(filled($governmentId->$field) && ! ($field === 'validity' && $governmentId->validity_type === 'not_applicable'))
-                    <section @class(['admin-panel p-6', 'md:col-span-2' => in_array($field, ['purpose', 'description'], true)])>
-                        <h2 class="mb-3 text-base font-bold text-slate-900">{{ $label }}</h2>
-                        <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->$field }}</p>
-                    </section>
-                @endif
-            @endforeach
-        </div>
+    @if(filled($governmentId->eligibility))
+        <section class="admin-panel mt-6 p-6">
+            <h2 class="mb-3 text-lg font-semibold text-slate-900">Eligibility</h2>
+            <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->eligibility }}</p>
+        </section>
     @endif
 
+    @include('admin.government_ids.partials.checklists', ['editable' => false])
+
     {{-- REQUIREMENTS --}}
-    @if(filled($governmentId->eligibility) || filled($governmentId->requirements) || filled($governmentId->prerequisite_notes))
+    @if(! $hasStructuredRequirements && (filled($governmentId->requirements) || filled($governmentId->prerequisite_notes)))
         <section class="admin-panel mt-6 p-6">
-            <h2 class="mb-6 text-lg font-semibold text-slate-900">Requirements & Eligibility</h2>
+            <h2 class="mb-6 text-lg font-semibold text-slate-900">Requirements</h2>
             <div class="space-y-6">
-                @foreach(['eligibility' => 'Eligibility', 'requirements' => 'Requirements', 'prerequisite_notes' => 'Prerequisites / Dependencies'] as $field => $label)
+                @foreach(['requirements' => 'Requirements', 'prerequisite_notes' => 'Prerequisites / Dependencies'] as $field => $label)
                     @if(filled($governmentId->$field))
                         <div>
                             <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ $label }}</h3>
@@ -168,12 +132,14 @@
         </section>
     @endif
 
+    @include('admin.government_ids.partials.application-guide-view')
+
     {{-- APPLICATION GUIDE --}}
-    @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee) || filled($governmentId->application_process) || filled($governmentId->renewal_process) || filled($governmentId->replacement_process))
+    @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee) || $legacyGuideFields->isNotEmpty())
     <section class="admin-panel mt-6 p-6">
 
         <h2 class="mb-6 text-lg font-semibold text-slate-900">
-            Application Guide
+            {{ $legacyGuideFields->isEmpty() ? 'Fees' : (($governmentId->fees->isNotEmpty() || filled($governmentId->fee)) ? 'Fees & Application Guide' : 'Application Guide') }}
         </h2>
 
 
@@ -330,7 +296,7 @@
 
             @endif
 
-            @foreach(['application_process' => 'Application Process / Steps', 'renewal_process' => 'Renewal Process', 'replacement_process' => 'Replacement Process'] as $field => $label)
+            @foreach($legacyGuideFields as $field => $label)
                 @if(filled($governmentId->$field))
                     <div>
                         <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ $label }}</h3>
@@ -347,7 +313,7 @@
     <section class="admin-panel mt-6 p-6">
         <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
         <p class="mt-1 text-sm text-slate-500">Branches researched for this ID. Draft and inactive branches remain hidden from residents.</p>
-        <div class="mt-5 space-y-4">
+        <div class="record-offices">
             @foreach($governmentId->offices as $office)
                 <article class="rounded-xl border border-slate-200 p-5">
                     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -436,45 +402,25 @@
         </section>
     @endif
 
-    {{-- SOURCES --}}
-    @if(filled($governmentId->official_link) || filled($governmentId->official_sources))
-        <section class="admin-panel mt-6 p-6">
-            <h2 class="mb-6 text-lg font-semibold text-slate-900">Sources</h2>
-            <div class="space-y-6">
-                @if(filled($governmentId->official_link))
-                    <div>
-                        <h3 class="mb-2 text-sm font-semibold text-slate-700">Official Website / Application Link</h3>
-                        <a href="{{ $governmentId->official_link }}" target="_blank" rel="noopener noreferrer" class="break-all text-sm font-medium text-[#012877] hover:underline">{{ $governmentId->official_link }}</a>
-                    </div>
-                @endif
-                @if(filled($governmentId->official_sources))
-                    <div>
-                        <h3 class="mb-2 text-sm font-semibold text-slate-700">Official Sources</h3>
-                        <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->official_sources }}</p>
-                    </div>
-                @endif
-            </div>
-        </section>
-    @endif
-
-    <section class="admin-panel mt-6 p-6">
+    <section class="admin-panel record-history">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Edit History</h2>
         <dl class="grid gap-4 sm:grid-cols-2">
             <div>
-                <dt class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created by' : 'Last edited by' }}</dt>
-                <dd class="mt-1 font-medium text-slate-800">{{ $lastEdit?->user?->name ?? 'Editor not recorded' }}</dd>
+                <dt data-checklist-history="editor_label" class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created by' : 'Last edited by' }}</dt>
+                <dd data-checklist-history="editor" class="mt-1 font-medium text-slate-800">{{ $lastEdit?->user?->name ?? 'Editor not recorded' }}</dd>
             </div>
             <div>
-                <dt class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created on' : 'Last edited' }}</dt>
-                <dd class="mt-1 text-sm text-slate-700">
+                <dt data-checklist-history="date_label" class="text-sm text-slate-500">{{ $lastEdit?->action === 'created' ? 'Created on' : 'Last edited' }}</dt>
+                <dd data-checklist-history="date" class="mt-1 text-sm text-slate-700">
                     @php($editTime = $lastEdit?->created_at ?? $governmentId->updated_at)
                     {{ $editTime ? $editTime->copy()->timezone('Asia/Manila')->format('F j, Y · g:i A').' PHT' : 'Not recorded' }}
                 </dd>
             </div>
         </dl>
         @if(! $lastEdit)
-            <p class="mt-3 text-xs text-slate-500">No recorded CMS edit history is available. The date above is the record’s last update time.</p>
+            <p data-checklist-history="fallback" class="mt-3 text-xs text-slate-500">No recorded CMS edit history is available. The date above is the record’s last update time.</p>
         @endif
     </section>
+    </div>
 </div>
 @endsection

@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
+use App\Services\GovernmentIdApplicationGuide;
 use App\Models\GovernmentId;
+use App\Models\Document;
+use App\Models\GovernmentIdRequirementItem;
+use Illuminate\Database\QueryException;
 use App\Models\GovernmentIdOffice;
 use App\Models\Office;
 use App\Models\ContentChangeLog;
@@ -74,6 +78,10 @@ class GovernmentIdController extends Controller
     {
         $governmentId->load([
             'agency',
+            'requirementSets.groups.items.governmentId',
+            'requirementSets.groups.items.document',
+            'requirementSets.groups.ways',
+            'requirementSets.applicationSteps.blocks',
             'offices.agency',
             'offices.schedules.intervals',
             'fees' => fn ($query) => $query->orderBy('sort_order'),
@@ -85,9 +93,13 @@ class GovernmentIdController extends Controller
             ->whereIn('action', ['created', 'updated'])
             ->latest('created_at')->orderByDesc('id')->first();
 
+        $checklists = $governmentId->requirementSets
+            ->map(fn ($set) => GovernmentIdChecklistController::present($set))->values()->all();
+        $requirementOptions = [];
+
         return view(
             'admin.government_ids.show',
-            compact('governmentId', 'lastEdit')
+            compact('governmentId', 'lastEdit', 'checklists', 'requirementOptions')
         );
     }
 
@@ -107,6 +119,8 @@ class GovernmentIdController extends Controller
 
     public function store(Request $request)
     {
+        $guideRows = app(GovernmentIdApplicationGuide::class)->read($request);
+
         $validated = $this->prepareEligibility(
             $this->validateGovernmentId($request)
         );
@@ -144,7 +158,8 @@ class GovernmentIdController extends Controller
         $governmentId = DB::transaction(function () use (
             $validated,
             $feeRows,
-            $officeRows
+            $officeRows,
+            $guideRows
         ) {
             $governmentId = GovernmentId::create(
                 $validated
@@ -158,6 +173,8 @@ class GovernmentIdController extends Controller
             if ($officeRows !== null) {
                 $this->syncOfficeLinks($governmentId, $officeRows);
             }
+
+            app(GovernmentIdApplicationGuide::class)->sync($governmentId, $guideRows);
 
 
             return $governmentId;
@@ -182,7 +199,12 @@ class GovernmentIdController extends Controller
     {
         $governmentId->load([
             'agency',
+            'requirementSets.groups.items.governmentId',
+            'requirementSets.groups.items.document',
+            'requirementSets.groups.ways',
+            'requirementSets.applicationSteps.blocks',
             'offices.agency',
+            'offices.schedules.intervals',
             'fees' => fn ($query) => $query->orderBy('sort_order'),
         ]);
 
@@ -192,12 +214,22 @@ class GovernmentIdController extends Controller
             ->orderBy('name')
             ->get();
 
+        $checklists = $governmentId->requirementSets
+            ->map(fn ($set) => GovernmentIdChecklistController::present($set))->values()->all();
+        $requirementOptions = GovernmentId::orderBy('name')->get(['id', 'name'])
+            ->map(fn ($id) => ['id' => $id->id, 'name' => $id->name, 'type' => 'government_id'])
+            ->concat(Document::orderBy('name')->get(['id', 'name'])
+                ->map(fn ($document) => ['id' => $document->id, 'name' => $document->name, 'type' => 'document']))
+            ->sortBy('name')->values()->all();
+
         return view(
             'admin.government_ids.edit',
             compact(
                 'governmentId',
                 'agencies',
-                'offices'
+                'offices',
+                'checklists',
+                'requirementOptions'
             )
         );
     }
@@ -206,6 +238,8 @@ class GovernmentIdController extends Controller
         Request $request,
         GovernmentId $governmentId
     ) {
+        $guideRows = app(GovernmentIdApplicationGuide::class)->read($request);
+
         $validated = $this->prepareEligibility(
             $this->validateGovernmentId($request)
         );
@@ -250,7 +284,8 @@ class GovernmentIdController extends Controller
             $governmentId,
             $validated,
             $feeRows,
-            $officeRows
+            $officeRows,
+            $guideRows
         ) {
             /*
              * Update the main Government ID record.
@@ -270,6 +305,8 @@ class GovernmentIdController extends Controller
             if ($officeRows !== null) {
                 $this->syncOfficeLinks($governmentId, $officeRows);
             }
+
+            app(GovernmentIdApplicationGuide::class)->sync($governmentId, $guideRows);
 
         });
 
@@ -292,7 +329,27 @@ class GovernmentIdController extends Controller
     public function destroy(
         GovernmentId $governmentId
     ) {
-        $governmentId->delete();
+        $hasGuide = fn () => $governmentId->requirementSets()->whereHas('applicationSteps')->exists();
+        if ($hasGuide()) {
+            return redirect()->route('admin.government-ids.show', $governmentId)
+                ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
+        }
+        $isReferenced = fn () => GovernmentIdRequirementItem::where('government_id_id', $governmentId->id)->exists();
+        if ($isReferenced()) {
+            return redirect()->route('admin.government-ids.show', $governmentId)->with('error', 'This Government ID is used in requirement items. Remove those references before deleting it.');
+        }
+        try {
+            DB::transaction(fn () => $governmentId->delete());
+        } catch (QueryException $exception) {
+            if ($hasGuide()) {
+                return redirect()->route('admin.government-ids.show', $governmentId)
+                    ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
+            }
+            if (! $isReferenced()) {
+                throw $exception;
+            }
+            return redirect()->route('admin.government-ids.show', $governmentId)->with('error', 'This Government ID is used in requirement items. Remove those references before deleting it.');
+        }
 
         return redirect()
             ->route(

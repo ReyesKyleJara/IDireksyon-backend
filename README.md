@@ -1,59 +1,105 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# IDireksyon Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel backend and researcher CMS for IDireksyon, a government ID guidance application for Santa Maria, Bulacan residents. The Flutter app lives in a separate repository.
 
-## About Laravel
+## Current implementation
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Staff login, CMS access controls, admin accounts, and audit logs.
+- Government ID and Document directories, with reusable issuing agencies.
+- Structured ID eligibility fields for age, citizenship, and residency, plus additional notes.
+- Applicant/application checklists with specific items, accepted-item choices, conditional requirements, submission details, and Government ID or Document references.
+- Application Guide steps and rich-text information blocks per applicant/application scenario.
+- Multiple fees, office records, weekly schedules, and ID-to-office links.
+- Resident authentication, profile endpoints, and Government ID directory/detail APIs.
+- CMS feedback through a shared toast and field-level validation.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Requirements store references needed for future sequencing. The resident requirements projection currently displays those records; it does not calculate readiness or evaluate dependencies.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Still unfinished
 
-## Learning Laravel
+- Resident checklist persistence and document/ID inventory integration.
+- Automated eligibility and conditional-requirement evaluation.
+- Readiness calculation and smart sequencing, including alternatives and cycle handling.
+- Location-based office ranking/navigation and complete resident integration for the remaining CMS sections.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Where the code lives
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Folder | Responsibility |
+| --- | --- |
+| app/Http/Controllers/Admin | CMS pages and write actions |
+| app/Http/Controllers/Api | Resident authentication and ID API endpoints |
+| app/Http/Requests/Admin | Validation for offices and structured checklists |
+| app/Models | Records and their relationships |
+| app/Services/GovernmentIdApplicationGuide.php | Guide validation, presentation, and persistence |
+| app/Support | Rich-text handling and resident requirements projection |
+| app/Observers | CMS audit events |
+| resources/views/admin | Blade CMS screens and shared form partials |
+| resources/js | Alpine editors and shared notifications |
+| resources/css/app.css | CMS styles |
+| routes/web.php | CMS routes |
+| routes/api.php | Resident API routes |
+| database/migrations | Database history; retain existing migrations |
+| tests/Feature | Backend behavior and integration checks |
+| docs | Design notes and integration documentation |
 
-## Laravel Sponsors
+## Editing and saving
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Government ID checklists save through their own endpoints. Fees, office selections, and Application Guide changes are applied to the main ID form and persist when the ID is saved. Creating an agency or office creates that directory record separately.
 
-### Premium Partners
+The ID Sources/Website section is currently removed from the create, edit, and view screens. Existing database values and API fields remain intact.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Local development
 
-## Contributing
+The project uses PHP 8.2+, Laravel 12, Sanctum, Blade, Alpine, Tailwind, Vite, and Tiptap. Dependency versions are locked in composer.lock and package-lock.json.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Use your local .env for database and application configuration. Never commit it or database backups. Keep existing databases and migrations when continuing development; do not reset research data to prepare a code checkpoint.
 
-## Code of Conduct
+For an already configured checkout:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+~~~bash
+php artisan serve
+~~~
 
-## Security Vulnerabilities
+In a separate terminal, use the asset development server while editing CSS/JavaScript:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+~~~bash
+npm run dev
+~~~
 
-## License
+Or build assets after CSS/JavaScript changes:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+~~~bash
+npm run build
+~~~
+
+Default DatabaseSeeder intentionally leaves research content untouched. Legacy catalog seeders and explicit import/cleanup commands still exist; they are not part of normal CMS data entry.
+
+## Checks before a checkpoint
+
+~~~bash
+php artisan test
+npm run build
+git diff --check
+git status --short --branch
+~~~
+
+The October 2026 cleanup updated the older catalog tests to the current CMS contract. These edits still require a full test run; they are not evidence that the suite passes.
+
+- AdminCatalogTest covers current ID/Document forms, validation, search, sorting, and preservation of saved source data.
+- CatalogFoundationTest covers agency creation/reuse, access control, and removal of retired reference-directory routes. Office schedule and relationship coverage remains in the dedicated Office test suites.
+- CatalogRulesTest covers reference deletion protection, checklist-specific instructions, resident reference output, and current fee behavior. Accepted-item counts, alternative ways, ownership protection, and atomic checklist saves remain covered by the dedicated GovernmentId checklist/requirement tests.
+- AdminAccessTest, AuthenticationTest, and CmsSimplificationTest follow the current researcher dashboard and office permissions while retaining administration restrictions.
+
+Older expectations for separate Level/Category/Barangay directories, Document-owned structured checklists, a reviewed-publication gate, and alternative fee groups do not describe the current implementation. They were removed from these tests rather than restored as features. Dependency references are stored, but dependency evaluation, cycle handling, and readiness remain unfinished; these tests do not certify them.
+
+CatalogFoundationSeeder and its GovernmentIdSeeder wrapper still reference the older catalog model and need review before use. They are not called by the default DatabaseSeeder. Do not use those legacy seeders to prepare a checkpoint.
+
+Run the suite and review failures before treating a checkpoint as verified. Review untracked files too: git diff --stat does not include their contents.
+
+## Project references
+
+- [Working rules](AGENTS.md)
+- [Project context](IDIREKSYON_CONTEXT.md)
+- [Resident requirements API integration](docs/resident-requirements-integration.md)
+
+Older planning reports in docs may describe superseded designs. Use the active routes, models, and tests when checking current behavior.

@@ -1,0 +1,1662 @@
+{
+  "research_notice": "Passport source review: 2026-10-06. Corrected against the official sources listed below; this is not a blanket verification of every special case or current branch schedule.",
+  "passport_aliases": [
+    "Passport",
+    "Philippine Passport",
+    "Philippine Passport (ePassport)",
+    "ePassport"
+  ],
+  "agency": {
+    "name": "Department of Foreign Affairs",
+    "acronym": "DFA",
+    "official_website": "https://dfa.gov.ph/"
+  },
+  "basic": {
+    "name": "Philippine Passport (ePassport)",
+    "purpose": "Proof of Philippine citizenship and identity for international travel and identification.",
+    "description": "A DFA-issued passport booklet with personal information, photograph and electronic security features for Filipino citizens.",
+    "official_link": "https://passport.gov.ph/",
+    "level": "National",
+    "category": "Identity ID"
+  },
+  "eligibility": {
+    "eligibility_age_type": "none",
+    "eligibility_min_age": null,
+    "eligibility_max_age": null,
+    "eligibility_citizenship": "filipino",
+    "eligibility_residency": "none",
+    "eligibility_residency_custom": null,
+    "eligibility_other_conditions": "Meet the applicable identity, citizenship and legal travel-restriction requirements. Foreign residence alone does not establish Philippine citizenship.",
+    "eligibility": "Filipino citizenship is required. Applicants may reside in the Philippines or abroad. Adult and minor procedures differ; legal travel restrictions are assessed under the passport law."
+  },
+  "validity": {
+    "validity_type": "varies",
+    "validity_value": null,
+    "validity_unit": null,
+    "validity": "Regular passports: 10 years for applicants aged 18 or older; 5 years below 18, subject to lawful restrictions."
+  },
+  "processing": {
+    "processing_time_type": "varies",
+    "processing_time_min": null,
+    "processing_time_max": null,
+    "processing_time_unit": null,
+    "processing_time": "Published domestic periods: regular 12 working days; expedited 6 in Metro Manila or 7 outside. Confirm the release date with DFA; delivery and extra verification are separate."
+  },
+  "fees": [
+    {
+      "label": "Regular Processing",
+      "type": "fixed",
+      "amount_min": 950,
+      "notes": "Choose regular OR expedited; do not add both."
+    },
+    {
+      "label": "Expedited Processing",
+      "type": "fixed",
+      "amount_min": 1200,
+      "notes": "Alternative to regular processing; availability depends on the site."
+    },
+    {
+      "label": "Payment-channel charge",
+      "type": "varies",
+      "notes": "Use the amount quoted by the authorized payment channel. Do not assume one charge for every payment method."
+    },
+    {
+      "label": "Optional Courier Delivery",
+      "type": "varies",
+      "is_optional": true,
+      "notes": "Use the courier quote; no unverified fixed delivery estimate."
+    },
+    {
+      "label": "Lost / damaged passport penalty",
+      "type": "fixed",
+      "amount_min": 350,
+      "notes": "Additional charge for the applicable lost or damaged/mutilated application, not ordinary new applications or renewals."
+    }
+  ],
+  "scenarios": [
+    {
+      "application_type": "new",
+      "applicant_type": "adult",
+      "groups": [
+        {
+          "title": "Confirmed appointment",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "DFA Appointment Confirmation",
+              "aliases": [],
+              "instructions": "Print the confirmed booking.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Completed passport application form",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Passport Application Form",
+              "aliases": [],
+              "instructions": "Complete and print the DFA application form.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Personal appearance",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Applicant must appear in person",
+              "aliases": [],
+              "instructions": "For document assessment and biometric capture.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Proof of identity — choose one accepted item",
+          "condition_type": "always",
+          "condition_custom": null,
+          "ways": [
+            {
+              "required_count": 1,
+              "qualification_type": "unexpired",
+              "qualification_scope": "every",
+              "items": [
+                {
+                  "type": "government_id",
+                  "name": "PhilSys National ID",
+                  "aliases": [
+                    "National ID (PhilSys)",
+                    "National ID",
+                    "Philippine Identification Card"
+                  ],
+                  "instructions": "PhilID, ePhilID or Digital National ID. Submit a printed digital copy. These are formats of one identity, not separate IDs.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "SSS Card",
+                  "aliases": [
+                    "Social Security System (SSS) Card",
+                    "SSS ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "GSIS Card",
+                  "aliases": [
+                    "Government Service Insurance System (GSIS) Card",
+                    "GSIS ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "UMID",
+                  "aliases": [
+                    "Unified Multi-Purpose ID (UMID)",
+                    "UMID Card"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Driver’s License",
+                  "aliases": [
+                    "Driver's License",
+                    "LTO Driver’s License",
+                    "Driver’s License (LTO)"
+                  ],
+                  "instructions": "LTO-issued. A student permit is accepted in card format.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "PRC ID",
+                  "aliases": [
+                    "Professional Regulation Commission (PRC) ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "OWWA E-Card",
+                  "aliases": [
+                    "OWWA ID",
+                    "Overseas Workers Welfare Administration (OWWA) ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Voter’s ID",
+                  "aliases": [
+                    "Voter's ID",
+                    "COMELEC Voter's ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Philippine Postal ID",
+                  "aliases": [
+                    "Postal ID"
+                  ],
+                  "instructions": "The reviewed Annex F lists issuance from November 2016 through September 2023. Confirm newer cards with DFA before relying on them.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Senior Citizen ID",
+                  "aliases": [],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Airman License",
+                  "aliases": [],
+                  "instructions": "Issued August 2016 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "MARINA Seafarer’s Record Book",
+                  "aliases": [],
+                  "instructions": "Issued February 2020 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "PNP Permit to Carry Firearms Outside Residence",
+                  "aliases": [],
+                  "instructions": "Use the specific permit listed by DFA; not any PNP-issued license.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "Voter’s Certification",
+                  "aliases": [
+                    "Voter's Certification"
+                  ],
+                  "instructions": "Issued by COMELEC main office in Intramuros, Manila.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "MARINA Seafarer’s Identity Document",
+                  "aliases": [],
+                  "instructions": "Issued February 2020 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Proof of citizenship",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "PSA Birth Certificate",
+              "aliases": [
+                "PSA-issued Birth Certificate",
+                "Birth Certificate (PSA)"
+              ],
+              "instructions": "PSA-issued birth record; applicants born abroad or with other citizenship circumstances must follow the applicable DFA supporting-document requirements.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Unreadable or incomplete PSA birth certificate",
+          "condition_type": "custom",
+          "condition_custom": "The PSA birth certificate is unreadable or lacks details.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "LCR Birth Certificate",
+              "aliases": [],
+              "instructions": "Local Civil Registrar copy.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Additional evidence for late birth registration",
+          "condition_type": "custom",
+          "condition_custom": "The PSA birth certificate, report of birth or foundling certificate was late-registered.",
+          "ways": [
+            {
+              "required_count": 1,
+              "qualification_type": "custom",
+              "qualification_scope": "every",
+              "qualification_custom": "An additional accepted ID, different from the ID already used for the basic identity requirement.",
+              "items": [
+                {
+                  "type": "government_id",
+                  "name": "PhilSys National ID",
+                  "aliases": [
+                    "National ID (PhilSys)",
+                    "National ID",
+                    "Philippine Identification Card"
+                  ],
+                  "instructions": "PhilID, ePhilID or Digital National ID. Submit a printed digital copy. These are formats of one identity, not separate IDs.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "SSS Card",
+                  "aliases": [
+                    "Social Security System (SSS) Card",
+                    "SSS ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "GSIS Card",
+                  "aliases": [
+                    "Government Service Insurance System (GSIS) Card",
+                    "GSIS ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "UMID",
+                  "aliases": [
+                    "Unified Multi-Purpose ID (UMID)",
+                    "UMID Card"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Driver’s License",
+                  "aliases": [
+                    "Driver's License",
+                    "LTO Driver’s License",
+                    "Driver’s License (LTO)"
+                  ],
+                  "instructions": "LTO-issued. A student permit is accepted in card format.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "PRC ID",
+                  "aliases": [
+                    "Professional Regulation Commission (PRC) ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "OWWA E-Card",
+                  "aliases": [
+                    "OWWA ID",
+                    "Overseas Workers Welfare Administration (OWWA) ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Voter’s ID",
+                  "aliases": [
+                    "Voter's ID",
+                    "COMELEC Voter's ID"
+                  ],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Philippine Postal ID",
+                  "aliases": [
+                    "Postal ID"
+                  ],
+                  "instructions": "The reviewed Annex F lists issuance from November 2016 through September 2023. Confirm newer cards with DFA before relying on them.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Senior Citizen ID",
+                  "aliases": [],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "Airman License",
+                  "aliases": [],
+                  "instructions": "Issued August 2016 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "MARINA Seafarer’s Record Book",
+                  "aliases": [],
+                  "instructions": "Issued February 2020 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "PNP Permit to Carry Firearms Outside Residence",
+                  "aliases": [],
+                  "instructions": "Use the specific permit listed by DFA; not any PNP-issued license.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "Voter’s Certification",
+                  "aliases": [
+                    "Voter's Certification"
+                  ],
+                  "instructions": "Issued by COMELEC main office in Intramuros, Manila.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "government_id",
+                  "name": "MARINA Seafarer’s Identity Document",
+                  "aliases": [],
+                  "instructions": "Issued February 2020 onwards.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                }
+              ]
+            },
+            {
+              "required_count": 2,
+              "items": [
+                {
+                  "type": "document",
+                  "name": "NBI Clearance",
+                  "aliases": [],
+                  "instructions": "Valid or expired for this supporting-document route.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "Voter’s Certification",
+                  "aliases": [],
+                  "instructions": null,
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "School Records",
+                  "aliases": [],
+                  "instructions": "Examples include Form 137-A, transcript or diploma. Multiple records in this category are not automatically counted as separate categories.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "Government Service Record",
+                  "aliases": [],
+                  "instructions": "For government employees.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                },
+                {
+                  "type": "document",
+                  "name": "PhilHealth Member Data Record",
+                  "aliases": [],
+                  "instructions": "For government employees under this supporting-document route.",
+                  "submission_format": "original_photocopy",
+                  "copies": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Marriage certificate when adopting spouse’s surname",
+          "condition_type": "spouse_surname",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "PSA Marriage Certificate",
+              "aliases": [
+                "Marriage Certificate (PSA)"
+              ],
+              "instructions": "PSA-issued on Security Paper (SecPa).",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            },
+            {
+              "type": "document",
+              "name": "PSA Report of Marriage",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Book an appointment",
+          "type": "online_action",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Open the official portal, choose your preferred consular office, and select an available date and time."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "official_link",
+              "section_title": "DFA appointment portal",
+              "content": {
+                "label": "Book a passport appointment",
+                "url": "https://passport.gov.ph/",
+                "description": null
+              }
+            }
+          ]
+        },
+        {
+          "title": "Complete your application",
+          "type": "form_submission",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Select NEW under Application Type and enter accurate personal information."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "title": "Pay the application fee",
+          "type": "payment",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Pay through an authorized payment channel within the deadline shown for your booking."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "fees",
+              "section_title": "Application fees",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Print your appointment packet",
+          "type": "general",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Print the appointment confirmation, barcode, e-receipt, and completed application form on A4 paper."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "requirements",
+              "section_title": "Prepare your requirements",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Visit your selected DFA office",
+          "type": "office_visit",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Attend the selected DFA office at the time stated in the appointment instructions. Bring the required packet and supporting documents."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "offices",
+              "section_title": "Linked offices",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Complete verification and biometrics",
+          "type": "in_person",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Present your documents, check the encoded personal information, and complete photo, fingerprint and digital-signature capture."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "title": "Claim your passport or receive delivery",
+          "type": "release",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Choose office pickup or available courier delivery. For pickup, bring the claim stub, official receipt and current/old passport for cancellation where applicable. A representative may need authorization or SPA and a valid ID."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "processing_time",
+              "section_title": "Processing time",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "new",
+      "applicant_type": "minor",
+      "groups": [
+        {
+          "title": "Personal appearance",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Minor and parent / authorized adult companion must appear",
+              "aliases": [],
+              "instructions": "The minor and the appropriate parent or authorized companion must attend. Family circumstances determine who may accompany the child.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Completed passport application form",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Passport Application Form",
+              "aliases": [],
+              "instructions": "Complete the minor application form.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Confirmed appointment",
+          "condition_type": "custom",
+          "condition_custom": "The applicant is not eligible for the courtesy lane.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "DFA Appointment Confirmation",
+              "aliases": [],
+              "instructions": "Printout required unless eligible for the courtesy lane.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Minor’s birth certificate",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "PSA Birth Certificate",
+              "aliases": [
+                "PSA-issued Birth Certificate",
+                "Birth Certificate (PSA)"
+              ],
+              "instructions": "PSA-issued on Security Paper (SecPa).",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Parent or guardian’s identity",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Valid primary ID of parent or legal guardian",
+              "aliases": [],
+              "instructions": "Bring original and one photocopy. This belongs to the parent/guardian, not the child’s own ID inventory.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Minor’s own identity",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Valid ID or competent proof of the minor’s identity",
+              "aliases": [],
+              "instructions": "This is separate from the accompanying adult’s identification. Use the proof applicable to the child under DFA rules.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Authorized companion when no parent accompanies the minor",
+          "condition_type": "custom",
+          "condition_custom": "Minor is accompanied by an authorized adult rather than a parent. For non-marital minors, authorization generally comes from the mother; custody exceptions need case-specific assessment.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Special Power of Attorney",
+              "aliases": [],
+              "instructions": "Executed by the appropriate parent or legal guardian; include a copy of the parent/guardian ID. Authentication rules apply when executed abroad.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Check the requirements for the child’s circumstances",
+          "type": "general",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "reminder",
+              "section_title": "Minor-specific supporting documents",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Parentage, guardianship, adoption, foundling status and late birth registration can change the supporting documents. Do not treat a marriage certificate and an SPA as interchangeable."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "official_link",
+              "section_title": "DFA minor application requirements",
+              "content": {
+                "label": "DFA minor application requirements",
+                "url": "https://consular.dfa.gov.ph/minor-new/",
+                "description": null
+              }
+            },
+            {
+              "type": "requirements",
+              "section_title": "Core checklist and common conditions",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Review case-specific DFA requirements as well."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "renewal",
+      "applicant_type": "adult",
+      "groups": [
+        {
+          "title": "Confirmed renewal appointment",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "DFA Appointment Confirmation",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Printed application form",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Passport Application Form",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Payment receipt",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Passport Payment Receipt",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Current or expired ePassport",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Current / expired ePassport",
+              "aliases": [],
+              "instructions": "Bring the original passport. This is the passport being renewed, not a dependency on obtaining a new Passport.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Passport data page copy",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Passport Data Page Photocopy",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Marriage certificate when adopting spouse’s surname",
+          "condition_type": "spouse_surname",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "PSA Marriage Certificate",
+              "aliases": [
+                "Marriage Certificate (PSA)"
+              ],
+              "instructions": "PSA-issued on Security Paper (SecPa).",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Personal appearance",
+          "condition_type": "always",
+          "condition_custom": null,
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Applicant must appear in person",
+              "aliases": [],
+              "instructions": null,
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Book a renewal appointment",
+          "type": "online_action",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "At passport.gov.ph select RENEWAL, choose your consular office, date and time."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "reminder",
+              "section_title": "Scope of this renewal guide",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "For adult electronic passports. Older non-electronic passports and special cases follow different supporting-document requirements."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Complete your information and pay",
+          "type": "payment",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Complete your personal information, select the processing option, and pay through an authorized channel."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "fees",
+              "section_title": "Fees",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Print the packet and prepare your documents",
+          "type": "general",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Print the confirmation packet, application form, confirmation slip and receipt on A4 paper."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "requirements",
+              "section_title": "Bring these documents",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "reminder",
+              "section_title": "Identity and name changes",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "An extra primary ID is not listed as a universal core requirement for ordinary adult ePassport renewal. Name changes and citizenship cases may require additional evidence."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Attend your appointment",
+          "type": "in_person",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Follow your appointment arrival instructions. Present documents for verification, then complete photo, fingerprints and signature capture."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "offices",
+              "section_title": "Linked offices",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Claim or arrange delivery",
+          "type": "release",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "instructions",
+              "section_title": "What to do",
+              "content": {
+                "items": [
+                  {
+                    "body": {
+                      "type": "doc",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Keep your stamped claim stub for pickup or arrange available door-to-door delivery."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "processing_time",
+              "section_title": "Processing time",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "replacement",
+      "applicant_type": "all",
+      "groups": [
+        {
+          "title": "Affidavit for a lost passport",
+          "condition_type": "custom",
+          "condition_custom": "Passport was lost, whether valid or expired.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Affidavit of Loss",
+              "aliases": [],
+              "instructions": "Notarized; explain the circumstances of loss.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Police report for passport loss",
+          "condition_type": "custom",
+          "condition_custom": "Passport was lost, whether valid or expired.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Police Report",
+              "aliases": [],
+              "instructions": "Provide an English translation if applicable; statutory exceptions require DFA assessment.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Copy of lost passport if available",
+          "condition_type": "custom",
+          "condition_custom": "A copy of the lost passport is available.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Copy of the lost ePassport",
+              "aliases": [],
+              "instructions": "If available, this affects whether another birth certificate and valid ID are required. Do not treat this as obtaining a new Passport.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "No copy of lost ePassport",
+          "condition_type": "custom",
+          "condition_custom": "No copy of the lost ePassport is available.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "DFA-assessed citizenship and identity evidence",
+              "aliases": [],
+              "instructions": "Without a copy, prepare PSA birth evidence and an accepted ID; further documents depend on the case.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        },
+        {
+          "title": "Damaged passport explanation",
+          "condition_type": "custom",
+          "condition_custom": "Passport is damaged or mutilated.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "document",
+              "name": "Affidavit of Explanation",
+              "aliases": [],
+              "instructions": "Describe how the passport was damaged.",
+              "submission_format": "original_photocopy",
+              "copies": 1
+            }
+          ]
+        },
+        {
+          "title": "Surrender damaged passport",
+          "condition_type": "custom",
+          "condition_custom": "Passport is damaged or mutilated.",
+          "required_count": 1,
+          "items": [
+            {
+              "type": "custom",
+              "name": "Damaged / mutilated passport",
+              "aliases": [],
+              "instructions": "Bring the damaged booklet to DFA.",
+              "submission_format": "not_specified",
+              "copies": null
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Check the procedure for your lost or damaged passport",
+          "type": "general",
+          "short_description": null,
+          "blocks": [
+            {
+              "type": "reminder",
+              "section_title": "Lost passport",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Both valid and expired lost ePassports require a police report and notarized loss affidavit, subject to applicable exceptions. A copy of the lost ePassport affects the additional evidence needed."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "reminder",
+              "section_title": "Damaged passport",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Bring an affidavit explaining the damage and surrender the damaged passport."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "reminder",
+              "section_title": "Appointment and release date",
+              "content": {
+                "body": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Confirm the applicable application category and any additional verification period with DFA. Do not assume all expired losses follow the new-application route or a fixed clearing time."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "official_link",
+              "section_title": "DFA passport requirements",
+              "content": {
+                "label": "DFA passport requirements",
+                "url": "https://consular.dfa.gov.ph/passport-requirements-page/",
+                "description": null
+              }
+            },
+            {
+              "type": "requirements",
+              "section_title": "Replacement supporting documents",
+              "content": {
+                "intro": {
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "These are case-specific additions, not a complete substitute for the applicable basic application requirements."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "research_notes": [
+    "Review scope: regular Philippine passports and the four listed scenarios. Supporting-document examples are not an exhaustive treatment of all citizenship, custody, adoption or name-change cases.",
+    "Philippine citizenship is required; the original foreign-resident heading and blanket clean-record condition were removed.",
+    "Accepted-ID list follows the reviewed Annex F. PWD ID, iDOLE and unspecified PNP/Seaman documents are not assumed accepted from the earlier list. This does not establish that all omitted documents are rejected. Confirm updated postal-card acceptance directly.",
+    "Late-registration route: additional accepted ID OR two supporting documents. The extra ID must not be reused from the basic identity requirement; the current readiness engine must enforce this distinction before automated scoring.",
+    "Ordinary adult electronic-passport renewal does not universally require another primary ID. Non-electronic renewal is outside that scenario.",
+    "Police report requirement for lost valid AND expired ePassports follows the newer renewal annex. Clearing time is not asserted because older guidance and newer annexes differ.",
+    "Processing periods are from an older official domestic charter, not a guaranteed current SLA. The appointment receipt/release advice controls. Payment-channel and courier charges remain variable.",
+    "Only source-backed Malolos and NCR North are selected as nearby candidates, not a distance-ranked nearest-office list. Current availability and hours require appointment-site confirmation. Marilao and Fairview claims were not confirmed.",
+    "DFA annexes mirrored by foreign posts were used for national document requirements only; overseas fees and processing times were not imported. Direct access to several OCA pages was blocked; indexed official publications were used.",
+    "The supplied September 2026 label is not retained as a verification timestamp. No automatic verified badge is set.",
+    "law: https://elibrary.judiciary.gov.ph//thebookshelf//showdocs/2/97060",
+    "adult_new: https://beirutpe.dfa.gov.ph/images/2026/ANNEX_A__BASIC_REQUIREMENTS_FOR_ADULT_NEW_APPLICATIONS_-2.pdf",
+    "late_registration: https://genevapcg.dfa.gov.ph/images/pdf/AnnexA.pdf",
+    "accepted_ids: https://genevapcg.dfa.gov.ph/images/pdf/ANNEXF.pdf",
+    "minor: https://aganapcg.dfa.gov.ph/images/2024/2024Forms/ANNEX_D__REQUIREMENTS_FOR_MINOR_NEW_APPLICATIONS.pdf",
+    "minor_companion: https://abudhabipe.dfa.gov.ph/index.php/consular-forms-download/82-consular-services/passport",
+    "renewal_loss: https://lisbonpe.dfa.gov.ph/images/2025/NewPPTLaw/ANNEX_B__BASIC_REQUIREMENTS_FOR_ADULT_RENEWAL_APPLICATIONS_.pdf",
+    "damaged: https://dfa.gov.ph/authentication-functions/100-passport-information/246-requirements-for-renewal-of-passport-2",
+    "domestic_fees: https://dfa.gov.ph/images/2025/transparency/DFA_Citizens_Charter_2025_1st_Edition_1.pdf",
+    "published_processing: https://dfa.gov.ph/images/2021/Transparency-Seal/Mar/31/Consolidated_DFA_Citizens_Charter___Interim_Provisions_2021_1st_Edition.pdf",
+    "offices: https://dfa.gov.ph/images/2025/directory/Officers_Directory_in_the_Home_Office_as_of_22_August_2025docx.pdf"
+  ],
+  "sources": {
+    "law": "https://elibrary.judiciary.gov.ph//thebookshelf//showdocs/2/97060",
+    "adult_new": "https://beirutpe.dfa.gov.ph/images/2026/ANNEX_A__BASIC_REQUIREMENTS_FOR_ADULT_NEW_APPLICATIONS_-2.pdf",
+    "late_registration": "https://genevapcg.dfa.gov.ph/images/pdf/AnnexA.pdf",
+    "accepted_ids": "https://genevapcg.dfa.gov.ph/images/pdf/ANNEXF.pdf",
+    "minor": "https://aganapcg.dfa.gov.ph/images/2024/2024Forms/ANNEX_D__REQUIREMENTS_FOR_MINOR_NEW_APPLICATIONS.pdf",
+    "minor_companion": "https://abudhabipe.dfa.gov.ph/index.php/consular-forms-download/82-consular-services/passport",
+    "renewal_loss": "https://lisbonpe.dfa.gov.ph/images/2025/NewPPTLaw/ANNEX_B__BASIC_REQUIREMENTS_FOR_ADULT_RENEWAL_APPLICATIONS_.pdf",
+    "damaged": "https://dfa.gov.ph/authentication-functions/100-passport-information/246-requirements-for-renewal-of-passport-2",
+    "domestic_fees": "https://dfa.gov.ph/images/2025/transparency/DFA_Citizens_Charter_2025_1st_Edition_1.pdf",
+    "published_processing": "https://dfa.gov.ph/images/2021/Transparency-Seal/Mar/31/Consolidated_DFA_Citizens_Charter___Interim_Provisions_2021_1st_Edition.pdf",
+    "offices": "https://dfa.gov.ph/images/2025/directory/Officers_Directory_in_the_Home_Office_as_of_22_August_2025docx.pdf"
+  },
+  "offices": [
+    {
+      "name": "DFA Consular Office Malolos",
+      "aliases": [
+        "DFA Malolos",
+        "CO Malolos"
+      ],
+      "address": "3F Malolos Central Transport Terminal and Commercial Hub by Xentro Mall, Brgy. Bulihan",
+      "municipality": "Malolos City",
+      "province": "Bulacan",
+      "source_url": "https://dfa.gov.ph/images/2025/directory/Officers_Directory_in_the_Home_Office_as_of_22_August_2025docx.pdf"
+    },
+    {
+      "name": "DFA Consular Office NCR North",
+      "aliases": [
+        "DFA NCR North",
+        "DFA NCR-North",
+        "DFA Robinsons Novaliches"
+      ],
+      "address": "3F Lingkod Pinoy Center, Robinsons Place, Quirino Highway, Novaliches",
+      "municipality": "Quezon City",
+      "province": "Metro Manila",
+      "source_url": "https://dfa.gov.ph/images/2025/directory/Officers_Directory_in_the_Home_Office_as_of_22_August_2025docx.pdf"
+    }
+  ]
+}

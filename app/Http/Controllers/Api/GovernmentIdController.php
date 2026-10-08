@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GovernmentId;
+use App\Support\ResidentRequirements;
 use Illuminate\Http\JsonResponse;
 
 class GovernmentIdController extends Controller
@@ -124,6 +125,10 @@ class GovernmentIdController extends Controller
     ): JsonResponse {
         $governmentId->load([
             'agency',
+            'requirementSets.groups.items.governmentId',
+            'requirementSets.groups.items.document',
+            'requirementSets.groups.ways.items.governmentId',
+            'requirementSets.groups.ways.items.document',
             'fees' => fn ($query) => $query
                 ->orderBy('sort_order')
                 ->orderBy('id'),
@@ -182,6 +187,8 @@ class GovernmentIdController extends Controller
 
                 'requirements' =>
                     $governmentId->requirements,
+
+                'requirement_sets' => ResidentRequirements::forId($governmentId),
 
                 'prerequisite_notes' =>
                     $governmentId->prerequisite_notes,

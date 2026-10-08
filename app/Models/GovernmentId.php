@@ -95,6 +95,11 @@ class GovernmentId extends Model
             ->withTimestamps();
     }
 
+    public function requirementSets(): HasMany
+    {
+        return $this->hasMany(GovernmentIdRequirementSet::class)->orderBy('id');
+    }
+
     public function fees(): HasMany
 {
     return $this->hasMany(GovernmentIdFee::class);

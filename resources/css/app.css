@@ -11,3 +11,44 @@
     .admin-secondary { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#012877]; }
     .admin-eyebrow { @apply text-xs font-semibold uppercase tracking-widest text-[#012877]; }
 }
+
+
+@layer components {
+    .guide-tool { @apply rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-30; }
+    .guide-tool[aria-pressed="true"] { @apply bg-blue-100 text-blue-900; }
+    .guide-content { @apply break-words text-sm leading-6 text-slate-700; }
+    .guide-content p + p { @apply mt-2; }
+    .guide-content h2 { @apply mb-2 mt-4 text-lg font-semibold text-slate-900; }
+    .guide-content h3 { @apply mb-2 mt-3 text-base font-semibold text-slate-900; }
+    .guide-content ul { @apply my-2 list-disc pl-5; }
+    .guide-content ol { @apply my-2 list-decimal pl-5; }
+    .guide-content li + li { @apply mt-1; }
+    .guide-content a { @apply text-blue-800 underline; }
+    .guide-content .ProseMirror-selectednode { @apply outline outline-2 outline-blue-300; }
+}
+
+/* Shared CMS notifications; the popover keeps feedback above open dialogs. */
+.admin-toasts {
+    position: fixed; inset: 80px 24px auto auto; margin: 0; padding: 0;
+    width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 104px);
+    overflow-y: auto; border: 0; background: transparent; color: #334155;
+    pointer-events: none; z-index: 100;
+}
+.admin-toasts::backdrop { background: transparent; pointer-events: none; }
+.admin-toast {
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; padding: 14px;
+    border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+    box-shadow: 0 4px 16px rgb(15 23 42 / 10%); pointer-events: auto;
+    animation: toast-appear 160ms ease-out;
+}
+.admin-toast p { flex: 1; min-width: 0; margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.admin-toast-icon { flex-shrink: 0; width: 20px; text-align: center; font-size: 16px; line-height: 21px; font-weight: 600; color: #315582; }
+.admin-toast[data-type="success"] .admin-toast-icon { color: #16804a; }
+.admin-toast[data-type="error"] .admin-toast-icon { color: #b42318; }
+.admin-toast[data-type="warning"] .admin-toast-icon { color: #986000; }
+.admin-toast-close { flex-shrink: 0; padding: 3px; border-radius: 4px; color: #64748b; }
+.admin-toast-close:hover { background: #f1f5f9; color: #0f172a; }
+.admin-toast-close:focus-visible { outline: 2px solid #012877; outline-offset: 2px; }
+@keyframes toast-appear { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 640px) { .admin-toasts { inset: 72px 16px auto auto; } }
+@media (prefers-reduced-motion: reduce) { .admin-toast { animation: none; } }

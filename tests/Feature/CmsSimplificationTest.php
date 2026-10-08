@@ -3,7 +3,6 @@
 use App\Models\Agency;
 use App\Models\ContentChangeLog;
 use App\Models\Document;
-use App\Models\Level;
 use App\Models\Office;
 use App\Models\User;
 use Database\Seeders\LocalSuperAdminSeeder;
@@ -22,28 +21,19 @@ it('offers a username login with no public recovery links and throttles failed a
     $this->assertGuest();
 });
 
-it('enforces researcher restrictions for every reference and administration route while allowing selectors', function () {
+it('lets researchers use the dashboard and office directory while protecting administration', function () {
     $agency = Agency::create(['name' => 'Test Agency']);
-    $level = Level::create(['name' => 'Test Level', 'slug' => 'test-level']);
-    $office = Office::create(['name' => 'Test Office', 'agency_id' => $agency->id]);
+    Office::create(['name' => 'Test Office', 'agency_id' => $agency->id]);
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
-    $this->get('/admin')->assertForbidden();
+    $this->get('/admin')->assertOk()->assertDontSee('Admin Users')->assertDontSee('Audit Logs');
+    $this->get('/admin/offices')->assertOk()->assertSee('Test Office');
+    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Test Agency')->assertSee('Test Office');
     $this->get('/admin/users')->assertForbidden();
     $this->get('/admin/audit-logs')->assertForbidden();
-    foreach (['levels', 'categories', 'agencies', 'barangays', 'offices'] as $type) {
-        $this->get('/admin/'.$type)->assertForbidden();
-        foreach (['', '/create', '/1/edit'] as $suffix) {
-            $this->get('/admin/reference/'.$type.$suffix)->assertForbidden();
-        }
-        $this->post('/admin/reference/'.$type, ['name' => 'Not allowed'])->assertForbidden();
-        $this->put('/admin/reference/'.$type.'/1', ['name' => 'Not allowed'])->assertForbidden();
-        $this->delete('/admin/reference/'.$type.'/1')->assertForbidden();
-    }
-    $this->get('/admin/documents/create')->assertOk()->assertSee('Test Agency')->assertSee('Test Level')->assertSee('Test Office')
-        ->assertDontSee('Reference Data')->assertDontSee('Administration')->assertDontSee('Audit Logs')->assertDontSee('Manage office directory')
-        ->assertSee('Change Password')->assertSee('Log Out');
-    $this->post('/admin/documents', ['name' => 'Researcher entry', 'agency_id' => $agency->id, 'level_id' => $level->id, 'office_ids' => [$office->id]])->assertSessionHasNoErrors();
-    expect(Document::first()->offices->modelKeys())->toBe([$office->id]);
+    $this->post('/admin/users', ['role' => 'super_admin'])->assertForbidden();
+    $this->post('/admin/documents', ['name' => 'Researcher entry', 'issued_by' => 'Test Agency'])
+        ->assertSessionHasNoErrors()->assertRedirect('/admin/documents');
+    expect(Document::sole()->issued_by)->toBe('Test Agency');
     expect($agency->fresh()->name)->toBe('Test Agency');
 });
 

@@ -268,6 +268,7 @@
 
                     this.saving = false;
                     this.closeModal();
+                    this.$dispatch('notify', { type: 'success', message: 'Agency added and selected. Save the form to keep your selection.' });
 
                 } catch (error) {
                     this.errorMessage =

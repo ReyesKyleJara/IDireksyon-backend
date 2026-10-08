@@ -40,9 +40,9 @@ class OfficeController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return $this->form(new Office());
+        return $this->form(new Office(), $request->boolean('embedded'));
     }
 
     public function edit(Office $office)
@@ -51,10 +51,11 @@ class OfficeController extends Controller
         return $this->form($office);
     }
 
-    private function form(Office $office)
+    private function form(Office $office, bool $embedded = false)
     {
         return view('admin.offices.form', [
             'office' => $office,
+            'embedded' => $embedded,
             'agencies' => Agency::orderBy('name')->get(),
         ]);
     }
@@ -62,6 +63,18 @@ class OfficeController extends Controller
     public function store(OfficeRequest $request)
     {
         $office = $this->saveOffice(new Office(), $request->validated());
+        if ($request->boolean('embedded')) {
+            $office->load('agency');
+            return view('admin.offices.created-embedded', [
+                'createdOffice' => [
+                    'id' => (string) $office->id,
+                    'name' => $office->name,
+                    'agency' => $office->agency?->name ?? '',
+                    'status' => $office->status,
+                    'location' => collect([$office->municipality, $office->province])->filter()->implode(', '),
+                ],
+            ]);
+        }
         return redirect()->route('admin.offices.edit', $office)->with('success', 'Office draft saved.');
     }
 

@@ -24,7 +24,7 @@
         residency: @js($eligibilityValue('eligibility_residency', $record?->eligibility_residency))
     }"
 >
-    <legend class="text-base font-semibold text-slate-900">Eligibility</legend>
+    <legend class="{{ $eligibilityHeadingClass ?? 'text-base font-semibold text-slate-900' }}">Eligibility</legend>
     <p class="text-sm text-slate-500">
         Select the researched conditions. Leave a selection blank if it has not been researched yet.
     </p>

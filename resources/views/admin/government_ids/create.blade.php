@@ -332,11 +332,11 @@
             <div class="mb-6">
 
                 <h2 class="text-lg font-semibold text-slate-900">
-                    Application Guide
+                    Fees & Processing Time
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Costs, processing information, and application procedures.
+                    Manage the costs and estimated processing time.
                 </p>
 
             </div>
@@ -365,148 +365,18 @@
                 )
 
 
-                {{-- APPLICATION PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="application_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Application Process / Steps
-                    </label>
-
-                    <textarea
-                        id="application_process"
-                        name="application_process"
-                        rows="7"
-                        class="admin-input"
-                        placeholder="Enter the application steps in order."
-                    >{{ old('application_process') }}</textarea>
-
-                </div>
-
-
-                {{-- RENEWAL PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="renewal_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Renewal Process
-                    </label>
-
-                    <textarea
-                        id="renewal_process"
-                        name="renewal_process"
-                        rows="4"
-                        class="admin-input"
-                        placeholder="Describe how the ID can be renewed."
-                    >{{ old('renewal_process') }}</textarea>
-
-                </div>
-
-
-                {{-- REPLACEMENT PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="replacement_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Replacement Process
-                    </label>
-
-                    <textarea
-                        id="replacement_process"
-                        name="replacement_process"
-                        rows="4"
-                        class="admin-input"
-                        placeholder="Describe the process for lost, damaged, or replaced IDs."
-                    >{{ old('replacement_process') }}</textarea>
-
-                </div>
-
             </div>
 
         </section>
+
+
+        @include('admin.government_ids.partials.application-guide-editor')
+
 
 
         @include('admin.government_ids.partials.office-links-field', [
             'selectedOffices' => collect(),
         ])
-
-        {{-- SOURCES & VERIFICATION --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Sources
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Record useful official websites and reference material.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6">
-
-                {{-- OFFICIAL LINK --}}
-                <div>
-
-                    <label
-                        for="official_link"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Official Website / Application Link
-                    </label>
-
-                    <input
-                        id="official_link"
-                        name="official_link"
-                        type="url"
-                        value="{{ old('official_link') }}"
-                        class="admin-input"
-                        placeholder="https://..."
-                    >
-
-                    @error('official_link')
-                        <p class="mt-2 text-sm text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-
-                </div>
-
-
-                {{-- OFFICIAL SOURCES --}}
-                <div>
-
-                    <label
-                        for="official_sources"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Official Sources
-                    </label>
-
-                    <textarea
-                        id="official_sources"
-                        name="official_sources"
-                        rows="5"
-                        class="admin-input"
-                        placeholder="List the official pages, advisories, or documents used for research."
-                    >{{ old('official_sources') }}</textarea>
-
-                </div>
-
-
-            </div>
-
-        </section>
-
 
         {{-- ACTIONS --}}
         <div class="flex justify-end gap-3">

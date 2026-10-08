@@ -133,7 +133,8 @@ it('removes form verification controls and rejects forged connection metadata', 
     foreach (['/admin/government-ids/create', '/admin/government-ids/'.$id->id.'/edit'] as $url) {
         $this->get($url)->assertOk()->assertDontSee('Official Service Source')
             ->assertDontSee('verify_today', false)->assertDontSee('Verification Status')
-            ->assertSee('Not yet researched');
+            ->assertSee('value="unknown"', false)
+            ->assertSee('value="available"', false)->assertSee('value="unavailable"', false);
     }
     $this->post('/admin/government-ids', [
         'name' => 'Forged', 'office_links' => [officeLinkRow($office, ['last_verified_by' => auth()->id()])],
@@ -194,7 +195,19 @@ it('does not erase removed rows intent when another field fails validation', fun
     $this->from('/admin/government-ids/'.$id->id.'/edit')->put('/admin/government-ids/'.$id->id, [
         'name' => '', 'office_links_present' => 1,
     ])->assertSessionHasErrors('name');
-    $this->get('/admin/government-ids/'.$id->id.'/edit')->assertOk()->assertSee('links: []', false);
+    $response = $this->get('/admin/government-ids/'.$id->id.'/edit')->assertOk();
+    // Check the modal selection instead of the old inline component syntax.
+    $html = new DOMDocument();
+    $previous = libxml_use_internal_errors(true);
+    try {
+        $html->loadHTML($response->getContent());
+        $section = (new DOMXPath($html))->query('//section[@aria-label="Linked Offices"]')->item(0);
+        expect($section)->not->toBeNull();
+        expect($section->getAttribute('x-data'))->toStartWith('governmentIdOffices(')->toEndWith(', [])');
+    } finally {
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+    }
     expect($id->offices()->count())->toBe(1);
 });
 

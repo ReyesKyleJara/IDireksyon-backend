@@ -5,29 +5,48 @@
 
 @section('content')
 
-<div class="mx-auto max-w-4xl">
+<style>
+    .id-editor { width: 100%; min-width: 0; }
+    .id-editor .editor-heading { margin-bottom: 24px; }
+    .id-editor .editor-heading h1 { margin-top: 16px; font-size: 26px; font-weight: 650; line-height: 1.3; letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .id-editor .editor-form { padding: 32px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+    .id-editor .editor-form > .admin-panel { margin: 0; padding: 28px 0; border: 0; border-bottom: 1px solid #e2e8f0; border-radius: 0; }
+    .id-editor .editor-form > .admin-panel:first-of-type { padding-top: 0; }
+    .id-editor .editor-form > .admin-panel > div:first-child { margin-bottom: 20px; }
+    .id-editor .editor-form > section > div > h2,
+    .id-editor .editor-form > section > div > div > h2,
+    .id-editor .editor-form > section > fieldset > legend,
+    .id-editor .editor-timing h2 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+    .id-editor .editor-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; padding: 28px 0; border-bottom: 1px solid #e2e8f0; }
+    .id-editor .editor-timing > section { min-width: 0; padding: 0; border: 0; border-radius: 0; }
+    .id-editor .editor-timing > section + section { padding-left: 32px; border-left: 1px solid #e2e8f0; }
+    .id-editor .editor-actions { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding: 16px 0; background: #fff; border-top: 1px solid #e2e8f0; }
+    .id-editor .editor-actions p { margin: 0; max-width: 440px; font-size: 12px; line-height: 1.5; color: #64748b; }
+    .id-editor .editor-buttons { display: flex; gap: 12px; margin-left: auto; }
+    @media (min-width: 900px) {
+        .id-editor .editor-description, .id-editor .editor-purpose { grid-column: span 1 / span 1; }
+    }
+    @media (max-width: 1023px) {
+        .id-editor .editor-timing { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+        .id-editor .editor-timing > section + section { padding-left: 0; border-left: 0; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+    }
+    @media (max-width: 640px) {
+        .id-editor .editor-form { padding: 20px; }
+        .id-editor .editor-heading h1 { font-size: 23px; }
+    }
+</style>
 
-    <div class="mb-7">
-
-        <p class="admin-eyebrow mb-2">
-            IDs & Credentials
-        </p>
-
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-            Edit ID or Credential
-        </h1>
-
-        <p class="mt-2 text-sm text-slate-500">
-            Update the researched information for {{ $governmentId->name }}.
-        </p>
-
-    </div>
-
+<div class="id-editor">
+    <header class="editor-heading">
+        <a href="{{ route('admin.government-ids.show', $governmentId) }}" class="text-sm text-slate-600 hover:underline">← Back to ID details</a>
+        <h1>{{ $governmentId->name }}</h1>
+        <p class="mt-2 text-sm text-slate-500">Edit ID details</p>
+    </header>
 
     <form
         method="POST"
         action="{{ route('admin.government-ids.update', $governmentId) }}"
-        class="space-y-6"
+        class="editor-form"
     >
 
         @csrf
@@ -215,7 +234,7 @@
 
 
                 {{-- PURPOSE --}}
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 editor-purpose">
 
                     <label
                         for="purpose"
@@ -227,7 +246,7 @@
                     <textarea
                         id="purpose"
                         name="purpose"
-                        rows="3"
+                        rows="4"
                         class="admin-input"
                     >{{ old('purpose', $governmentId->purpose) }}</textarea>
 
@@ -235,7 +254,7 @@
 
 
                 {{-- DESCRIPTION --}}
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 editor-description">
 
                     <label
                         for="description"
@@ -254,15 +273,6 @@
                 </div>
 
 
-                {{-- STRUCTURED VALIDITY --}}
-                @include(
-                    'admin.government_ids.partials.validity-field',
-                    [
-                        'selectedValidityType' => $governmentId->validity_type,
-                        'selectedValidityValue' => $governmentId->validity_value,
-                        'selectedValidityUnit' => $governmentId->validity_unit,
-                    ]
-                )
 
             </div>
 
@@ -273,102 +283,58 @@
         <section class="admin-panel p-6" aria-label="Eligibility">
             @include('admin.government_ids.partials.eligibility-fields', [
                 'eligibilityRecord' => $governmentId,
+                'eligibilityHeadingClass' => 'text-lg font-semibold text-slate-900',
             ])
         </section>
 
 
-        {{-- REQUIREMENTS & PREREQUISITES --}}
-        <section class="admin-panel p-6">
+        {{-- REQUIREMENTS --}}
+        @include('admin.government_ids.partials.checklists', ['editable' => true])
 
+        {{-- Preserve existing resident API text while editing structured checklists. --}}
+        <div hidden>
+            <textarea name="requirements">{{ old('requirements', $governmentId->requirements) }}</textarea>
+            <textarea name="prerequisite_notes">{{ old('prerequisite_notes', $governmentId->prerequisite_notes) }}</textarea>
+        </div>
+
+        @include('admin.government_ids.partials.fees-modal', ['selectedFees' => $governmentId->fees])
+
+        <div class="editor-timing">
+        {{-- VALIDITY --}}
+        <section class="admin-panel p-6" aria-label="Validity">
             <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Requirements & Prerequisites
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Human-readable application requirements for residents.
-                </p>
-
+                <h2 class="text-lg font-semibold text-slate-900">Validity</h2>
+                <p class="mt-1 text-sm text-slate-500">How long the ID remains valid after it is issued.</p>
             </div>
-
-
-            <div class="grid gap-6">
-
-                {{-- REQUIREMENTS --}}
-                <div>
-
-                    <label
-                        for="requirements"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Requirements
-                    </label>
-
-                    <textarea
-                        id="requirements"
-                        name="requirements"
-                        rows="6"
-                        class="admin-input"
-                    >{{ old('requirements', $governmentId->requirements) }}</textarea>
-
-                </div>
-
-
-                {{-- PREREQUISITES --}}
-                <div>
-
-                    <label
-                        for="prerequisite_notes"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Prerequisites / Dependencies
-                    </label>
-
-                    <textarea
-                        id="prerequisite_notes"
-                        name="prerequisite_notes"
-                        rows="4"
-                        class="admin-input"
-                    >{{ old('prerequisite_notes', $governmentId->prerequisite_notes) }}</textarea>
-
-                    <p class="mt-2 text-xs text-slate-500">
-                        This is for readable guidance. Smart sequencing rules will be stored separately.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        {{-- APPLICATION GUIDE --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Application Guide
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Costs, processing information, and application procedures.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6 sm:grid-cols-2">
-
-                {{-- FEES --}}
+                {{-- STRUCTURED VALIDITY --}}
                 @include(
-                    'admin.government_ids.partials.fee-items-field',
+                    'admin.government_ids.partials.validity-field',
                     [
-                        'selectedFees' => $governmentId->fees,
+                        'selectedValidityType' => $governmentId->validity_type,
+                        'selectedValidityValue' => $governmentId->validity_value,
+                        'selectedValidityUnit' => $governmentId->validity_unit,
                     ]
                 )
 
+        </section>
+
+        {{-- PROCESSING TIME --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Processing Time
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Record the estimated processing time.
+                </p>
+
+            </div>
+
+
+            <div>
 
                 {{-- PROCESSING TIME --}}
                 @include(
@@ -382,150 +348,26 @@
                 )
 
 
-                {{-- APPLICATION PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="application_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Application Process / Steps
-                    </label>
-
-                    <textarea
-                        id="application_process"
-                        name="application_process"
-                        rows="7"
-                        class="admin-input"
-                    >{{ old('application_process', $governmentId->application_process) }}</textarea>
-
-                </div>
-
-
-                {{-- RENEWAL PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="renewal_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Renewal Process
-                    </label>
-
-                    <textarea
-                        id="renewal_process"
-                        name="renewal_process"
-                        rows="4"
-                        class="admin-input"
-                    >{{ old('renewal_process', $governmentId->renewal_process) }}</textarea>
-
-                </div>
-
-
-                {{-- REPLACEMENT PROCESS --}}
-                <div class="sm:col-span-2">
-
-                    <label
-                        for="replacement_process"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Replacement Process
-                    </label>
-
-                    <textarea
-                        id="replacement_process"
-                        name="replacement_process"
-                        rows="4"
-                        class="admin-input"
-                    >{{ old('replacement_process', $governmentId->replacement_process) }}</textarea>
-
-                </div>
-
             </div>
 
         </section>
+
+
+        </div>
+
+        @include('admin.government_ids.partials.application-guide-editor')
+
 
 
         @include('admin.government_ids.partials.office-links-field', [
             'selectedOffices' => $governmentId->offices,
+            'officeModal' => true,
         ])
 
-        {{-- SOURCES & VERIFICATION --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Sources
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Record useful official websites and reference material.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6">
-
-                {{-- OFFICIAL LINK --}}
-                <div>
-
-                    <label
-                        for="official_link"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Official Website / Application Link
-                    </label>
-
-                    <input
-                        id="official_link"
-                        name="official_link"
-                        type="url"
-                        value="{{ old(
-                            'official_link',
-                            $governmentId->official_link
-                        ) }}"
-                        class="admin-input"
-                        placeholder="https://..."
-                    >
-
-                    @error('official_link')
-                        <p class="mt-2 text-sm text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-
-                </div>
-
-
-                {{-- OFFICIAL SOURCES --}}
-                <div>
-
-                    <label
-                        for="official_sources"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Official Sources
-                    </label>
-
-                    <textarea
-                        id="official_sources"
-                        name="official_sources"
-                        rows="5"
-                        class="admin-input"
-                    >{{ old('official_sources', $governmentId->official_sources) }}</textarea>
-
-                </div>
-
-
-            </div>
-
-        </section>
-
-
         {{-- ACTIONS --}}
-        <div class="flex justify-end gap-3">
+        <div class="editor-actions">
+            <p>Checklists save separately. Use Save Changes for the other sections.</p>
+            <div class="editor-buttons">
 
             <a
                 href="{{ route('admin.government-ids.index') }}"
@@ -541,6 +383,7 @@
                 Save Changes
             </button>
 
+            </div>
         </div>
 
     </form>
