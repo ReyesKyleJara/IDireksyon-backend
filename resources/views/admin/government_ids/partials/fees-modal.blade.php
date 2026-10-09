@@ -33,7 +33,7 @@
             </div>
         </template>
     </div>
-    <p x-show="changed" role="status" class="mt-3 text-xs text-blue-800">Fees updated in this form. Click Save Changes to save them.</p>
+    <p x-show="changed" role="status" class="mt-3 text-xs text-blue-800">Fees updated in this form. Click {{ $saveActionLabel ?? 'Save Changes' }} to save them.</p>
 
     {{-- Only applied values are submitted by the main ID form. --}}
     <template x-for="(fee, index) in fees" :key="fee.key">
@@ -97,7 +97,7 @@
                     <button type="button" class="admin-secondary" @click="draft.push(normalize())">+ Add fee</button>
                 </div>
                 <footer class="shrink-0 border-t border-slate-200 px-6 py-4">
-                    <p class="mb-3 text-xs text-slate-500">Apply fees, then click Save Changes on the page to save.</p>
+                    <p class="mb-3 text-xs text-slate-500">Apply fees, then click {{ $saveActionLabel ?? 'Save Changes' }} on the page to save.</p>
                     <div class="flex justify-end gap-3">
                         <button type="button" class="admin-secondary" @click="cancel()">Cancel</button>
                         <button type="button" class="admin-primary" @click="apply()">Apply fees</button>

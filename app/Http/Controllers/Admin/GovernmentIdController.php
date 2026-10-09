@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
 use App\Services\GovernmentIdApplicationGuide;
+use App\Services\GovernmentIdChecklists;
 use App\Models\GovernmentId;
 use App\Models\Document;
 use App\Models\GovernmentIdRequirementItem;
@@ -111,14 +112,18 @@ class GovernmentIdController extends Controller
             ->orderBy('name')
             ->get();
 
+        $checklists = [];
+        $requirementOptions = $this->requirementOptions();
+
         return view(
             'admin.government_ids.create',
-            compact('agencies', 'offices')
+            compact('agencies', 'offices', 'checklists', 'requirementOptions')
         );
     }
 
     public function store(Request $request)
     {
+        $checklistRows = app(GovernmentIdChecklists::class)->readForCreation($request);
         $guideRows = app(GovernmentIdApplicationGuide::class)->read($request);
 
         $validated = $this->prepareEligibility(
@@ -159,7 +164,8 @@ class GovernmentIdController extends Controller
             $validated,
             $feeRows,
             $officeRows,
-            $guideRows
+            $guideRows,
+            $checklistRows
         ) {
             $governmentId = GovernmentId::create(
                 $validated
@@ -174,16 +180,14 @@ class GovernmentIdController extends Controller
                 $this->syncOfficeLinks($governmentId, $officeRows);
             }
 
-            app(GovernmentIdApplicationGuide::class)->sync($governmentId, $guideRows);
+            $draftSets = app(GovernmentIdChecklists::class)->createAll($governmentId, $checklistRows);
+            app(GovernmentIdApplicationGuide::class)->sync($governmentId, $guideRows, $draftSets);
 
 
             return $governmentId;
         });
 
-        /*
-         * After creating an ID,
-         * go directly to its View page.
-         */
+        // The complete creation form saves all sections before opening ID details.
         return redirect()
             ->route(
                 'admin.government-ids.show',
@@ -216,11 +220,7 @@ class GovernmentIdController extends Controller
 
         $checklists = $governmentId->requirementSets
             ->map(fn ($set) => GovernmentIdChecklistController::present($set))->values()->all();
-        $requirementOptions = GovernmentId::orderBy('name')->get(['id', 'name'])
-            ->map(fn ($id) => ['id' => $id->id, 'name' => $id->name, 'type' => 'government_id'])
-            ->concat(Document::orderBy('name')->get(['id', 'name'])
-                ->map(fn ($document) => ['id' => $document->id, 'name' => $document->name, 'type' => 'document']))
-            ->sortBy('name')->values()->all();
+        $requirementOptions = $this->requirementOptions();
 
         return view(
             'admin.government_ids.edit',
@@ -232,6 +232,15 @@ class GovernmentIdController extends Controller
                 'requirementOptions'
             )
         );
+    }
+
+    private function requirementOptions(): array
+    {
+        return GovernmentId::orderBy('name')->get(['id', 'name'])
+            ->map(fn ($id) => ['id' => $id->id, 'name' => $id->name, 'type' => 'government_id'])
+            ->concat(Document::orderBy('name')->get(['id', 'name'])
+                ->map(fn ($document) => ['id' => $document->id, 'name' => $document->name, 'type' => 'document']))
+            ->sortBy('name')->values()->all();
     }
 
     public function update(

@@ -1,5 +1,6 @@
 @php
     $guideConfig = [
+        'deferred' => $deferred ?? false,
         'scenarios' => app(\App\Services\GovernmentIdApplicationGuide::class)->present($governmentId ?? null),
         'oldPayload' => is_string(old('application_guide_payload')) ? old('application_guide_payload') : null,
     ];

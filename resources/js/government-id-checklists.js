@@ -2,7 +2,12 @@ const copy = value => JSON.parse(JSON.stringify(value));
 
 export default function governmentIdChecklists(config) {
     return {
-        checklists: config.checklists,
+        checklists: config.checklists || [],
+        deferred: !!config.deferred,
+        ready: false,
+        restoreError: false,
+        formError: '',
+        submitting: false,
         options: config.options,
         formats: config.formats,
         conditions: config.conditions,
@@ -22,8 +27,41 @@ export default function governmentIdChecklists(config) {
         beforeUnload: null,
         previousOverflow: null,
         init() {
+            if (this.deferred) {
+                if (config.oldPayload !== null && config.oldPayload !== undefined) {
+                    try {
+                        const rows = JSON.parse(config.oldPayload);
+                        if (!Array.isArray(rows) || rows.length > 50) throw new Error();
+                        const keys = new Set();
+                        this.checklists = rows.map(row => {
+                            if (!row || typeof row.client_key !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(row.client_key)
+                                || keys.has(row.client_key) || !Array.isArray(row.groups)) throw new Error();
+                            keys.add(row.client_key);
+                            return { ...row, label: this.checklistLabel(row), groups: row.groups.map(group => this.decorate(group)) };
+                        });
+                    } catch {
+                        this.checklists = [];
+                        this.restoreError = true;
+                        this.formError = 'The submitted requirements could not be restored. Your original submission is retained; review it before creating the ID.';
+                    }
+                }
+                this.form = this.$el.closest('form');
+                this.submitHandler = event => {
+                    if (this.draft || this.restoreError) {
+                        event.preventDefault();
+                        this.formError = this.restoreError ? this.formError : 'Apply or cancel the open checklist before creating the ID.';
+                        return;
+                    }
+                    if (this.$refs.pendingPayload) this.$refs.pendingPayload.value = this.creationPayload;
+                    this.submitting = true;
+                    queueMicrotask(() => { if (event.defaultPrevented) this.submitting = false; });
+                };
+                this.form?.addEventListener('submit', this.submitHandler);
+                this.$nextTick(() => this.checklists.forEach(row => this.$dispatch('guide-scenario-changed', row)));
+            }
+            this.ready = true;
             this.beforeUnload = event => {
-                if (this.dirty() || this.saving) {
+                if (!this.submitting && (this.dirty() || this.saving || (this.deferred && this.checklists.length > 0))) {
                     event.preventDefault();
                     event.returnValue = '';
                 }
@@ -32,8 +70,95 @@ export default function governmentIdChecklists(config) {
         },
         destroy() {
             window.removeEventListener('beforeunload', this.beforeUnload);
+            this.form?.removeEventListener('submit', this.submitHandler);
             if (this.$refs.dialog?.open) this.$refs.dialog.close();
             if (this.previousOverflow !== null) document.body.style.overflow = this.previousOverflow;
+        },
+        get creationPayload() {
+            if (this.restoreError) return config.oldPayload;
+            return JSON.stringify(this.checklists.map(row => ({ client_key: row.client_key, ...this.payload(row) })));
+        },
+        discardUnreadableDrafts() {
+            if (!window.confirm('Discard the unreadable requirement submission and start the checklists again?')) return;
+            this.restoreError = false;
+            this.formError = '';
+            this.checklists = [];
+        },
+        checklistLabel(row) {
+            let applicant = this.applicants[row.applicant_type] || 'Applicant';
+            if (row.applicant_type === 'custom') {
+                const min = row.min_age, max = row.max_age;
+                const hasMin = min !== null && min !== undefined && min !== '';
+                const hasMax = max !== null && max !== undefined && max !== '';
+                const age = hasMin && hasMax ? 'Ages ' + min + '–' + max : hasMin ? 'Age ' + min + ' and above' : hasMax ? 'Age ' + max + ' and below' : 'No age restriction';
+                applicant = row.applicant_type_custom ? row.applicant_type_custom + ' (' + age + ')' : age;
+            }
+            return applicant + ' • ' + (row.application_type === 'custom' ? row.application_type_custom : this.applications[row.application_type]);
+        },
+        acceptGuideScenario(row) {
+            if (!this.deferred || this.restoreError || !row.client_key) return;
+            const existing = this.checklists.find(item => item.client_key === row.client_key);
+            if (existing) return;
+            const fields = ['application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom', 'min_age', 'max_age'];
+            this.checklists.push({ ...Object.fromEntries(fields.map(field => [field, row[field] ?? null])),
+                client_key: row.client_key, label: row.label || this.checklistLabel(row), groups: [],
+            });
+        },
+        sameScenario(one, two) {
+            const signature = row => JSON.stringify([
+                row.application_type, row.application_type === 'custom' ? (row.application_type_custom || '').trim() : '',
+                row.applicant_type, row.applicant_type === 'custom' ? (row.applicant_type_custom || '').trim() : '',
+                row.applicant_type === 'custom' && row.min_age != null && row.min_age !== '' ? Number(row.min_age) : null,
+                row.applicant_type === 'custom' && row.max_age != null && row.max_age !== '' ? Number(row.max_age) : null,
+            ]);
+            return signature(one) === signature(two);
+        },
+        applyDraft() {
+            const row = this.draft;
+            const errors = [];
+            if (!Object.hasOwn(this.applications, row.application_type)) errors.push('Select an application type.');
+            if (!Object.hasOwn(this.applicants, row.applicant_type)) errors.push('Select an applicant type.');
+            if (row.application_type === 'custom' && !row.application_type_custom?.trim()) errors.push('Name the custom application type.');
+            if (row.applicant_type === 'custom') {
+                for (const field of ['min_age', 'max_age']) {
+                    const value = row[field];
+                    if (value !== null && value !== undefined && value !== '' && (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 65535)) errors.push('Use whole ages between 0 and 65535.');
+                }
+                if (row.min_age != null && row.min_age !== '' && row.max_age != null && row.max_age !== '' && Number(row.max_age) < Number(row.min_age)) errors.push('Maximum age cannot be below minimum age.');
+            }
+            if (this.checklists.length >= 50 && !row.client_key) errors.push('Use at most 50 checklists per ID.');
+            if (errors.length) { this.errors = errors; this.$nextTick(() => this.$refs.errors?.focus()); return; }
+            if (!row.client_key) {
+                const existing = this.checklists.find(item => this.sameScenario(item, row));
+                if (existing?.groups.length) {
+                    this.errors = ['This applicant/application already has a checklist. Edit that checklist instead.'];
+                    this.$nextTick(() => this.$refs.errors?.focus());
+                    return;
+                }
+                if (existing) row.client_key = existing.client_key;
+            }
+            if (!row.client_key) {
+                do { row.client_key = 'checklist-' + (++this.sequence); }
+                while (this.checklists.some(item => item.client_key === row.client_key));
+            }
+            if (row.application_type !== 'custom') row.application_type_custom = null;
+            if (row.applicant_type !== 'custom') {
+                row.applicant_type_custom = null;
+                row.min_age = row.applicant_type === 'adult' ? 18 : null;
+                row.max_age = row.applicant_type === 'minor' ? 17 : null;
+            } else {
+                for (const field of ['min_age', 'max_age']) {
+                    row[field] = row[field] === null || row[field] === undefined || row[field] === '' ? null : Number(row[field]);
+                }
+            }
+            row.label = this.checklistLabel(row);
+            const index = this.checklists.findIndex(item => item.client_key === row.client_key);
+            const applied = copy(row);
+            if (index < 0) this.checklists.push(applied); else this.checklists.splice(index, 1, applied);
+            this.formError = '';
+            this.$dispatch('guide-scenario-changed', applied);
+            this.$dispatch('notify', { type: 'info', message: 'Checklist applied. Create ID to save it with the other sections.' });
+            this.close(true);
         },
         itemName(item) {
             if (item.type === 'custom') return item.custom_name || 'Custom requirement';
@@ -69,6 +194,7 @@ export default function governmentIdChecklists(config) {
         waySummary(way) {
             const count = Number(way.required_count);
             if (way.items.length === 1 && count === 1) return this.itemName(way.items[0]);
+            if (count === way.items.length) return 'Provide all ' + count + ' listed items';
             return 'Choose ' + count + ' of ' + way.items.length + ' accepted items';
         },
         qualification(way) {
@@ -81,9 +207,10 @@ export default function governmentIdChecklists(config) {
             const result = copy(group);
             result.key = ++this.sequence;
             result.conditional = result.condition_type !== 'always';
+            result.advancedOpen = false;
             result.ways = this.ways(result).map(way => ({
                 ...way, key: ++this.sequence, search: '', type: way.items[0]?.type || 'document',
-                mode: way.items.length === 1 && !result.title ? 'specific' : 'accepted',
+                mode: way.items.length <= 1 && Number(way.required_count) === 1 ? 'specific' : 'accepted',
                 qualificationOpen: false,
                 items: way.items.map(item => ({ ...item, key: ++this.sequence, details: false })),
             }));
@@ -91,7 +218,7 @@ export default function governmentIdChecklists(config) {
             return result;
         },
         open(checklist, event) {
-            if (!this.editable || this.saving || this.deleting) return;
+            if (!this.editable || this.saving || this.deleting || this.restoreError) return;
             this.opener = event?.currentTarget || document.activeElement;
             this.errors = [];
             this.editing = null;
@@ -126,7 +253,7 @@ export default function governmentIdChecklists(config) {
             return {
                 id: null, key: ++this.sequence, required_count: 1,
                 qualification_type: 'none', qualification_scope: 'every', qualification_custom: '',
-                mode: '', type: 'document', search: '', qualificationOpen: false, items: [],
+                mode: 'specific', search: '', qualificationOpen: false, items: [],
             };
         },
         addRequirement() {
@@ -135,19 +262,77 @@ export default function governmentIdChecklists(config) {
             this.errors = [];
             this.editing = {
                 id: null, key: ++this.sequence, title: '', rule: 'all', condition_type: 'always',
-                condition_custom: '', conditional: false, ways: [this.newWay()],
+                condition_custom: '', conditional: false, choosing: true, advancedOpen: false, ways: [this.newWay()],
             };
+            this.focusEditor();
+        },
+        requirementEditorTitle() {
+            if (!this.editing) return this.draft?.id || this.draft?.client_key ? 'Edit checklist' : 'Add checklist';
+            if (this.editing.choosing) return 'What requirement will you add?';
+            const verb = this.editingIndex === null ? 'Add' : 'Edit';
+            if (this.editing.conditional) return verb + ' a conditional requirement';
+            if (this.editing.ways.length > 1) return verb + ' requirement alternatives';
+            return this.editing.ways[0].mode === 'accepted'
+                ? verb + ' accepted choices' : verb + ' a specific requirement';
+        },
+        chooseRequirementType(type) {
+            if (!this.editing?.choosing || !['specific', 'accepted', 'conditional'].includes(type)) return;
+            const group = this.editing;
+            const way = group.ways[0];
+            if (type !== 'conditional' && group.ways.length > 1) {
+                this.errors = ['This requirement has several alternatives. Resume editing to adjust them first, or choose a conditional requirement to keep them.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return;
+            }
+            if (type === 'specific' && (way.items.length > 1 || Number(way.required_count) !== 1)) {
+                this.errors = ['To use one specific item, resume editing, keep one item, and set the number needed to 1. Your entries have been kept.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return;
+            }
+            group.conditional = type === 'conditional';
+            if (type !== 'conditional') way.mode = type;
+            this.resumeRequirement();
+        },
+        chooseAgain() {
+            if (!this.editing) return;
+            this.editing.choosing = true;
+            this.errors = [];
+            this.focusEditor();
+        },
+        resumeRequirement() {
+            if (!this.editing) return;
+            this.editing.choosing = false;
+            this.editing.visited = true;
+            this.errors = [];
+            this.focusEditor();
         },
         editRequirement(index) {
             if (this.editing) return;
             this.editingIndex = index;
             this.editing = copy(this.draft.groups[index]);
+            this.editing.advancedOpen = false;
+            this.editing.choosing = false;
+            this.editing.visited = true;
             this.errors = [];
+            this.focusEditor();
+        },
+        focusEditor() {
+            this.$nextTick(() => {
+                if (this.$refs.dialogBody) this.$refs.dialogBody.scrollTop = 0;
+                const panel = this.$refs.dialog?.querySelector('[aria-label="Requirement editor"]');
+                const control = [...(panel?.querySelectorAll('input, select, textarea, button') || [])]
+                    .find(element => element.offsetParent !== null);
+                control?.focus();
+            });
+        },
+        returnToChecklist() {
+            this.$nextTick(() => this.$refs.addRequirementButton?.focus());
         },
         cancelRequirement() {
-            if (!window.confirm('Discard changes to this requirement?')) return;
+            if (this.editing?.visited && !window.confirm('Discard changes to this requirement and return to the checklist?')) return;
             this.editing = null;
             this.errors = [];
+            this.returnToChecklist();
         },
         removeRequirement(index) {
             if (this.editing || !window.confirm('Remove this requirement from the checklist?')) return;
@@ -155,31 +340,45 @@ export default function governmentIdChecklists(config) {
         },
         addWay() {
             if (this.editing.ways.length >= 10) return;
+            if (this.editing.ways.some(way => !way.items.length)) {
+                this.errors = ['Select the items for the existing option before adding another.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return;
+            }
+            this.editing.advancedOpen = true;
             this.editing.ways.push(this.newWay());
+            this.errors = [];
         },
-        chooseMode(way, mode) {
-            way.mode = mode;
-            way.items = [];
-            way.required_count = 1;
+        removeWay(index) {
+            if (this.editing.ways.length <= 1) return;
+            if (!window.confirm('Remove this alternative and its selected items from this requirement?')) return;
+            this.editing.ways.splice(index, 1);
+        },
+        allowAcceptedItems(way) {
+            // Keep the chosen record and its submission details when adding alternatives.
+            way.mode = 'accepted';
+        },
+        useSpecificItem(way) {
+            // Never silently discard accepted items or lower an existing required count.
+            if (way.items.length > 1 || Number(way.required_count) !== 1) return;
+            way.mode = 'specific';
             way.search = '';
         },
-        changeType(way) {
-            way.items = [];
-            way.search = '';
-            if (way.type === 'custom') this.addItem(way);
+        isSelected(way, option) {
+            const field = option.type === 'government_id' ? 'government_id_id' : 'document_id';
+            return way.items.some(item => item.type === option.type
+                && String(item[field]) === String(option.id));
         },
         matches(way) {
             const search = way.search.trim().toLocaleLowerCase();
             if (!search) return [];
-            return this.options.filter(option => (
-                (way.mode !== 'specific' || option.type === way.type)
-                && option.name.toLocaleLowerCase().includes(search)
-                && !way.items.some(item => item.type === option.type
-                    && String(item[option.type === 'government_id' ? 'government_id_id' : 'document_id']) === String(option.id))
-            )).slice(0, 20);
+            // Keep selected results in place so researchers can continue down the list.
+            return this.options.filter(option => option.name.toLocaleLowerCase().includes(search)).slice(0, 20);
         },
-        addItem(way, option = null) {
-            if (way.items.length >= 50) return;
+        addItem(way, option = null, event = null) {
+            if (way.items.length >= 50 || (way.mode === 'specific' && way.items.length > 0)
+                || (option && this.isSelected(way, option))) return;
+            const searchInput = event?.currentTarget?.closest('[data-requirement-search]')?.querySelector('input[type="search"]');
             const item = {
                 id: null, key: ++this.sequence, type: option?.type || 'custom',
                 government_id_id: option?.type === 'government_id' ? option.id : null,
@@ -187,9 +386,13 @@ export default function governmentIdChecklists(config) {
                 custom_name: '', submission_format: 'not_specified', submission_format_custom: '',
                 copies: '', quantity: '', instructions: '', details: false,
             };
-            if (way.mode === 'specific') way.items = [item];
-            else way.items.push(item);
-            way.search = '';
+            if (way.mode === 'specific') {
+                way.items = [item];
+                way.search = '';
+            } else {
+                way.items.push(item);
+                if (option) this.$nextTick(() => searchInput?.focus({ preventScroll: true }));
+            }
         },
         removeItem(way, index) {
             way.items.splice(index, 1);
@@ -197,16 +400,19 @@ export default function governmentIdChecklists(config) {
         finishRequirement() {
             const group = this.editing;
             if (!group) return true;
+            if (group.choosing) return false;
             const errors = [];
             if (group.ways.some(way => way.mode === 'accepted') || group.ways.length > 1) {
-                if (!group.title.trim()) errors.push('Give this requirement a name, such as Proof of Identity.');
+                if (!group.title?.trim()) errors.push('Give this requirement a name, such as Proof of Identity.');
             }
             if (group.conditional && (group.condition_type === 'always'
                 || (group.condition_type === 'custom' && !group.condition_custom?.trim()))) {
                 errors.push('Select or describe when this requirement applies.');
             }
             group.ways.forEach((way, index) => {
-                if (!way.mode || !way.items.length) errors.push('Way ' + (index + 1) + ': select what the applicant needs.');
+                if (!way.items.length) errors.push(group.ways.length === 1
+                    ? 'Search and select an item, or add a custom item.'
+                    : 'Way ' + (index + 1) + ': select what the applicant needs.');
                 if (!Number.isInteger(Number(way.required_count)) || Number(way.required_count) < 1
                     || Number(way.required_count) > way.items.length) {
                     errors.push('The number needed must be between 1 and the number of accepted items.');
@@ -224,6 +430,7 @@ export default function governmentIdChecklists(config) {
                 });
             });
             if (errors.length) {
+                if (group.ways.length > 1) group.advancedOpen = true;
                 this.errors = [...new Set(errors)];
                 this.$nextTick(() => this.$refs.errors?.focus());
                 return false;
@@ -233,10 +440,10 @@ export default function governmentIdChecklists(config) {
             else this.draft.groups.splice(this.editingIndex, 1, copy(group));
             this.editing = null;
             this.errors = [];
+            this.returnToChecklist();
             return true;
         },
-        payload() {
-            const d = this.draft;
+        payload(d = this.draft) {
             if (!d) return null;
             return {
                 application_type: d.application_type,
@@ -296,7 +503,9 @@ export default function governmentIdChecklists(config) {
             document.querySelector('[data-checklist-history="fallback"]')?.remove();
         },
         async save() {
-            if (this.saving || !this.finishRequirement()) return;
+            // Only the checklist overview saves to the server. Enter in the item editor stays local.
+            if (this.saving || this.editing) return;
+            if (this.deferred) { this.applyDraft(); return; }
             this.errors = [];
             this.saving = true;
             try {
@@ -319,6 +528,17 @@ export default function governmentIdChecklists(config) {
         },
         async deleteChecklist(checklist) {
             if (this.deleting || this.saving || !window.confirm('Delete "' + checklist.label + '" and its requirements? The IDs and Documents in the directory will remain.')) return;
+            if (this.deferred) {
+                const removal = new CustomEvent('draft-checklist-removing', { cancelable: true, detail: checklist });
+                if (!window.dispatchEvent(removal)) {
+                    this.$dispatch('notify', { type: 'error', message: 'This checklist has guide steps. Remove its steps before deleting the scenario.' });
+                    return;
+                }
+                this.checklists = this.checklists.filter(item => item.client_key !== checklist.client_key);
+                this.$dispatch('guide-scenario-changed', { client_key: checklist.client_key, deleted: true });
+                this.$dispatch('notify', { type: 'info', message: 'Checklist removed from this form.' });
+                return;
+            }
             this.deleting = checklist.id;
             try {
                 const data = await this.request(config.url + '/' + checklist.id, 'DELETE');

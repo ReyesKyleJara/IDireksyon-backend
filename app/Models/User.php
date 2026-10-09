@@ -24,17 +24,22 @@ class User extends Authenticatable
 
     public function canAccessCms(): bool
     {
-        return $this->is_active && array_key_exists($this->role, self::CMS_ROLES);
+        return $this->is_active && array_key_exists(
+            $this->role,
+            self::CMS_ROLES
+        );
     }
 
     public function canManageAdmins(): bool
     {
-        return $this->canAccessCms() && $this->role === 'super_admin';
+        return $this->canAccessCms()
+            && $this->role === 'super_admin';
     }
 
     public function setUsernameAttribute(?string $value): void
     {
-        $this->attributes['username'] = $value === null ? null : strtolower(trim($value));
+        $this->attributes['username'] =
+            $value === null ? null : strtolower(trim($value));
     }
 
     public function cmsHomeRoute(): string
@@ -45,11 +50,6 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'username',
@@ -58,21 +58,11 @@ class User extends Authenticatable
         'password',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [

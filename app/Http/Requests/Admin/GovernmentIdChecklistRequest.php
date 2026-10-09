@@ -10,6 +10,29 @@ use Illuminate\Validation\Validator;
 
 class GovernmentIdChecklistRequest extends GovernmentIdRequirementSetRequest
 {
+    /** Reuse the CMS rules for unsaved checklists submitted with a new ID. */
+    public static function validateForCreation(array $data): array
+    {
+        // JSON inside a form field does not pass through Laravel's nested input trimming.
+        array_walk_recursive($data, function (&$value) {
+            if (is_string($value)) $value = trim($value) === '' ? null : trim($value);
+        });
+        $request = new self();
+        $request->replace($data);
+        $request->prepareForValidation();
+        $rules = $request->rules();
+        foreach ($rules as $field => &$rule) {
+            if (str_ends_with($field, '.id')) $rule = ['prohibited'];
+        }
+        unset($rule);
+        $rules['id'] = ['prohibited'];
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            $request->all(), $rules, $request->messages(), $request->attributes(),
+        );
+        $request->withValidator($validator);
+        return $validator->validate();
+    }
+
     protected function prepareForValidation(): void
     {
         $groups = $this->input('groups');

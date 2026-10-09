@@ -26,7 +26,9 @@ class GovernmentIdApplicationGuide
         $data = ['application_guide' => $rows];
         Validator::make($data, [
             'application_guide' => ['array', 'max:50'],
-            'application_guide.*' => ['array:id,application_type,application_type_custom,applicant_type,applicant_type_custom,min_age,max_age,steps'],
+            'application_guide.*' => ['array:id,client_key,application_type,application_type_custom,applicant_type,applicant_type_custom,min_age,max_age,steps'],
+            'application_guide.*.client_key' => $request->routeIs('admin.government-ids.store')
+                ? ['nullable', 'string', 'max:80', 'regex:/^[a-zA-Z0-9_-]+$/', 'distinct'] : ['prohibited'],
             'application_guide.*.id' => ['nullable', 'integer', 'min:1', 'distinct'],
             'application_guide.*.application_type' => ['required', Rule::in(array_keys(GovernmentIdRequirementSet::APPLICATION_TYPES))],
             'application_guide.*.application_type_custom' => ['nullable', 'string', 'max:255'],
@@ -89,14 +91,22 @@ class GovernmentIdApplicationGuide
     }
 
     /** Called inside the parent form transaction, including its audit writes. */
-    public function sync(GovernmentId $id, array $rows): void
+    public function sync(GovernmentId $id, array $rows, array $draftSets = []): void
     {
         if ($rows === []) return;
         $before = $this->present($id);
         foreach ($rows as $row) {
-            $set = isset($row['id']) ? $id->requirementSets()->lockForUpdate()->find($row['id']) : null;
+            $set = null;
+            if (isset($row['client_key'])) {
+                $set = $draftSets[$row['client_key']] ?? null;
+                if (! $set || isset($row['id']) || (int) $set->government_id_id !== (int) $id->id) {
+                    $this->fail('A guide scenario could not be linked to its checklist. Review the requirements and guide before saving.');
+                }
+            } elseif (isset($row['id'])) {
+                $set = $id->requirementSets()->lockForUpdate()->find($row['id']);
+            }
             if (isset($row['id']) && ! $set) $this->fail('This scenario no longer belongs to this ID. Reload before saving.');
-            if (! $set) $set = $id->requirementSets()->create(collect($row)->except(['id', 'steps'])->all());
+            if (! $set) $set = $id->requirementSets()->create(collect($row)->except(['id', 'client_key', 'steps'])->all());
             $keptSteps = [];
             foreach ($row['steps'] as $order => $input) {
                 $step = isset($input['id']) ? $set->applicationSteps()->find($input['id']) : $set->applicationSteps()->make();

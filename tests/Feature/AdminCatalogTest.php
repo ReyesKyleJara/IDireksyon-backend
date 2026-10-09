@@ -66,3 +66,65 @@ it('preserves saved source data when the simplified ID form omits it', function 
     $this->put('/admin/government-ids/'.$id->id, ['name' => 'Renamed ID'])->assertSessionHasNoErrors();
     expect($id->fresh()->official_link)->toBe('https://example.gov.ph')->and($id->fresh()->official_sources)->toBe('Earlier research');
 });
+
+it('opens the updated ID creation form without legacy requirement text fields', function () {
+    $this->get('/admin/government-ids/create')->assertOk()
+        ->assertSee('Back to directory')->assertSee('Create ID')
+        ->assertSee('Eligibility')->assertSee('Validity')->assertSee('Processing Time')
+        ->assertSee('Application Guide')->assertSee('Linked Offices')
+        ->assertSee('fees-dialog')->assertSee('offices-dialog')->assertSee('Add checklist')
+        ->assertSee('requirements_payload')->assertSee('Apply checklist')
+        ->assertDontSee('name="requirements"', false)
+        ->assertDontSee('name="prerequisite_notes"', false);
+});
+
+it('creates the ID form with its researched fields and opens its details', function () {
+    $agency = Agency::create(['name' => 'Example Authority']);
+    $office = \App\Models\Office::create(['name' => 'Example branch']);
+    $response = $this->post('/admin/government-ids', [
+        'name' => 'New credential', 'agency_id' => $agency->id,
+        'description' => 'Description entered before creating', 'purpose' => 'Identification',
+        'level' => 'National', 'category' => 'Identity ID',
+        'eligibility_age_type' => 'minimum', 'eligibility_min_age' => 18,
+        'eligibility_citizenship' => 'filipino', 'eligibility_residency' => 'none',
+        'validity_type' => 'fixed', 'validity_value' => 5, 'validity_unit' => 'year',
+        'processing_time_type' => 'fixed', 'processing_time_min' => 7,
+        'processing_time_unit' => 'working_day',
+        'fees' => [['label' => 'Application', 'type' => 'fixed', 'amount_min' => 100, 'is_optional' => false]],
+        'office_links_present' => 1,
+        'office_links' => [[
+            'office_id' => $office->id, 'new_application_status' => 'available',
+            'renewal_status' => 'unknown', 'replacement_status' => 'unknown',
+        ]],
+    ])->assertSessionHasNoErrors();
+    $id = GovernmentId::where('name', 'New credential')->sole();
+    $response->assertRedirect(route('admin.government-ids.show', $id));
+    expect($id->description)->toBe('Description entered before creating')
+        ->and($id->agency_id)->toBe($agency->id)
+        ->and((int) $id->eligibility_min_age)->toBe(18)
+        ->and((int) $id->validity_value)->toBe(5)
+        ->and((int) $id->processing_time_min)->toBe(7)
+        ->and((float) $id->fees()->sole()->amount_min)->toBe(100.0)
+        ->and($id->offices()->sole()->id)->toBe($office->id)
+        ->and($id->requirementSets()->count())->toBe(0)
+        ->and($id->requirements)->toBeNull();
+    $this->get(route('admin.government-ids.edit', $id))->assertOk()
+        ->assertSee('Add checklist')->assertSee('Description entered before creating');
+});
+
+it('keeps creation errors on the form and preserves the entered details', function () {
+    $this->from('/admin/government-ids/create')->post('/admin/government-ids', [
+        'name' => '', 'description' => 'Keep this description',
+    ])->assertRedirect('/admin/government-ids/create')
+        ->assertSessionHasErrors('name')
+        ->assertSessionHasInput('description', 'Keep this description');
+    expect(GovernmentId::count())->toBe(0);
+    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Keep this description');
+});
+
+it('keeps the details redirect for ID creation without the continue option', function () {
+    $response = $this->post('/admin/government-ids', ['name' => 'Standard creation'])
+        ->assertSessionHasNoErrors();
+    $id = GovernmentId::where('name', 'Standard creation')->sole();
+    $response->assertRedirect(route('admin.government-ids.show', $id));
+});

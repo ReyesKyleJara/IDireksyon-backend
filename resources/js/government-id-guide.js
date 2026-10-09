@@ -1,7 +1,7 @@
 const clone = value => JSON.parse(JSON.stringify(value));
 const blankDoc = () => ({ type: 'doc', content: [{ type: 'paragraph' }] });
 const doc = value => typeof value === 'string' ? ({ type: 'doc', content: [{ type: 'paragraph', ...(value ? { content: [{ type: 'text', text: value }] } : {}) }] }) : (value || blankDoc());
-const scenarioFields = ['id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom', 'min_age', 'max_age'];
+const scenarioFields = ['client_key', 'id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom', 'min_age', 'max_age'];
 const stepFields = ['id', 'title', 'short_description', 'type'];
 const pick = (row, fields) => Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]]));
 const applicationNames = { new: 'First-Time Application', renewal: 'Renewal', replacement: 'Replacement', custom: 'Other / Custom' };
@@ -11,6 +11,7 @@ export const blockNames = { instructions: 'Instructions', checklist: 'Things to 
 export default function governmentIdGuide(config) {
     return {
         scenarios: [], selected: '', sequence: 0, ready: false, error: '',
+        deferred: !!config.deferred,
         addingScenario: false, scenarioDraft: {}, modal: false, draft: null, stepIndex: -1,
         activeBlock: -1, choosingBlock: false, blockNames,
         init() {
@@ -23,7 +24,7 @@ export default function governmentIdGuide(config) {
                         if (!row || !Array.isArray(row.steps)) throw new Error();
                         const restored = this.prepare(row);
                         restored.dirty = true;
-                        const index = this.scenarios.findIndex(item => row.id && item.id === row.id);
+                        const index = this.scenarios.findIndex(item => row.client_key ? item.client_key === row.client_key : row.id && item.id === row.id);
                         if (index < 0) this.scenarios.push(restored); else this.scenarios.splice(index, 1, restored);
                     });
                 } catch { this.error = 'Some submitted guide data could not be restored. Please review before saving.'; }
@@ -38,10 +39,23 @@ export default function governmentIdGuide(config) {
                 }
             };
             this.form?.addEventListener('submit', this.submitHandler);
+            if (this.deferred) {
+                this.removalHandler = event => {
+                    const scenario = this.scenarios.find(row => row.client_key === event.detail.client_key);
+                    if (scenario && (scenario.steps.length > 0 || (this.modal && this.current === scenario))) event.preventDefault();
+                };
+                window.addEventListener('draft-checklist-removing', this.removalHandler);
+                this.$nextTick(() => this.scenarios.forEach(row => this.$dispatch('draft-guide-scenario', { ...pick(row, scenarioFields), label: this.label(row) })));
+            }
         },
-        destroy() { this.form?.removeEventListener('submit', this.submitHandler); if (this.modal) document.body.style.overflow = this.previousOverflow || ''; },
+        destroy() { window.removeEventListener('draft-checklist-removing', this.removalHandler); this.form?.removeEventListener('submit', this.submitHandler); if (this.modal) document.body.style.overflow = this.previousOverflow || ''; },
         prepare(row) {
-            return { ...clone(row), key: row.id ? 'saved-' + row.id : 'new-' + (++this.sequence), dirty: false,
+            row = clone(row);
+            if (this.deferred && !row.client_key) {
+                do { row.client_key = 'guide-' + (++this.sequence); }
+                while (this.scenarios.some(item => item.client_key === row.client_key));
+            }
+            return { ...row, key: row.client_key ? 'draft-' + row.client_key : row.id ? 'saved-' + row.id : 'new-' + (++this.sequence), dirty: false,
                 steps: (Array.isArray(row.steps) ? row.steps : []).filter(step => step && typeof step === 'object').map(step => ({ ...step,
                     blocks: (Array.isArray(step.blocks) ? step.blocks : []).filter(block => block && typeof block === 'object').map(block => this.prepareBlock(block)),
                 })),
@@ -74,6 +88,15 @@ export default function governmentIdGuide(config) {
             }
             return applicant + ' • ' + (row.application_type === 'custom' ? row.application_type_custom : applicationNames[row.application_type]);
         },
+        sameScenario(one, two) {
+            const signature = row => JSON.stringify([
+                row.application_type, row.application_type === 'custom' ? (row.application_type_custom || '').trim() : '',
+                row.applicant_type, row.applicant_type === 'custom' ? (row.applicant_type_custom || '').trim() : '',
+                row.applicant_type === 'custom' && row.min_age != null && row.min_age !== '' ? Number(row.min_age) : null,
+                row.applicant_type === 'custom' && row.max_age != null && row.max_age !== '' ? Number(row.max_age) : null,
+            ]);
+            return signature(one) === signature(two);
+        },
         startScenario() { this.scenarioDraft = { application_type: 'new', applicant_type: 'all', application_type_custom: '', applicant_type_custom: '', min_age: null, max_age: null }; this.addingScenario = true; this.error = ''; },
         addScenario() {
             const row = clone(this.scenarioDraft);
@@ -86,14 +109,21 @@ export default function governmentIdGuide(config) {
             if (row.applicant_type !== 'custom') { row.min_age = null; row.max_age = null; row.applicant_type_custom = null; }
             if (row.application_type !== 'custom') row.application_type_custom = null;
             if (row.min_age !== null && row.max_age !== null && row.max_age < row.min_age) { this.error = 'Maximum age cannot be below minimum age.'; return; }
+            const existing = this.deferred ? this.scenarios.find(item => this.sameScenario(item, row)) : null;
+            if (existing) {
+                this.selected = existing.key; this.addingScenario = false; this.error = ''; return;
+            }
+            if (this.deferred && this.scenarios.length >= 50) { this.error = 'Use at most 50 applicant/application scenarios per ID.'; return; }
             const scenario = this.prepare({ ...row, steps: [] }); scenario.dirty = true;
             this.scenarios.push(scenario); this.selected = scenario.key; this.addingScenario = false; this.error = '';
+            if (this.deferred) this.$dispatch('draft-guide-scenario', { ...pick(scenario, scenarioFields), label: this.label(scenario) });
         },
         scenarioChanged(data) {
-            const index = this.scenarios.findIndex(row => row.id === data.id);
+            const matches = row => data.client_key ? row.client_key === data.client_key : data.id != null && row.id === data.id;
+            const index = this.scenarios.findIndex(matches);
             if (data.deleted) {
-                if (index >= 0 && this.scenarios[index].dirty) { this.error = 'A scenario with guide changes was deleted. Reload the page before continuing.'; return; }
-                this.scenarios = this.scenarios.filter(row => row.id !== data.id);
+                if (index >= 0 && (this.deferred ? this.scenarios[index].steps.length > 0 : this.scenarios[index].dirty)) { this.error = 'A scenario with guide changes was deleted. Reload the page before continuing.'; return; }
+                this.scenarios = this.scenarios.filter(row => !matches(row));
                 if (!this.current) this.selected = this.scenarios[0]?.key || '';
             } else if (index >= 0) Object.assign(this.scenarios[index], pick(data, scenarioFields), { label: data.label });
             else { const row = this.prepare({ ...pick(data, scenarioFields), label: data.label, steps: [] }); this.scenarios.push(row); if (!this.selected) this.selected = row.key; }

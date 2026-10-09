@@ -45,9 +45,11 @@ it('creates an ID with several draft branches and displays their service details
         ->assertJsonMissingPath('data.offices');
 });
 
-it('shows an add-office link when the directory is empty', function () {
+it('offers embedded office creation when the directory is empty', function () {
     $this->get('/admin/government-ids/create')->assertOk()->assertSee('No offices yet.')
-        ->assertSee(route('admin.offices.create'), false);
+        ->assertSee('offices-dialog')->assertSee('Add office')->assertSee('iframe', false);
+    $this->get(route('admin.offices.create', ['embedded' => 1]))->assertOk()
+        ->assertSee('Office / Branch Name');
 });
 
 it('updates links and removes connections without deleting offices or other ID connections', function () {

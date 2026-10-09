@@ -5,32 +5,23 @@
 
 @section('content')
 
-<div class="mx-auto max-w-4xl">
+@include('admin.government_ids.partials.editor-styles')
 
-    <div class="mb-7">
-
-        <p class="admin-eyebrow mb-2">
-            IDs & Credentials
-        </p>
-
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-            Add ID or Credential
-        </h1>
-
-        <p class="mt-2 text-sm text-slate-500">
-            Add and maintain researched information for a government ID or credential.
-        </p>
-
-    </div>
-
+<div class="id-editor">
+    <header class="editor-heading">
+        <a href="{{ route('admin.government-ids.index') }}" class="text-sm text-slate-600 hover:underline">← Back to directory</a>
+        <h1>Add ID or Credential</h1>
+        <p class="mt-2 text-sm text-slate-500">Enter the details you have. You can complete the remaining information later.</p>
+    </header>
 
     <form
         method="POST"
         action="{{ route('admin.government-ids.store') }}"
-        class="space-y-6"
+        class="editor-form"
     >
 
         @csrf
+
 
 
         @if ($errors->any())
@@ -77,7 +68,7 @@
                     <input
                         id="name"
                         name="name"
-                        value="{{ old('name') }}"
+                        value="{{ old('name', null) }}"
                         class="admin-input"
                         required
                     >
@@ -113,21 +104,36 @@
 
                         <option
                             value="Barangay"
-                            @selected(old('level') === 'Barangay')
+                            @selected(
+                                old(
+                                    'level',
+                                    null
+                                ) === 'Barangay'
+                            )
                         >
                             Barangay
                         </option>
 
                         <option
                             value="Municipal / LGU"
-                            @selected(old('level') === 'Municipal / LGU')
+                            @selected(
+                                old(
+                                    'level',
+                                    null
+                                ) === 'Municipal / LGU'
+                            )
                         >
                             Municipal / LGU
                         </option>
 
                         <option
                             value="National"
-                            @selected(old('level') === 'National')
+                            @selected(
+                                old(
+                                    'level',
+                                    null
+                                ) === 'National'
+                            )
                         >
                             National
                         </option>
@@ -168,7 +174,12 @@
 
                             <option
                                 value="{{ $category }}"
-                                @selected(old('category') === $category)
+                                @selected(
+                                    old(
+                                        'category',
+                                        null
+                                    ) === $category
+                                )
                             >
                                 {{ $category }}
                             </option>
@@ -194,7 +205,7 @@
 
 
                 {{-- PURPOSE --}}
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 editor-purpose">
 
                     <label
                         for="purpose"
@@ -206,16 +217,15 @@
                     <textarea
                         id="purpose"
                         name="purpose"
-                        rows="3"
+                        rows="4"
                         class="admin-input"
-                        placeholder="What is this ID primarily used for?"
-                    >{{ old('purpose') }}</textarea>
+                    >{{ old('purpose', null) }}</textarea>
 
                 </div>
 
 
                 {{-- DESCRIPTION --}}
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 editor-description">
 
                     <label
                         for="description"
@@ -229,21 +239,11 @@
                         name="description"
                         rows="4"
                         class="admin-input"
-                        placeholder="Brief description of the ID or credential."
-                    >{{ old('description') }}</textarea>
+                    >{{ old('description', null) }}</textarea>
 
                 </div>
 
 
-                {{-- STRUCTURED VALIDITY --}}
-                @include(
-                    'admin.government_ids.partials.validity-field',
-                    [
-                        'selectedValidityType' => null,
-                        'selectedValidityValue' => null,
-                        'selectedValidityUnit' => null,
-                    ]
-                )
 
             </div>
 
@@ -254,104 +254,51 @@
         <section class="admin-panel p-6" aria-label="Eligibility">
             @include('admin.government_ids.partials.eligibility-fields', [
                 'eligibilityRecord' => null,
+                'eligibilityHeadingClass' => 'text-lg font-semibold text-slate-900',
             ])
         </section>
 
 
-        {{-- REQUIREMENTS & PREREQUISITES --}}
-        <section class="admin-panel p-6">
+        @include('admin.government_ids.partials.checklists', ['editable' => true, 'deferred' => true])
 
+        @include('admin.government_ids.partials.fees-modal', ['selectedFees' => [], 'saveActionLabel' => 'Create ID'])
+
+        <div class="editor-timing">
+        {{-- VALIDITY --}}
+        <section class="admin-panel p-6" aria-label="Validity">
             <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Requirements & Prerequisites
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Human-readable application requirements for residents.
-                </p>
-
+                <h2 class="text-lg font-semibold text-slate-900">Validity</h2>
+                <p class="mt-1 text-sm text-slate-500">How long the ID remains valid after it is issued.</p>
             </div>
-
-
-            <div class="grid gap-6">
-
-                {{-- REQUIREMENTS --}}
-                <div>
-
-                    <label
-                        for="requirements"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Requirements
-                    </label>
-
-                    <textarea
-                        id="requirements"
-                        name="requirements"
-                        rows="6"
-                        class="admin-input"
-                        placeholder="List the documentary and application requirements."
-                    >{{ old('requirements') }}</textarea>
-
-                </div>
-
-
-                {{-- PREREQUISITES --}}
-                <div>
-
-                    <label
-                        for="prerequisite_notes"
-                        class="mb-2 block text-sm font-medium"
-                    >
-                        Prerequisites / Dependencies
-                    </label>
-
-                    <textarea
-                        id="prerequisite_notes"
-                        name="prerequisite_notes"
-                        rows="4"
-                        class="admin-input"
-                        placeholder="Describe any IDs or documents that should be obtained first."
-                    >{{ old('prerequisite_notes') }}</textarea>
-
-                    <p class="mt-2 text-xs text-slate-500">
-                        This is for readable guidance. Smart sequencing rules will be stored separately.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        {{-- APPLICATION GUIDE --}}
-        <section class="admin-panel p-6">
-
-            <div class="mb-6">
-
-                <h2 class="text-lg font-semibold text-slate-900">
-                    Fees & Processing Time
-                </h2>
-
-                <p class="mt-1 text-sm text-slate-500">
-                    Manage the costs and estimated processing time.
-                </p>
-
-            </div>
-
-
-            <div class="grid gap-6 sm:grid-cols-2">
-
-                {{-- FEES --}}
+                {{-- STRUCTURED VALIDITY --}}
                 @include(
-                    'admin.government_ids.partials.fee-items-field',
+                    'admin.government_ids.partials.validity-field',
                     [
-                        'selectedFees' => [],
+                        'selectedValidityType' => null,
+                        'selectedValidityValue' => null,
+                        'selectedValidityUnit' => null,
                     ]
                 )
 
+        </section>
+
+        {{-- PROCESSING TIME --}}
+        <section class="admin-panel p-6">
+
+            <div class="mb-6">
+
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Processing Time
+                </h2>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Record the estimated processing time.
+                </p>
+
+            </div>
+
+
+            <div>
 
                 {{-- PROCESSING TIME --}}
                 @include(
@@ -370,16 +317,22 @@
         </section>
 
 
-        @include('admin.government_ids.partials.application-guide-editor')
+        </div>
+
+        @include('admin.government_ids.partials.application-guide-editor', ['deferred' => true])
 
 
 
         @include('admin.government_ids.partials.office-links-field', [
             'selectedOffices' => collect(),
+            'saveActionLabel' => 'Create ID',
+            'officeModal' => true,
         ])
 
         {{-- ACTIONS --}}
-        <div class="flex justify-end gap-3">
+        <div class="editor-actions">
+            <p>Create ID saves all sections, including your requirements and application guide.</p>
+            <div class="editor-buttons">
 
             <a
                 href="{{ route('admin.government-ids.index') }}"
@@ -392,9 +345,10 @@
                 type="submit"
                 class="admin-primary"
             >
-                Save ID or Credential
+                Create ID
             </button>
 
+            </div>
         </div>
 
     </form>
