@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BarangayController;
 use App\Http\Controllers\Api\GovernmentIdController;
 use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
@@ -20,12 +21,17 @@ Route::get('/health', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Government ID API
+| Public Reference APIs
 |--------------------------------------------------------------------------
 */
 
+Route::get('/barangays', [BarangayController::class, 'index']);
+
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);
-Route::get('/government-ids/{governmentId}', [GovernmentIdController::class, 'show']);
+Route::get('/government-ids/{governmentId}', [
+    GovernmentIdController::class,
+    'show',
+]);
 
 /*
 |--------------------------------------------------------------------------
@@ -34,19 +40,50 @@ Route::get('/government-ids/{governmentId}', [GovernmentIdController::class, 'sh
 */
 
 Route::prefix('auth')->group(function () {
-    Route::post('register', [ResidentAuthController::class, 'register'])
-        ->middleware('throttle:5,1');
+    Route::post('register', [
+        ResidentAuthController::class,
+        'register',
+    ])->middleware('throttle:5,1');
 
-    Route::post('login', [ResidentAuthController::class, 'login'])
-        ->middleware('throttle:5,1');
+    Route::post('login', [
+        ResidentAuthController::class,
+        'login',
+    ])->middleware('throttle:5,1');
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('me', [ResidentAuthController::class, 'me']);
-        Route::post('profile-setup', [ResidentAuthController::class, 'setup']);
-        Route::post('account', [ResidentAuthController::class, 'updateAccount'])->middleware('throttle:5,1');
-        Route::post('password', [ResidentAuthController::class, 'updatePassword'])->middleware('throttle:5,1');
-        Route::post('logout', [ResidentAuthController::class, 'logout']);
-        Route::get('inventory', [ResidentInventoryController::class, 'show']);
-        Route::put('inventory', [ResidentInventoryController::class, 'update']);
+        Route::get('me', [
+            ResidentAuthController::class,
+            'me',
+        ]);
+
+        Route::post('profile-setup', [
+            ResidentAuthController::class,
+            'setup',
+        ]);
+
+        Route::post('account', [
+            ResidentAuthController::class,
+            'updateAccount',
+        ])->middleware('throttle:5,1');
+
+        Route::post('password', [
+            ResidentAuthController::class,
+            'updatePassword',
+        ])->middleware('throttle:5,1');
+
+        Route::post('logout', [
+            ResidentAuthController::class,
+            'logout',
+        ]);
+
+        Route::get('inventory', [
+            ResidentInventoryController::class,
+            'show',
+        ]);
+
+        Route::put('inventory', [
+            ResidentInventoryController::class,
+            'update',
+        ]);
     });
 });
