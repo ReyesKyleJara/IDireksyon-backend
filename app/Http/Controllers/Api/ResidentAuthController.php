@@ -81,22 +81,71 @@ class ResidentAuthController extends Controller
     }
 
     public function setup(Request $request): JsonResponse
-    {
-        abort_unless($request->user()->is_active && $request->user()->role === 'resident', 403);
-        $data = $request->validate([
-            'ids' => ['present', 'array', 'max:8'],
-            'ids.*' => ['string', 'distinct', Rule::in(['PhilSys ID', 'Passport ID', 'SSS ID', 'PhilHealth ID', 'UMID', 'TIN ID', 'Postal ID', 'Driver’s License'])],
-            'documents' => ['present', 'array', 'max:7'],
-            'documents.*' => ['string', 'distinct', Rule::in(['School ID', 'Birth Certificate', 'Certificate of Residency', 'Marriage Certificate', 'Barangay Clearance', 'Police Clearance', 'NBI Clearance'])],
-        ]);
-        $request->user()->forceFill([
-            'owned_ids' => $data['ids'],
-            'owned_documents' => $data['documents'],
+{
+    $user = $request->user();
+
+    abort_unless(
+        $user->is_active && $user->role === 'resident',
+        403
+    );
+
+    $data = $request->validate([
+        'government_id_ids' => [
+            'present',
+            'array',
+        ],
+        'government_id_ids.*' => [
+            'integer',
+            'distinct',
+            'exists:government_ids,id',
+        ],
+
+        'document_ids' => [
+            'present',
+            'array',
+        ],
+        'document_ids.*' => [
+            'integer',
+            'distinct',
+            'exists:documents,id',
+        ],
+    ]);
+
+    DB::transaction(function () use ($user, $data) {
+        $user->ownedGovernmentIds()->sync(
+            $data['government_id_ids']
+        );
+
+        $user->ownedDocuments()->sync(
+            $data['document_ids']
+        );
+
+        /*
+         * Keep the legacy JSON fields synchronized temporarily.
+         * They are no longer the source of truth, but older frontend
+         * code can continue reading them while migration is ongoing.
+         */
+        $user->forceFill([
+            'owned_ids' => $user->ownedGovernmentIds()
+                ->orderBy('government_ids.name')
+                ->pluck('government_ids.name')
+                ->values()
+                ->all(),
+
+            'owned_documents' => $user->ownedDocuments()
+                ->orderBy('documents.name')
+                ->pluck('documents.name')
+                ->values()
+                ->all(),
+
             'profile_setup_completed_at' => now(),
         ])->save();
+    });
 
-        return response()->json(['user' => $this->profile($request->user())]);
-    }
+    return response()->json([
+        'user' => $this->profile($user->fresh()),
+    ]);
+}
 
     public function logout(Request $request): JsonResponse
     {

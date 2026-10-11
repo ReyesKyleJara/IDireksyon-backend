@@ -1,33 +1,120 @@
 <?php
 
+use App\Models\Document;
+use App\Models\GovernmentId;
 use App\Models\User;
 
-test('resident setup persists only the authenticated users selections', function () {
+test('resident setup persists only the authenticated users inventory', function () {
     $user = User::factory()->create();
     $other = User::factory()->create();
+
+    $passport = GovernmentId::create([
+        'name' => 'Passport',
+    ]);
+
+    $nationalId = GovernmentId::create([
+        'name' => 'National ID',
+    ]);
+
+    $birthCertificate = Document::create([
+        'name' => 'PSA Birth Certificate',
+    ]);
+
     $token = $user->createToken('test')->plainTextToken;
-    $this->withToken($token)->postJson('/api/auth/profile-setup', [
-        'ids' => ['PhilSys ID', 'Driver’s License'], 'documents' => ['Birth Certificate'],
-        'user_id' => $other->id,
-    ])->assertOk()->assertJsonPath('user.owned_ids', ['PhilSys ID', 'Driver’s License']);
-    expect($user->fresh()->owned_documents)->toBe(['Birth Certificate']);
-    expect($user->fresh()->profile_setup_completed_at)->not->toBeNull();
-    expect($other->fresh()->profile_setup_completed_at)->toBeNull();
-    $this->withToken($token)->getJson('/api/auth/me')->assertJsonPath('user.owned_documents', ['Birth Certificate']);
+
+    $this->withToken($token)
+        ->postJson('/api/auth/profile-setup', [
+            'government_id_ids' => [
+                $passport->id,
+                $nationalId->id,
+            ],
+            'document_ids' => [
+                $birthCertificate->id,
+            ],
+
+            // Must not allow choosing another user.
+            'user_id' => $other->id,
+        ])
+        ->assertOk();
+
+    expect(
+        $user->fresh()
+            ->ownedGovernmentIds()
+            ->pluck('government_ids.id')
+            ->sort()
+            ->values()
+            ->all()
+    )->toBe(
+        collect([$passport->id, $nationalId->id])
+            ->sort()
+            ->values()
+            ->all()
+    );
+
+    expect(
+        $user->fresh()
+            ->ownedDocuments()
+            ->pluck('documents.id')
+            ->values()
+            ->all()
+    )->toBe([$birthCertificate->id]);
+
+    expect($user->fresh()->profile_setup_completed_at)
+        ->not->toBeNull();
+
+    expect($other->fresh()->profile_setup_completed_at)
+        ->toBeNull();
+
+    expect($other->ownedGovernmentIds()->count())
+        ->toBe(0);
+
+    expect($other->ownedDocuments()->count())
+        ->toBe(0);
 });
 
 test('setup permits skipping both steps and rejects invalid selections', function () {
     $user = User::factory()->create();
-    $this->withToken($user->createToken('test')->plainTextToken);
-    $this->postJson('/api/auth/profile-setup', ['ids' => ['unknown'], 'documents' => []])->assertUnprocessable();
-    $this->postJson('/api/auth/profile-setup', ['ids' => [], 'documents' => []])->assertOk();
-    expect($user->fresh()->owned_ids)->toBe([]);
-    expect($user->fresh()->profile_setup_completed_at)->not->toBeNull();
+
+    $this->withToken(
+        $user->createToken('test')->plainTextToken
+    );
+
+    $this->postJson('/api/auth/profile-setup', [
+        'government_id_ids' => [999999],
+        'document_ids' => [],
+    ])->assertUnprocessable();
+
+    $this->postJson('/api/auth/profile-setup', [
+        'government_id_ids' => [],
+        'document_ids' => [],
+    ])->assertOk();
+
+    expect($user->fresh()->ownedGovernmentIds()->count())
+        ->toBe(0);
+
+    expect($user->fresh()->ownedDocuments()->count())
+        ->toBe(0);
+
+    expect($user->fresh()->profile_setup_completed_at)
+        ->not->toBeNull();
 });
 
 test('setup requires an active resident', function () {
-    $this->postJson('/api/auth/profile-setup', ['ids' => [], 'documents' => []])->assertUnauthorized();
-    $user = User::factory()->create(['is_active' => false]);
-    $this->withToken($user->createToken('test')->plainTextToken)
-        ->postJson('/api/auth/profile-setup', ['ids' => [], 'documents' => []])->assertForbidden();
+    $this->postJson('/api/auth/profile-setup', [
+        'government_id_ids' => [],
+        'document_ids' => [],
+    ])->assertUnauthorized();
+
+    $user = User::factory()->create([
+        'is_active' => false,
+    ]);
+
+    $this->withToken(
+        $user->createToken('test')->plainTextToken
+    )
+        ->postJson('/api/auth/profile-setup', [
+            'government_id_ids' => [],
+            'document_ids' => [],
+        ])
+        ->assertForbidden();
 });
