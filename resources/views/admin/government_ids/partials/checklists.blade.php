@@ -1,12 +1,13 @@
 @php
     $checklistConfig = [
+        'createLabel' => $createLabel ?? 'Create ID',
         'deferred' => $deferred ?? false,
         'oldPayload' => ($deferred ?? false) && is_string(old('requirements_payload')) ? old('requirements_payload') : null,
         'editable' => $editable ?? false,
         'qualifications' => \App\Models\GovernmentIdRequirementWay::QUALIFICATIONS,
         'checklists' => $checklists,
         'options' => $requirementOptions,
-        'url' => ($deferred ?? false) ? null : route('admin.government-ids.checklists.store', $governmentId),
+        'url' => ($deferred ?? false) ? null : route(($recordRoutes ?? 'admin.government-ids').'.checklists.store', $governmentId),
         'csrf' => csrf_token(),
         'applications' => \App\Models\GovernmentIdRequirementSet::APPLICATION_TYPES,
         'applicants' => \App\Models\GovernmentIdRequirementSet::APPLICANT_TYPES,
@@ -96,7 +97,7 @@
                 <div>
                     <button type="button" x-show="editing && !editing.choosing" @click="chooseAgain()" class="mb-2 text-sm font-medium text-[#012877]">← Back to choices</button>
                     <h2 id="checklist-dialog-title" class="text-lg font-bold text-slate-900" x-text="requirementEditorTitle()"></h2>
-                    <p class="mt-1 text-sm text-slate-500">{{ $governmentId->name ?? 'New ID or Credential' }}</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ $governmentId->name ?? ($addTitle ?? 'New ID or Credential') }}</p>
                 </div>
                 <button type="button" aria-label="Close checklist" class="text-2xl text-slate-500" @click="close()" :disabled="saving">×</button>
             </header>
@@ -177,7 +178,7 @@
                 </template>
             </div>
             <footer x-show="!editing" class="shrink-0 border-t border-slate-200 bg-white px-6 py-4">
-                <p class="mb-3 text-xs text-slate-500" x-text="deferred ? 'Apply this checklist to the form. Create ID saves it with all the other sections.' : 'Save checklist to keep your requirement changes. Other ID details are saved separately.'"></p>
+                <p class="mb-3 text-xs text-slate-500" x-text="deferred ? 'Apply this checklist to the form. ' + createLabel + ' saves it with all the other sections.' : 'Save checklist to keep your requirement changes. Other details are saved separately.'"></p>
                 <div class="flex justify-end gap-3">
                     <button type="button" class="admin-secondary" @click="close()" :disabled="saving">Cancel</button>
                     <button type="submit" class="admin-primary" :disabled="saving" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : 'Save checklist')"></button>

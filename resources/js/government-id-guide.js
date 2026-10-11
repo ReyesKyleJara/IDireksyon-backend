@@ -35,7 +35,7 @@ export default function governmentIdGuide(config) {
             this.submitHandler = event => {
                 if (this.modal || this.addingScenario) {
                     event.preventDefault();
-                    this.error = 'Finish or cancel the open guide editor before saving the ID.';
+                    this.error = 'Finish or cancel the open guide editor before saving this entry.';
                 }
             };
             this.form?.addEventListener('submit', this.submitHandler);
@@ -152,9 +152,9 @@ export default function governmentIdGuide(config) {
             const step = clone(this.draft); step.title = step.title.trim();
             if (this.stepIndex < 0) this.current.steps.push(step); else this.current.steps.splice(this.stepIndex, 1, step);
             this.current.dirty = true; this.close(true);
-            this.$dispatch('notify', { type: 'info', message: 'Guide step updated. Save the ID to keep it.' });
+            this.$dispatch('notify', { type: 'info', message: 'Guide step updated. Save this entry to keep it.' });
         },
-        removeStep(index) { if (window.confirm('Remove this step? The change is saved when you save the ID.')) { this.current.steps.splice(index, 1); this.current.dirty = true; this.$dispatch('notify', { type: 'info', message: 'Guide step removed from this form. Save the ID to keep the change.' }); } },
+        removeStep(index) { if (window.confirm('Remove this step? The change is saved when you save this entry.')) { this.current.steps.splice(index, 1); this.current.dirty = true; this.$dispatch('notify', { type: 'info', message: 'Guide step removed from this form. Save this entry to keep the change.' }); } },
         move(list, index, direction) { const next = index + direction; if (next < 0 || next >= list.length) return; const item = list.splice(index, 1)[0]; list.splice(next, 0, item); },
         moveStep(index, direction) { this.move(this.current.steps, index, direction); this.current.dirty = true; },
         addBlock(type) {

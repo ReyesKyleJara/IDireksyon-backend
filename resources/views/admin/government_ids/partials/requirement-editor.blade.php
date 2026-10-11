@@ -200,7 +200,7 @@
         </details>
     </details>
 
-    <p class="text-xs text-slate-500" x-text="deferred ? 'This adds the requirement to your checklist. Apply the checklist, then Create ID to save everything.' : 'This adds the requirement to your list. Save the checklist when you’re finished.'"></p>
+    <p class="text-xs text-slate-500" x-text="deferred ? 'This adds the requirement to your checklist. Apply the checklist, then ' + createLabel + ' to save everything.' : 'This adds the requirement to your list. Save the checklist when you’re finished.'"></p>
     <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4">
         <button type="button" class="admin-secondary mr-auto" @click="chooseAgain()">← Back to choices</button>
         <button type="button" class="admin-secondary" @click="cancelRequirement()">Cancel</button>

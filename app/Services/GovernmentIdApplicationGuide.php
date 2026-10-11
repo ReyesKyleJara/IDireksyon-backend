@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ContentChangeLog;
 use App\Models\GovernmentId;
+use App\Models\Document;
 use App\Models\GovernmentIdApplicationStep;
 use App\Models\GovernmentIdApplicationStepBlock;
 use App\Models\GovernmentIdRequirementSet;
@@ -27,7 +28,7 @@ class GovernmentIdApplicationGuide
         Validator::make($data, [
             'application_guide' => ['array', 'max:50'],
             'application_guide.*' => ['array:id,client_key,application_type,application_type_custom,applicant_type,applicant_type_custom,min_age,max_age,steps'],
-            'application_guide.*.client_key' => $request->routeIs('admin.government-ids.store')
+            'application_guide.*.client_key' => $request->routeIs('admin.government-ids.store', 'admin.documents.store')
                 ? ['nullable', 'string', 'max:80', 'regex:/^[a-zA-Z0-9_-]+$/', 'distinct'] : ['prohibited'],
             'application_guide.*.id' => ['nullable', 'integer', 'min:1', 'distinct'],
             'application_guide.*.application_type' => ['required', Rule::in(array_keys(GovernmentIdRequirementSet::APPLICATION_TYPES))],
@@ -91,7 +92,7 @@ class GovernmentIdApplicationGuide
     }
 
     /** Called inside the parent form transaction, including its audit writes. */
-    public function sync(GovernmentId $id, array $rows, array $draftSets = []): void
+    public function sync(GovernmentId|Document $id, array $rows, array $draftSets = []): void
     {
         if ($rows === []) return;
         $before = $this->present($id);
@@ -99,13 +100,13 @@ class GovernmentIdApplicationGuide
             $set = null;
             if (isset($row['client_key'])) {
                 $set = $draftSets[$row['client_key']] ?? null;
-                if (! $set || isset($row['id']) || (int) $set->government_id_id !== (int) $id->id) {
+                if (! $set || isset($row['id']) || (int) $set->getAttribute($id->getForeignKey()) !== (int) $id->id) {
                     $this->fail('A guide scenario could not be linked to its checklist. Review the requirements and guide before saving.');
                 }
             } elseif (isset($row['id'])) {
                 $set = $id->requirementSets()->lockForUpdate()->find($row['id']);
             }
-            if (isset($row['id']) && ! $set) $this->fail('This scenario no longer belongs to this ID. Reload before saving.');
+            if (isset($row['id']) && ! $set) $this->fail('This scenario no longer belongs to this entry. Reload before saving.');
             if (! $set) $set = $id->requirementSets()->create(collect($row)->except(['id', 'client_key', 'steps'])->all());
             $keptSteps = [];
             foreach ($row['steps'] as $order => $input) {
@@ -131,7 +132,7 @@ class GovernmentIdApplicationGuide
         if ($before !== $this->present($id)) ContentChangeLog::record($id, 'updated', ['application_guide']);
     }
 
-    public function present(?GovernmentId $id): array
+    public function present(GovernmentId|Document|null $id): array
     {
         if (! $id) return [];
         return $id->requirementSets()->with('applicationSteps.blocks')->get()->map(fn ($set) => [

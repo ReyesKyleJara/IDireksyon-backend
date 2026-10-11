@@ -14,7 +14,7 @@ export default function governmentIdOffices(options, initialLinks) {
                 this.addOffice();
                 this.creatingOffice = false;
                 this.creationUrl = '';
-                this.$dispatch('notify', { type: 'success', message: 'Office created. Apply your office selection, then save the ID to keep the link.' });
+                this.$dispatch('notify', { type: 'success', message: 'Office created. Apply your office selection, then save this entry to keep the link.' });
             };
             window.addEventListener('message', this.messageHandler);
         },
@@ -79,7 +79,7 @@ export default function governmentIdOffices(options, initialLinks) {
             this.links = this.draft.map(link => ({ ...link }));
             this.changed = true;
             this.close();
-            this.$dispatch('notify', { type: 'info', message: 'Office selection updated. Save the ID to keep it.' });
+            this.$dispatch('notify', { type: 'info', message: 'Office selection updated. Save this entry to keep it.' });
         },
         destroy() {
             window.removeEventListener('message', this.messageHandler);

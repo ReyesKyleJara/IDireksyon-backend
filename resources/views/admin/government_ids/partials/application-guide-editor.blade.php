@@ -49,7 +49,7 @@
                 </article>
             </template>
             <button type="button" class="admin-secondary" @click="editStep()" :disabled="addingScenario">+ Add step</button>
-            <p x-show="current.dirty" class="text-xs text-amber-700">Unsaved guide changes — save the ID to keep them.</p>
+            <p x-show="current.dirty" class="text-xs text-amber-700">Unsaved guide changes — save this entry to keep them.</p>
         </div>
     </template>
     <template x-teleport="body">
@@ -83,7 +83,7 @@
                                             </template>
                                             <template x-if="block.type === 'official_link'"><div class="space-y-3"><label class="block text-sm">Link label<input class="admin-input mt-1" x-model="block.content.label" maxlength="255" placeholder="Open the official appointment website"></label><label class="block text-sm">Official URL<input type="url" class="admin-input mt-1" x-model="block.content.url" maxlength="2048" placeholder="https://..."></label><label class="block text-sm">Description (optional)<textarea class="admin-input mt-1" x-model="block.content.description" maxlength="2000" rows="2"></textarea></label></div></template>
                                             <template x-if="['reminder', 'custom'].includes(block.type)"><div><p class="mb-2 text-sm font-medium">Content</p>@include('admin.government_ids.partials.guide-rich-text', ['value' => 'block.content.body'])</div></template>
-                                            <template x-if="['requirements', 'fees', 'offices', 'processing_time'].includes(block.type)"><div><p class="mb-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-900" x-text="block.type === 'requirements' ? 'Shows the requirements for this applicant/application scenario.' : 'Shows the current ' + blockNames[block.type].toLowerCase() + ' saved on this ID.'"></p><p class="mb-2 text-sm font-medium">Introduction (optional)</p>@include('admin.government_ids.partials.guide-rich-text', ['value' => 'block.content.intro'])<p class="mt-2 text-xs text-slate-500">Updates automatically when the original information changes.</p></div></template>
+                                            <template x-if="['requirements', 'fees', 'offices', 'processing_time'].includes(block.type)"><div><p class="mb-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-900" x-text="block.type === 'requirements' ? 'Shows the requirements for this applicant/application scenario.' : 'Shows the current ' + blockNames[block.type].toLowerCase() + ' saved on this entry.'"></p><p class="mb-2 text-sm font-medium">Introduction (optional)</p>@include('admin.government_ids.partials.guide-rich-text', ['value' => 'block.content.intro'])<p class="mt-2 text-xs text-slate-500">Updates automatically when the original information changes.</p></div></template>
                                         </div>
                                     </template>
                                 </article>

@@ -2,6 +2,7 @@ const copy = value => JSON.parse(JSON.stringify(value));
 
 export default function governmentIdChecklists(config) {
     return {
+        createLabel: config.createLabel || 'Create ID',
         checklists: config.checklists || [],
         deferred: !!config.deferred,
         ready: false,
@@ -42,14 +43,14 @@ export default function governmentIdChecklists(config) {
                     } catch {
                         this.checklists = [];
                         this.restoreError = true;
-                        this.formError = 'The submitted requirements could not be restored. Your original submission is retained; review it before creating the ID.';
+                        this.formError = 'The submitted requirements could not be restored. Your original submission is retained; review it before creating the entry.';
                     }
                 }
                 this.form = this.$el.closest('form');
                 this.submitHandler = event => {
                     if (this.draft || this.restoreError) {
                         event.preventDefault();
-                        this.formError = this.restoreError ? this.formError : 'Apply or cancel the open checklist before creating the ID.';
+                        this.formError = this.restoreError ? this.formError : 'Apply or cancel the open checklist before creating the entry.';
                         return;
                     }
                     if (this.$refs.pendingPayload) this.$refs.pendingPayload.value = this.creationPayload;
@@ -157,7 +158,7 @@ export default function governmentIdChecklists(config) {
             if (index < 0) this.checklists.push(applied); else this.checklists.splice(index, 1, applied);
             this.formError = '';
             this.$dispatch('guide-scenario-changed', applied);
-            this.$dispatch('notify', { type: 'info', message: 'Checklist applied. Create ID to save it with the other sections.' });
+            this.$dispatch('notify', { type: 'info', message: `Checklist applied. ${this.createLabel} to save it with the other sections.` });
             this.close(true);
         },
         itemName(item) {

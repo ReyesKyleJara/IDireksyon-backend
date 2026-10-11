@@ -41,7 +41,7 @@
 }">
     <div class="mb-5">
         <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
-        <p class="mt-1 text-sm text-slate-500">Choose the branches that handle this ID. Record service availability separately for each branch.</p>
+        <p class="mt-1 text-sm text-slate-500">Choose the branches that handle this entry. Record service availability separately for each branch.</p>
         <p class="mt-2 text-xs text-slate-500">Draft and inactive offices remain hidden from residents. Linking a branch does not publish it.</p>
     </div>
     <input type="hidden" name="office_links_present" value="1">
@@ -65,7 +65,7 @@
             </select>
             <button type="button" @click="addOffice()" :disabled="!selected || links.length >= 100" class="admin-secondary shrink-0">Add Office</button>
         </div>
-        <p x-show="links.length === 0" class="mt-4 text-sm text-slate-500">No branches linked yet. You can save this ID and add offices later.</p>
+        <p x-show="links.length === 0" class="mt-4 text-sm text-slate-500">No branches linked yet. You can save this entry and add offices later.</p>
     @endif
     <div class="mt-5 space-y-5">
         <template x-for="(link, index) in links" :key="index">
@@ -95,7 +95,7 @@
                     <label class="block text-sm font-medium">Service Notes
                         <textarea :name="'office_links[' + index + '][service_notes]'" x-model="link.service_notes" rows="2" maxlength="10000" class="admin-input mt-2" placeholder="For example: Appointment required for new applications."></textarea>
                     </label>
-                    <p class="text-xs leading-5 text-slate-500">Removing a branch here only unlinks it from this ID.</p>
+                    <p class="text-xs leading-5 text-slate-500">Removing a branch here only unlinks it from this entry.</p>
                 </div>
             </div>
         </template>

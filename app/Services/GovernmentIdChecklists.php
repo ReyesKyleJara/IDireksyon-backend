@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Requests\Admin\GovernmentIdChecklistRequest;
 use App\Models\ContentChangeLog;
 use App\Models\GovernmentId;
+use App\Models\Document;
 use App\Models\GovernmentIdRequirementItem;
 use App\Models\GovernmentIdRequirementSet;
 use App\Models\GovernmentIdRequirementWay;
@@ -53,7 +54,7 @@ class GovernmentIdChecklists
     }
 
     /** Called inside the ID transaction. Temporary keys never become database columns. */
-    public function createAll(GovernmentId $governmentId, array $rows): array
+    public function createAll(GovernmentId|Document $governmentId, array $rows): array
     {
         $sets = [];
         foreach ($rows as $row) {
@@ -62,7 +63,7 @@ class GovernmentIdChecklists
         return $sets;
     }
 
-    public function save(GovernmentId $governmentId, array $data, ?string $checklist = null): GovernmentIdRequirementSet
+    public function save(GovernmentId|Document $governmentId, array $data, ?string $checklist = null): GovernmentIdRequirementSet
     {
         return DB::transaction(function () use ($data, $governmentId, $checklist) {
             $set = $checklist === null

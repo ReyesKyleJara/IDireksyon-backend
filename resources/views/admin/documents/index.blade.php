@@ -6,7 +6,7 @@
 
 @section('content')
 
-    <div class="mx-auto max-w-7xl">
+    <div class="w-full min-w-0">
 
 
         <div class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -61,7 +61,7 @@
                 type="search"
                 name="q"
                 value="{{ request('q') }}"
-                placeholder="Search IDs or issuing agency..."
+                placeholder="Search documents or issuing office..."
                 class="admin-input"
             >
 
@@ -316,9 +316,9 @@
                                 {{-- NAME --}}
                                 <td class="px-5 py-4">
 
-                                    <p class="font-semibold text-slate-900">
+                                    <a href="{{ route('admin.documents.show', $document) }}" class="font-semibold text-slate-900 hover:underline">
                                         {{ $document->name }}
-                                    </p>
+                                    </a>
 
                                 </td>
 
@@ -337,7 +337,7 @@
 
                                 {{-- ISSUED BY --}}
                                 <td class="px-5 py-4 text-sm text-slate-600">
-                                    {{ $document->issued_by ?: '—' }}
+                                    {{ $document->agency?->name ?: ($document->issued_by ?: '—') }}
                                 </td>
 
 
@@ -345,6 +345,8 @@
                                 <td class="px-5 py-4">
 
                                     <div class="flex justify-end gap-2">
+
+                                        <a href="{{ route('admin.documents.show', $document) }}" class="admin-secondary">View</a>
 
                                         <a
                                             href="{{ route('admin.documents.edit', $document) }}"

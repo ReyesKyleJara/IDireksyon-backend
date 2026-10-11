@@ -32,7 +32,7 @@ it('lets researchers use the dashboard and office directory while protecting adm
     $this->get('/admin/audit-logs')->assertForbidden();
     $this->post('/admin/users', ['role' => 'super_admin'])->assertForbidden();
     $this->post('/admin/documents', ['name' => 'Researcher entry', 'issued_by' => 'Test Agency'])
-        ->assertSessionHasNoErrors()->assertRedirect('/admin/documents');
+        ->assertSessionHasNoErrors()->assertRedirect(route('admin.documents.show', Document::sole()));
     expect(Document::sole()->issued_by)->toBe('Test Agency');
     expect($agency->fresh()->name)->toBe('Test Agency');
 });

@@ -2,7 +2,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
-            <p class="mt-1 text-sm text-slate-500">Branches that handle applications for this ID.</p>
+            <p class="mt-1 text-sm text-slate-500">Branches that handle applications for this entry.</p>
         </div>
         <div class="flex gap-2">
             <button type="button" class="admin-secondary" @click="open($event)">Edit offices</button>
@@ -87,11 +87,11 @@
                             </label>
                         </div>
                     </template>
-                    <p class="text-xs text-slate-500">Removing a branch only unlinks it from this ID. Draft and inactive offices remain hidden from residents.</p>
+                    <p class="text-xs text-slate-500">Removing a branch only unlinks it from this entry. Draft and inactive offices remain hidden from residents.</p>
                 </div>
                 <template x-if="creatingOffice">
                     <div class="min-h-0 overflow-y-auto">
-                        <p class="px-6 py-3 text-xs text-slate-500">Save Draft creates the office in the directory. Its link to this ID is saved separately.</p>
+                        <p class="px-6 py-3 text-xs text-slate-500">Save Draft creates the office in the directory. Its link to this entry is saved separately.</p>
                         <iframe x-ref="createFrame" :src="creationUrl" title="Create office" class="w-full border-0" style="height: min(65vh, 650px);"></iframe>
                         <div class="px-6 py-3"><button type="button" @click="backToLinks()" class="admin-secondary">Back to linked offices</button></div>
                     </div>

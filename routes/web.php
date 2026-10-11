@@ -65,8 +65,10 @@ Route::prefix('admin')
                 Route::delete('/{requirementGroup}', 'destroy')->whereNumber('requirementGroup')->name('destroy');
             });
 
-        Route::resource('documents', DocumentController::class)
-            ->except(['show']);
+        Route::post('documents/{document}/checklists', [\App\Http\Controllers\Admin\DocumentChecklistController::class, 'store'])->name('documents.checklists.store');
+        Route::put('documents/{document}/checklists/{checklist}', [\App\Http\Controllers\Admin\DocumentChecklistController::class, 'update'])->whereNumber('checklist')->name('documents.checklists.update');
+        Route::delete('documents/{document}/checklists/{checklist}', [\App\Http\Controllers\Admin\DocumentChecklistController::class, 'destroy'])->whereNumber('checklist')->name('documents.checklists.destroy');
+        Route::resource('documents', DocumentController::class);
 
         Route::resource('offices', OfficeController::class)
             ->only(['index', 'create', 'store', 'edit', 'update']);

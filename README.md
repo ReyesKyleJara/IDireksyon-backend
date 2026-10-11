@@ -72,7 +72,7 @@ Or build assets after CSS/JavaScript changes:
 npm run build
 ~~~
 
-Default DatabaseSeeder intentionally leaves research content untouched. Legacy catalog seeders and explicit import/cleanup commands still exist; they are not part of normal CMS data entry.
+Default DatabaseSeeder intentionally leaves research content untouched. Enter documents through Documents & Certifications; Documents and Government IDs share their Add/Edit/View layouts and editors for eligibility, requirements, fees, validity, application guides, and linked offices. Document-owned research lives in separate document tables. Add saves all sections in one transaction; on Edit, checklists save through their modal while the other sections use Save Changes. View is read-only and shows only populated sections. Existing document entries are not automatically populated with new research. Explicit import/cleanup commands are not part of normal CMS data entry.
 
 ## Checks before a checkpoint
 
@@ -85,14 +85,15 @@ git status --short --branch
 
 The October 2026 cleanup updated the older catalog tests to the current CMS contract. These edits still require a full test run; they are not evidence that the suite passes.
 
+- DocumentManagementTest and DocumentStructuredContentTest cover the shared document forms, nested saves, ownership protection, rollback, and deletion guards.
 - AdminCatalogTest covers current ID/Document forms, validation, search, sorting, and preservation of saved source data.
 - CatalogFoundationTest covers agency creation/reuse, access control, and removal of retired reference-directory routes. Office schedule and relationship coverage remains in the dedicated Office test suites.
 - CatalogRulesTest covers reference deletion protection, checklist-specific instructions, resident reference output, and current fee behavior. Accepted-item counts, alternative ways, ownership protection, and atomic checklist saves remain covered by the dedicated GovernmentId checklist/requirement tests.
 - AdminAccessTest, AuthenticationTest, and CmsSimplificationTest follow the current researcher dashboard and office permissions while retaining administration restrictions.
 
-Older expectations for separate Level/Category/Barangay directories, Document-owned structured checklists, a reviewed-publication gate, and alternative fee groups do not describe the current implementation. They were removed from these tests rather than restored as features. Dependency references are stored, but dependency evaluation, cycle handling, and readiness remain unfinished; these tests do not certify them.
+Older expectations for separate Level/Category/Barangay directories, a reviewed-publication gate, and alternative fee groups do not describe the current implementation. They were removed from these tests rather than restored as features. Dependency references are stored, but dependency evaluation, cycle handling, and readiness remain unfinished; these tests do not certify them.
 
-CatalogFoundationSeeder and its GovernmentIdSeeder wrapper still reference the older catalog model and need review before use. They are not called by the default DatabaseSeeder. Do not use those legacy seeders to prepare a checkpoint.
+Obsolete catalog seeders and their old inventory dataset have been removed. Existing migrations and active import/cleanup commands are retained; do not run imports or destructive cleanup commands as part of normal setup.
 
 Run the suite and review failures before treating a checkpoint as verified. Review untracked files too: git diff --stat does not include their contents.
 
