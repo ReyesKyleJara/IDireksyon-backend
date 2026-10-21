@@ -72,7 +72,7 @@ Or build assets after CSS/JavaScript changes:
 npm run build
 ~~~
 
-Default DatabaseSeeder intentionally leaves research content untouched. Enter documents through Documents & Certifications; Documents and Government IDs share their Add/Edit/View layouts and editors for eligibility, requirements, fees, validity, application guides, and linked offices. Document-owned research lives in separate document tables. Add saves all sections in one transaction; on Edit, checklists save through their modal while the other sections use Save Changes. View is read-only and shows only populated sections. Existing document entries are not automatically populated with new research. Explicit import/cleanup commands are not part of normal CMS data entry.
+Default DatabaseSeeder intentionally leaves research content untouched. Enter documents through Documents & Certifications; Documents and Government IDs share their Add/Edit/View layouts and editors for eligibility, requirements, fees, validity, application guides, and linked offices. Document-owned research lives in separate document tables. Add saves all sections in one transaction; on Edit, checklists save through their modal while the other sections use Save Changes. View is read-only and shows only populated sections. Existing document entries are not automatically populated with new research. Research import/cleanup commands are not part of normal CMS data entry. The shared reference-data workflow below is separate.
 
 ## Checks before a checkpoint
 
@@ -93,7 +93,7 @@ The October 2026 cleanup updated the older catalog tests to the current CMS cont
 
 Older expectations for separate Level/Category/Barangay directories, a reviewed-publication gate, and alternative fee groups do not describe the current implementation. They were removed from these tests rather than restored as features. Dependency references are stored, but dependency evaluation, cycle handling, and readiness remain unfinished; these tests do not certify them.
 
-Obsolete catalog seeders and their old inventory dataset have been removed. Existing migrations and active import/cleanup commands are retained; do not run imports or destructive cleanup commands as part of normal setup.
+Obsolete catalog seeders and their old inventory dataset have been removed. Existing migrations and active import/cleanup commands are retained; do not run research imports or destructive cleanup commands as part of normal setup. Use the development reference-data workflow below for teammate setup.
 
 Run the suite and review failures before treating a checkpoint as verified. Review untracked files too: git diff --stat does not include their contents.
 
@@ -104,3 +104,73 @@ Run the suite and review failures before treating a checkpoint as verified. Revi
 - [Resident requirements API integration](docs/resident-requirements-integration.md)
 
 Older planning reports in docs may describe superseded designs. Use the active routes, models, and tests when checking current behavior.
+
+## Shared DEVELOPMENT reference snapshot
+
+This snapshot is **DEVELOPMENT ONLY, UNVERIFIED, and NOT approved for production**. It intentionally preserves draft offices, incomplete reference records, and both Passport #36 and #50 with their original relationships. It is a shared CMS starting point, not verified government guidance.
+
+`database/data/development-reference-data.json` contains the explicitly authorized 227-record development snapshot (`snapshot_state: exported`). Its JSON, relationships, and reviewed content fingerprint were validated after export. It remains unverified and is not approved for production. Review and manually commit the dataset with its importer/exporter implementation before teammates pull it.
+
+### Teammates: after git pull
+
+Once the real development snapshot is committed, use an already configured **local** checkout with its own local MySQL database (`APP_ENV=local`):
+
+```bash
+git pull
+php artisan migrate
+php artisan db:seed --class=ReferenceDataSeeder
+```
+
+The seeder reads only `development-reference-data.json`, displays the development warning, inserts missing rows, and skips identical rows. It preserves IDs, foreign keys, scenario relationships, JSON, and ordering. Conflicting IDs, existing directory names under another ID, missing dependencies, invalid metadata, or user verification references stop the import. All inserts run in one transaction; failures roll back the run. Existing records are never overwritten or deleted. Local creation/update timestamps do not cause conflicts.
+
+Accounts stay separate. Users, passwords, authentication/session/token data, resident profiles/inventories, and audit logs are not selected. `last_verified_by` becomes null. Public reference text, verification dates, service statuses, and source links remain. Text fields still need privacy review because an allowlist cannot recognize every kind of personal information entered into CMS notes.
+
+### Maintainer: preview, authorize, and export
+
+Use only your existing local CMS database configuration. This command validates and reports counts and a content fingerprint without writing a file or changing records:
+
+```bash
+php artisan idireksyon:export-reference-data
+```
+
+The entire reference catalog is included to preserve cross-ID/document dependencies. There is no selective subset export or automatic content approval gate. Review the candidate content for personal information and confirm that drafts and incomplete entries are acceptable for shared development. The last read-only review found 227 records; the command rechecks live content before writing.
+
+Only after explicit authorization, create the development snapshot using the reviewed fingerprint:
+
+```bash
+php artisan idireksyon:export-reference-data --development --write --approve-hash=REVIEWED_SHA256
+```
+
+`--development` acknowledges the development-only scope; `--approve-hash` authorizes this exact content for export, **not production publication**. A changed/missing fingerprint or missing development flag stops the write. An existing destination requires an additional interactive confirmation, defaulting to No; noninteractive replacement is refused. Writing uses a temporary file and atomic rename. An optional `--output=/absolute/path/development-candidate.json` changes the destination but retains the same guards.
+
+Format version 2 includes fixed metadata: `purpose: development_only`, `verification_status: unverified`, `production_approved: false`, and an explicit warning. The exporter marks `snapshot_state: exported`; the importer rejects pending placeholders and legacy approved-format files. The fingerprint covers reference content only, excluding creation/update timestamps and local verifier account IDs. Changing the format does not change the content fingerprint.
+
+### Production protection
+
+Imports and exports are restricted to Laravel environments `local` and `testing`. Production, staging, and unknown environments are rejected before snapshot database access, even with `db:seed --force`. There is no production override or production approval workflow. Editing metadata to claim production approval is rejected. Any future production dataset needs a separate explicit approval process and implementation.
+
+Do not run this workflow on Railway production or point a local checkout at a production database. The environment guard uses the configured Laravel environment; it does not independently authenticate whether a database server is production. No Railway connection or deployment is part of this workflow.
+
+Legacy approved-format datasets are not a fallback and are rejected. The development export belongs in `development-reference-data.json`. Default `DatabaseSeeder` remains unchanged.
+
+### Review and manually commit
+
+The exporter never runs Git. Review the resulting JSON and stage only intended files:
+
+```bash
+git diff -- database/data/development-reference-data.json
+git status --short
+git add app/Services/ReferenceData.php app/Console/Commands/ExportReferenceData.php database/seeders/ReferenceDataSeeder.php database/data/development-reference-data.json tests/Feature/ReferenceDataTest.php README.md
+git diff --cached
+git commit -m "Share development-only CMS reference snapshot"
+```
+
+Do not stage `.env`, database backups, private content, or unrelated changes. Keep the local database intact. Run imports without concurrent CMS edits/imports. A later shared-content revision conflicts with a differing local row by design and needs separately reviewed reconciliation; do not delete records or change IDs to force it through.
+
+### Isolated checks
+
+Focused tests create SQLite in-memory databases and run ordinary migrations, without `migrate:fresh` or local MySQL access:
+
+```bash
+DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= APP_ENV=testing vendor/bin/phpunit tests/Feature/ReferenceDataTest.php --do-not-cache-result
+```
