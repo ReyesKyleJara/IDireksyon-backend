@@ -35,6 +35,7 @@ class ResidentAuthController extends Controller
         ]);
 
         $data = $request->validate([
+            'email_verification_token' => ['required_with:email', 'nullable', 'string', 'size:64'],
             'email' => [
                 'nullable',
                 'required_without:phone',
@@ -66,6 +67,9 @@ class ResidentAuthController extends Controller
         ]);
 
         return DB::transaction(function () use ($data) {
+            if (! empty($data['email'])) {
+                app(\App\Services\SignupEmailVerification::class)->consume($data['email'], $data['email_verification_token']);
+            }
             $user = User::create(
                 collect($data)
                     ->only([
@@ -75,6 +79,10 @@ class ResidentAuthController extends Controller
                     ])
                     ->all()
             );
+
+            if (! empty($data['email'])) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
 
             return $this->session($user, 201);
         });

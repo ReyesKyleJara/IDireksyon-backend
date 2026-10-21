@@ -50,9 +50,23 @@ The ID Sources/Website section is currently removed from the create, edit, and v
 
 ## Local development
 
+For email verification during signup, including Gmail setup, see
+[Signup email verification](docs/signup-email-verification.md).
+
 The project uses PHP 8.2+, Laravel 12, Sanctum, Blade, Alpine, Tailwind, Vite, and Tiptap. Dependency versions are locked in composer.lock and package-lock.json.
 
 Use your local .env for database and application configuration. Never commit it or database backups. Keep existing databases and migrations when continuing development; do not reset research data to prepare a code checkpoint.
+
+Resident profile setup requires barangay choices. After applying migrations on
+a new database, populate the existing Santa Maria barangay list explicitly:
+
+~~~bash
+php artisan db:seed --class=BarangaySeeder
+~~~
+
+This seeder inserts missing barangays without deleting existing records. The
+default DatabaseSeeder does not populate this list. An empty list causes
+profile setup to display "No barangays are available yet."
 
 For an already configured checkout:
 

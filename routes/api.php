@@ -40,6 +40,10 @@ Route::get('/government-ids/{governmentId}', [
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('email-verification/send', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'send'])
+        ->middleware('throttle:5,1');
+    Route::post('email-verification/verify', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'verify'])
+        ->middleware('throttle:20,1');
     Route::post('register', [
         ResidentAuthController::class,
         'register',
