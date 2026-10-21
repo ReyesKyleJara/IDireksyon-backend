@@ -1,13 +1,26 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 function residentData(array $overrides = []): array
 {
-    return array_replace(['name' => 'Juan', 'email' => 'juan@example.com',
+    $data = array_replace(['name' => 'Juan', 'email' => 'juan@example.com',
         'password' => 'password123', 'password_confirmation' => 'password123',
         'terms_accepted' => true], $overrides);
+    if (! empty($data['email'])) {
+        $token = Str::random(64);
+        DB::table('signup_email_verifications')->insert([
+            'id' => (string) Str::uuid(), 'email' => strtolower(trim($data['email'])),
+            'code_hash' => Hash::make('123456'), 'attempts' => 1,
+            'expires_at' => now()->addMinutes(10), 'token_hash' => hash('sha256', $token),
+        ]);
+        $data['email_verification_token'] = $token;
+    }
+
+    return $data;
 }
 
 test('residents register and authenticate with email or normalized phone', function (array $contact, string $identifier) {
