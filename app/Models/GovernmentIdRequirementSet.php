@@ -87,6 +87,11 @@ class GovernmentIdRequirementSet extends Model
             ->orderBy('sort_order')->orderBy('id');
     }
 
+    public function prerequisites(): HasMany
+    {
+        return $this->hasMany(GovernmentIdPrerequisite::class, 'requirement_set_id');
+    }
+
     public function governmentId(): BelongsTo
     {
         return $this->belongsTo(GovernmentId::class);

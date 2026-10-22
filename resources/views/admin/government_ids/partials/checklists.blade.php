@@ -34,30 +34,35 @@
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Requirements</h2>
             @if($editable ?? false)
-                <p class="mt-1 text-sm text-slate-500">Checklists for each application and applicant type.</p>
+                <p class="mt-1 text-sm text-slate-500">Applicability Profile → Requirements for that applicant context.</p>
             @endif
         </div>
         @if($editable ?? false)
-            <button type="button" class="admin-primary" @click="open(null, $event)" :disabled="deleting !== null">+ Add checklist</button>
+            <button type="button" class="admin-primary" @click="open(null, $event)" :disabled="deleting !== null || saving || !!draft" x-ref="addChecklistButton">+ Add checklist</button>
         @endif
     </div>
     @if($editable ?? false)
-        <p x-show="checklists.length === 0" class="text-sm text-slate-500">Add a checklist for an application and applicant type.</p>
+        <p x-cloak x-show="checklists.length === 0 && !draft" class="text-sm text-slate-500">No applicability profiles yet. Add a checklist for an application and applicant type.</p>
     @endif
-    <div class="space-y-4">
+    <div x-show="!draft" class="space-y-4">
         <template x-for="checklist in checklists" :key="checklist.id || checklist.client_key">
             <article class="rounded-xl border border-slate-200 p-5">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <h3 class="font-semibold text-slate-900" x-text="checklist.label"></h3>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Applies To</p>
+                        <h3 class="font-semibold text-slate-900" x-text="checklist.applicability?.summary || checklistLabel(checklist)"></h3>
+                        <p class="mt-1 text-sm font-medium" x-text="checklist.applicability?.status || 'Profile details pending save'"></p>
+                        <p class="mt-1 text-sm text-slate-600" x-text="checklist.applicability?.explanation || 'Save this profile to confirm its rule status. Manual selection remains available.'"></p>
+                    </div>
                     @if($editable ?? false)
                         <div class="flex gap-3">
-                            <button type="button" class="admin-secondary" @click="open(checklist, $event)" :disabled="deleting !== null">Edit checklist</button>
+                            <button type="button" class="admin-secondary" @click="selected = String(checklists.indexOf(checklist)); open(checklist, $event)" :disabled="deleting !== null">Edit checklist</button>
                             <button type="button" class="text-sm text-red-700" @click="deleteChecklist(checklist)" :disabled="deleting !== null" :aria-label="'Delete ' + checklist.label" x-text="deleting !== null && deleting === checklist.id ? 'Deleting…' : 'Delete'"></button>
                         </div>
                     @endif
                 </div>
                 <div class="space-y-4">
-                    <template x-for="group in checklist.groups" :key="group.id || group.key">
+                    <template x-for="(group, groupIndex) in checklist.groups" :key="group.id || groupIndex">
                         <div>
                             <p class="text-sm font-semibold text-slate-800" x-text="requirementName(group)"></p>
                             <p x-show="group.condition_type !== 'always'" class="mt-1 text-xs text-blue-800" x-text="'Only if: ' + conditionLabel(group)"></p>
@@ -86,106 +91,76 @@
     </div>
 
     @if($editable ?? false)
-    <style>#checklist-dialog::backdrop { background: rgb(15 23 42 / .5); }</style>
-    {{-- Keep the modal form outside the surrounding ID form. Alpine retains its component scope. --}}
-    <template x-teleport="body">
-    <dialog id="checklist-dialog" x-ref="dialog" aria-labelledby="checklist-dialog-title"
-        @cancel.prevent="close()" class="m-auto rounded-2xl border-0 bg-white p-0 shadow-xl"
-        style="width: min(720px, calc(100vw - 2rem)); max-width: none; max-height: calc(100dvh - 2rem);">
-        <form @submit.prevent="editing ? finishRequirement() : save()" novalidate class="flex flex-col" style="max-height: calc(100dvh - 2rem);">
-            <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
-                <div>
-                    <button type="button" x-show="editing && !editing.choosing" @click="chooseAgain()" class="mb-2 text-sm font-medium text-[#012877]">← Back to choices</button>
-                    <h2 id="checklist-dialog-title" class="text-lg font-bold text-slate-900" x-text="requirementEditorTitle()"></h2>
-                    <p class="mt-1 text-sm text-slate-500">{{ $governmentId->name ?? ($addTitle ?? 'New ID or Credential') }}</p>
-                </div>
-                <button type="button" aria-label="Close checklist" class="text-2xl text-slate-500" @click="close()" :disabled="saving">×</button>
-            </header>
-            <div x-ref="dialogBody" class="min-h-0 overflow-y-auto px-6 py-5">
-                <div x-ref="errors" x-show="errors.length" tabindex="-1" role="alert" class="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-                    <ul class="list-disc pl-4"><template x-for="(error, index) in errors" :key="index"><li x-text="error"></li></template></ul>
-                </div>
-                <template x-if="draft">
-                    <fieldset :disabled="saving" class="min-w-0 space-y-5">
-                        <div x-show="!editing" class="space-y-5">
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <label class="text-sm font-medium">Application type
-                                    <select x-ref="application" x-model="draft.application_type" class="admin-input mt-2">
-                                        <option value="">Select application</option>
-                                        @foreach(\App\Models\GovernmentIdRequirementSet::APPLICATION_TYPES as $key => $label)
-                                            <option value="{{ $key }}">{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </label>
-                                <label class="text-sm font-medium">Applicant type
-                                    <select x-model="draft.applicant_type" class="admin-input mt-2">
-                                        <option value="">Select applicant</option>
-                                        @foreach(\App\Models\GovernmentIdRequirementSet::APPLICANT_TYPES as $key => $label)
-                                            <option value="{{ $key }}">{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </label>
-                            </div>
-                            <label x-show="draft.application_type === 'custom'" class="block text-sm font-medium">Custom application name
-                                <input x-model="draft.application_type_custom" maxlength="255" class="admin-input mt-2">
-                            </label>
-                            <p x-show="draft.applicant_type === 'adult' || draft.applicant_type === 'minor'" class="text-xs text-slate-500" x-text="draft.applicant_type === 'adult' ? 'Adult: 18 and above.' : 'Minor: below 18.'"></p>
-                            <div x-show="draft.applicant_type === 'custom'" class="space-y-3">
-                                <label class="block text-sm font-medium">Applicant label (optional)<input x-model="draft.applicant_type_custom" maxlength="255" class="admin-input mt-2"></label>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <label class="text-sm font-medium">Minimum age<input type="number" min="0" max="65535" step="1" x-model="draft.min_age" class="admin-input mt-2"></label>
-                                    <label class="text-sm font-medium">Maximum age<input type="number" min="0" max="65535" step="1" x-model="draft.max_age" class="admin-input mt-2"></label>
-                                </div>
-                                <p class="text-xs text-slate-500">Leave an age blank if that limit does not apply.</p>
-                            </div>
-
-                            <div class="space-y-3">
-                                <h3 class="text-sm font-semibold text-slate-900">What does this applicant need?</h3>
-                                <template x-for="(group, groupIndex) in draft.groups" :key="group.key">
-                                    <article x-show="editingIndex !== groupIndex || !editing" class="rounded-xl border border-slate-200 p-4">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
-                                                <p class="text-sm font-semibold text-slate-800" x-text="requirementName(group)"></p>
-                                                <p class="mt-1 text-xs text-slate-500" x-text="group.condition_type === 'always' ? 'Required' : 'Only if: ' + conditionLabel(group)"></p>
-                                                <template x-for="(way, wayIndex) in group.ways" :key="way.key">
-                                                    <div class="mt-1 text-xs text-slate-500">
-                                                        <p x-show="group.ways.length > 1 || way.items.length !== 1 || itemName(way.items[0]) !== requirementName(group)" x-text="(wayIndex > 0 ? 'OR — ' : '') + waySummary(way)"></p>
-                                                        <p x-show="qualification(way)" x-text="qualification(way)"></p>
-                                                        <template x-for="item in way.items" :key="item.key">
-                                                            <span class="block">
-                                                                <span x-show="item.quantity" x-text="'Quantity: ' + item.quantity"></span>
-                                                                <span x-show="submission(item)" x-text="submission(item)"></span>
-                                                            </span>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                            <div class="flex shrink-0 gap-3 text-sm">
-                                                <button type="button" @click="editRequirement(groupIndex)" :disabled="!!editing" class="text-[#012877] disabled:opacity-40">Edit</button>
-                                                <button type="button" @click="removeRequirement(groupIndex)" :disabled="!!editing" class="text-red-700 disabled:opacity-40">Remove</button>
-                                            </div>
-                                        </div>
-                                    </article>
-                                </template>
-                            </div>
-                            <button type="button" x-ref="addRequirementButton" class="admin-secondary" @click="addRequirement()" :disabled="draft.groups.length >= 100">+ Add requirement</button>
-                        </div>
-                        <template x-if="editing">
-                            @include('admin.government_ids.partials.requirement-editor')
-                        </template>
-
-                    </fieldset>
-                </template>
+    <label x-cloak x-show="showScenarioSelector" class="mt-4 block text-sm font-medium">Choose an existing applicability profile to edit
+        <select class="admin-input mt-2" :value="selected" @change="selectChecklist($event.target.value); $event.target.value = selected" :disabled="saving || deleting !== null">
+            <option value="">Select an applicability profile</option>
+            <template x-for="(checklist, index) in checklists" :key="checklist.id || checklist.client_key"><option :value="String(index)" x-text="checklist.applicability?.summary || checklistLabel(checklist)"></option></template>
+        </select>
+    </label>
+    <div x-ref="errors" x-show="errors.length" tabindex="-1" role="alert" class="my-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+        <ul class="list-disc pl-4"><template x-for="(error, index) in errors" :key="index"><li x-text="error"></li></template></ul>
+    </div>
+    <template x-if="draft">
+        <fieldset :disabled="saving" class="mt-5 min-w-0 space-y-5" aria-label="Inline requirements editor">
+            <h3 class="font-semibold">Applicability Profile</h3>
+            <p class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" x-show="draft.applicant_type === 'custom' || draft.application_type === 'custom'">Needs rule setup. Automatic matching is disabled until structured applicability rules are configured. Manual selection remains available. Custom labels and age limits are preserved without inferring their meaning.</p>
+            <details :open="selected === ''" class="space-y-3">
+                <summary x-ref="scenarioDetails" x-show="selected !== ''" class="cursor-pointer text-sm font-medium">Applies To — edit profile details</summary>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <label class="text-sm font-medium">Who is applying?
+                    <select x-model="draft.applicant_type" class="admin-input mt-2" :disabled="!!editing">
+                        <option value="">Select applicant</option>
+                        @foreach(\App\Models\GovernmentIdRequirementSet::APPLICANT_TYPES as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach
+                    </select>
+                </label>
+                <label class="text-sm font-medium">What kind of application?
+                    <select x-ref="application" x-model="draft.application_type" class="admin-input mt-2" :disabled="!!editing">
+                        <option value="">Select application</option>
+                        @foreach(\App\Models\GovernmentIdRequirementSet::APPLICATION_TYPES as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach
+                    </select>
+                </label>
             </div>
-            <footer x-show="!editing" class="shrink-0 border-t border-slate-200 bg-white px-6 py-4">
-                <p class="mb-3 text-xs text-slate-500" x-text="deferred ? 'Apply this checklist to the form. ' + createLabel + ' saves it with all the other sections.' : 'Save checklist to keep your requirement changes. Other details are saved separately.'"></p>
-                <div class="flex justify-end gap-3">
-                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">Cancel</button>
-                    <button type="submit" class="admin-primary" :disabled="saving" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : 'Save checklist')"></button>
+            <label x-show="draft.application_type === 'custom'" class="block text-sm font-medium">Custom application name<input x-model="draft.application_type_custom" maxlength="255" class="admin-input mt-2"></label>
+            <p x-show="draft.applicant_type === 'adult' || draft.applicant_type === 'minor'" class="text-sm text-slate-500" x-text="draft.applicant_type === 'adult' ? 'Adult: 18 and above.' : 'Minor: below 18.'"></p>
+            <div x-show="draft.applicant_type === 'custom'" class="space-y-3">
+                <label class="block text-sm font-medium">Applicant label (optional)<input x-model="draft.applicant_type_custom" maxlength="255" class="admin-input mt-2"></label>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="text-sm font-medium">Minimum age (optional)<input type="number" min="0" max="65535" step="1" x-model="draft.min_age" class="admin-input mt-2"></label>
+                    <label class="text-sm font-medium">Maximum age (optional)<input type="number" min="0" max="65535" step="1" x-model="draft.max_age" class="admin-input mt-2"></label>
                 </div>
-            </footer>
-        </form>
-    </dialog>
+            </div>
+            </details>
+            <div class="grid items-start gap-5 xl:grid-cols-2">
+                <div class="min-w-0 space-y-4">
+                    <h3 class="font-semibold">Requirement cards</h3>
+                    <p class="text-sm text-slate-500">Each card is a separate requirement. Alternatives inside a card are joined by OR.</p>
+                    <template x-for="(group, groupIndex) in draft.groups" :key="group.key">
+                        <article class="min-w-0 rounded-xl border border-slate-300 p-4">
+                            <div x-show="editingIndex !== groupIndex || !editing">
+                                <h4 class="break-words font-semibold" x-text="requirementName(group)"></h4>
+                                <p class="mt-1 text-sm text-blue-800" x-text="group.condition_type === 'always' ? 'Required' : 'Only if: ' + conditionLabel(group)"></p>
+                                <template x-for="(way, index) in group.ways" :key="way.key"><div class="mt-2 text-sm"><p x-text="(index ? 'OR — ' : '') + waySummary(way)"></p><p class="text-slate-600" x-text="qualification(way)"></p></div></template>
+                                <div class="mt-3 flex flex-wrap gap-3">
+                                    <button type="button" class="admin-secondary" @click="editRequirement(groupIndex)" :disabled="!!editing" :aria-label="'Edit ' + requirementName(group)" :aria-expanded="editingIndex === groupIndex && !!editing">Edit</button>
+                                    <button type="button" class="text-sm text-red-700" @click="removeRequirement(groupIndex)" :disabled="!!editing" :aria-label="'Delete ' + requirementName(group)">Delete</button>
+                                </div>
+                            </div>
+                            <template x-if="editing && editingIndex === groupIndex"><div>@include('admin.government_ids.partials.requirement-editor')</div></template>
+                        </article>
+                    </template>
+                    <template x-if="editing && editingIndex === null"><article class="rounded-xl border border-blue-400 p-4">@include('admin.government_ids.partials.requirement-editor')</article></template>
+                    <button type="button" x-ref="addRequirementButton" class="admin-secondary" @click="addRequirement()" :disabled="!!editing || draft.groups.length >= 100">+ Add requirement</button>
+                </div>
+                @include('admin.government_ids.partials.requirements-preview')
+            </div>
+            <div class="space-y-3 border-t border-slate-200 pt-4">
+                <p class="text-sm text-slate-600" x-text="deferred ? 'Apply checklist keeps this draft in the form. ' + createLabel + ' saves all sections together.' : 'Save checklist saves these requirements now. The main form saves other details and the Application Guide separately.'"></p>
+                <div class="flex flex-wrap justify-end gap-3">
+                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">Cancel checklist changes</button>
+                    <button type="button" class="admin-primary" @click="save()" :disabled="saving || !!editing" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : 'Save checklist')"></button>
+                </div>
+            </div>
+        </fieldset>
     </template>
     @endif
 </section>

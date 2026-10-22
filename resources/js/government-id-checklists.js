@@ -26,7 +26,7 @@ export default function governmentIdChecklists(config) {
         sequence: 0,
         opener: null,
         beforeUnload: null,
-        previousOverflow: null,
+        selected: '',
         init() {
             if (this.deferred) {
                 if (config.oldPayload !== null && config.oldPayload !== undefined) {
@@ -38,7 +38,7 @@ export default function governmentIdChecklists(config) {
                             if (!row || typeof row.client_key !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(row.client_key)
                                 || keys.has(row.client_key) || !Array.isArray(row.groups)) throw new Error();
                             keys.add(row.client_key);
-                            return { ...row, label: this.checklistLabel(row), groups: row.groups.map(group => this.decorate(group)) };
+                            return { ...row, label: this.checklistLabel(row), groups: row.groups };
                         });
                     } catch {
                         this.checklists = [];
@@ -60,6 +60,17 @@ export default function governmentIdChecklists(config) {
                 this.form?.addEventListener('submit', this.submitHandler);
                 this.$nextTick(() => this.checklists.forEach(row => this.$dispatch('guide-scenario-changed', row)));
             }
+            if (!this.deferred) {
+                this.form = this.$el.closest('form');
+                this.submitHandler = event => {
+                    if (this.draft || this.saving) {
+                        event.preventDefault();
+                        this.errors = ['Save or cancel the open requirements before saving the main form.'];
+                        this.$nextTick(() => this.$refs.errors?.focus());
+                    }
+                };
+                this.form?.addEventListener('submit', this.submitHandler);
+            }
             this.ready = true;
             this.beforeUnload = event => {
                 if (!this.submitting && (this.dirty() || this.saving || (this.deferred && this.checklists.length > 0))) {
@@ -72,8 +83,6 @@ export default function governmentIdChecklists(config) {
         destroy() {
             window.removeEventListener('beforeunload', this.beforeUnload);
             this.form?.removeEventListener('submit', this.submitHandler);
-            if (this.$refs.dialog?.open) this.$refs.dialog.close();
-            if (this.previousOverflow !== null) document.body.style.overflow = this.previousOverflow;
         },
         get creationPayload() {
             if (this.restoreError) return config.oldPayload;
@@ -85,8 +94,12 @@ export default function governmentIdChecklists(config) {
             this.formError = '';
             this.checklists = [];
         },
-        checklistLabel(row) {
-            let applicant = this.applicants[row.applicant_type] || 'Applicant';
+        get showScenarioSelector() {
+            return this.checklists.length > 0 && (!this.draft || this.selected !== '');
+        },
+        checklistLabel(row = {}) {
+            row = row || {};
+            let applicant = this.applicants[row.applicant_type] || 'Select applicant';
             if (row.applicant_type === 'custom') {
                 const min = row.min_age, max = row.max_age;
                 const hasMin = min !== null && min !== undefined && min !== '';
@@ -94,7 +107,8 @@ export default function governmentIdChecklists(config) {
                 const age = hasMin && hasMax ? 'Ages ' + min + '–' + max : hasMin ? 'Age ' + min + ' and above' : hasMax ? 'Age ' + max + ' and below' : 'No age restriction';
                 applicant = row.applicant_type_custom ? row.applicant_type_custom + ' (' + age + ')' : age;
             }
-            return applicant + ' • ' + (row.application_type === 'custom' ? row.application_type_custom : this.applications[row.application_type]);
+            const application = row.application_type === 'custom' ? row.application_type_custom?.trim() : this.applications[row.application_type];
+            return applicant + ' • ' + (application || 'Select application');
         },
         acceptGuideScenario(row) {
             if (!this.deferred || this.restoreError || !row.client_key) return;
@@ -154,7 +168,7 @@ export default function governmentIdChecklists(config) {
             }
             row.label = this.checklistLabel(row);
             const index = this.checklists.findIndex(item => item.client_key === row.client_key);
-            const applied = copy(row);
+            const applied = { ...this.payload(row), client_key: row.client_key, label: row.label };
             if (index < 0) this.checklists.push(applied); else this.checklists.splice(index, 1, applied);
             this.formError = '';
             this.$dispatch('guide-scenario-changed', applied);
@@ -206,12 +220,13 @@ export default function governmentIdChecklists(config) {
         },
         decorate(group) {
             const result = copy(group);
+            result.legacy = group.legacy ?? !Array.isArray(group.ways);
             result.key = ++this.sequence;
             result.conditional = result.condition_type !== 'always';
             result.advancedOpen = false;
             result.ways = this.ways(result).map(way => ({
                 ...way, key: ++this.sequence, search: '', type: way.items[0]?.type || 'document',
-                mode: way.items.length <= 1 && Number(way.required_count) === 1 ? 'specific' : 'accepted',
+                mode: result.legacy && result.rule === 'all' ? 'all' : way.items.length <= 1 && Number(way.required_count) === 1 ? 'specific' : Number(way.required_count) === way.items.length ? 'all' : 'accepted',
                 qualificationOpen: false,
                 items: way.items.map(item => ({ ...item, key: ++this.sequence, details: false })),
             }));
@@ -223,32 +238,34 @@ export default function governmentIdChecklists(config) {
             this.opener = event?.currentTarget || document.activeElement;
             this.errors = [];
             this.editing = null;
+            this.selected = checklist ? String(this.checklists.indexOf(checklist)) : '';
             this.draft = checklist ? copy(checklist) : {
                 id: null, application_type: '', application_type_custom: '',
                 applicant_type: '', applicant_type_custom: '', min_age: '', max_age: '', groups: [],
             };
             this.draft.groups = this.draft.groups.map(group => this.decorate(group));
             this.baseline = JSON.stringify(this.payload());
-            this.$nextTick(() => {
-                this.$refs.dialog.showModal();
-                this.previousOverflow = document.body.style.overflow;
-                document.body.style.overflow = 'hidden';
-                this.$refs.application?.focus();
-            });
+            this.$nextTick(() => (checklist ? this.$refs.scenarioDetails : this.$refs.application)?.focus());
         },
+        selectChecklist(value) {
+            if (value !== '' && (!/^\d+$/.test(value) || !this.checklists[Number(value)])) return;
+            if (this.draft && !window.confirm('Discard unsaved requirements and switch applicability profile?')) return;
+            this.selected = value;
+            if (value === '') { this.close(true); return; }
+            this.open(this.checklists[Number(value)]);
+        },
+
         dirty() {
             return this.draft !== null && (this.editing !== null || JSON.stringify(this.payload()) !== this.baseline);
         },
         close(force = false) {
             if (this.saving) return;
             if (!force && this.dirty() && !window.confirm('Discard your unsaved checklist changes?')) return;
-            this.$refs.dialog.close();
-            if (this.previousOverflow !== null) document.body.style.overflow = this.previousOverflow;
-            this.previousOverflow = null;
+            this.selected = '';
             this.draft = null;
             this.editing = null;
             this.errors = [];
-            this.$nextTick(() => this.opener?.focus());
+            this.$nextTick(() => (this.opener?.isConnected ? this.opener : this.$refs.addChecklistButton)?.focus());
         },
         newWay() {
             return {
@@ -263,48 +280,8 @@ export default function governmentIdChecklists(config) {
             this.errors = [];
             this.editing = {
                 id: null, key: ++this.sequence, title: '', rule: 'all', condition_type: 'always',
-                condition_custom: '', conditional: false, choosing: true, advancedOpen: false, ways: [this.newWay()],
+                condition_custom: '', conditional: false, choosing: false, advancedOpen: false, ways: [this.newWay()],
             };
-            this.focusEditor();
-        },
-        requirementEditorTitle() {
-            if (!this.editing) return this.draft?.id || this.draft?.client_key ? 'Edit checklist' : 'Add checklist';
-            if (this.editing.choosing) return 'What requirement will you add?';
-            const verb = this.editingIndex === null ? 'Add' : 'Edit';
-            if (this.editing.conditional) return verb + ' a conditional requirement';
-            if (this.editing.ways.length > 1) return verb + ' requirement alternatives';
-            return this.editing.ways[0].mode === 'accepted'
-                ? verb + ' accepted choices' : verb + ' a specific requirement';
-        },
-        chooseRequirementType(type) {
-            if (!this.editing?.choosing || !['specific', 'accepted', 'conditional'].includes(type)) return;
-            const group = this.editing;
-            const way = group.ways[0];
-            if (type !== 'conditional' && group.ways.length > 1) {
-                this.errors = ['This requirement has several alternatives. Resume editing to adjust them first, or choose a conditional requirement to keep them.'];
-                this.$nextTick(() => this.$refs.errors?.focus());
-                return;
-            }
-            if (type === 'specific' && (way.items.length > 1 || Number(way.required_count) !== 1)) {
-                this.errors = ['To use one specific item, resume editing, keep one item, and set the number needed to 1. Your entries have been kept.'];
-                this.$nextTick(() => this.$refs.errors?.focus());
-                return;
-            }
-            group.conditional = type === 'conditional';
-            if (type !== 'conditional') way.mode = type;
-            this.resumeRequirement();
-        },
-        chooseAgain() {
-            if (!this.editing) return;
-            this.editing.choosing = true;
-            this.errors = [];
-            this.focusEditor();
-        },
-        resumeRequirement() {
-            if (!this.editing) return;
-            this.editing.choosing = false;
-            this.editing.visited = true;
-            this.errors = [];
             this.focusEditor();
         },
         editRequirement(index) {
@@ -319,8 +296,7 @@ export default function governmentIdChecklists(config) {
         },
         focusEditor() {
             this.$nextTick(() => {
-                if (this.$refs.dialogBody) this.$refs.dialogBody.scrollTop = 0;
-                const panel = this.$refs.dialog?.querySelector('[aria-label="Requirement editor"]');
+                const panel = this.$el.querySelector('[aria-label="Requirement editor"]');
                 const control = [...(panel?.querySelectorAll('input, select, textarea, button') || [])]
                     .find(element => element.offsetParent !== null);
                 control?.focus();
@@ -330,7 +306,7 @@ export default function governmentIdChecklists(config) {
             this.$nextTick(() => this.$refs.addRequirementButton?.focus());
         },
         cancelRequirement() {
-            if (this.editing?.visited && !window.confirm('Discard changes to this requirement and return to the checklist?')) return;
+            if (this.editing && !window.confirm('Discard changes to this requirement and return to the checklist?')) return;
             this.editing = null;
             this.errors = [];
             this.returnToChecklist();
@@ -346,6 +322,7 @@ export default function governmentIdChecklists(config) {
                 this.$nextTick(() => this.$refs.errors?.focus());
                 return;
             }
+            if (!this.convertLegacy()) return;
             this.editing.advancedOpen = true;
             this.editing.ways.push(this.newWay());
             this.errors = [];
@@ -355,15 +332,36 @@ export default function governmentIdChecklists(config) {
             if (!window.confirm('Remove this alternative and its selected items from this requirement?')) return;
             this.editing.ways.splice(index, 1);
         },
-        allowAcceptedItems(way) {
-            // Keep the chosen record and its submission details when adding alternatives.
-            way.mode = 'accepted';
+        convertLegacy() {
+            if (!this.editing.legacy) return true;
+            if (!window.confirm('Use advanced alternatives for this legacy requirement? Saving will convert this card to ways while keeping its items and IDs. Cancel keeps the original storage.')) return false;
+            this.editing.legacy = false;
+            return true;
         },
-        useSpecificItem(way) {
-            // Never silently discard accepted items or lower an existing required count.
-            if (way.items.length > 1 || Number(way.required_count) !== 1) return;
-            way.mode = 'specific';
-            way.search = '';
+        selection(way, mode) {
+            if (mode === 'specific' && (way.items.length > 1 || Number(way.required_count) !== 1)) return;
+            way.mode = mode;
+            if (mode === 'all') way.required_count = way.items.length || 1;
+            if (mode === 'specific') way.required_count = 1;
+            if (this.editing.legacy) {
+                this.editing.rule = mode === 'accepted' ? 'choose_one' : 'all';
+                if (mode === 'accepted') way.required_count = 1;
+            }
+        },
+        setCount(way, value) {
+            if (this.editing.legacy && Number(value) !== 1 && !this.convertLegacy()) return;
+            way.required_count = value;
+        },
+        get previewGroups() {
+            if (!this.draft) return [];
+            const groups = [...this.draft.groups];
+            if (this.editing) {
+                if (this.editingIndex === null) groups.push(this.editing);
+                else groups[this.editingIndex] = this.editing;
+            }
+            return groups.map(group => ({ ...group,
+                condition_type: group.conditional === false ? 'always' : group.condition_type,
+            }));
         },
         isSelected(way, option) {
             const field = option.type === 'government_id' ? 'government_id_id' : 'document_id';
@@ -392,24 +390,24 @@ export default function governmentIdChecklists(config) {
                 way.search = '';
             } else {
                 way.items.push(item);
+                if (way.mode === 'all') way.required_count = way.items.length;
                 if (option) this.$nextTick(() => searchInput?.focus({ preventScroll: true }));
             }
         },
         removeItem(way, index) {
             way.items.splice(index, 1);
+            if (way.mode === 'all') way.required_count = way.items.length;
         },
         finishRequirement() {
             const group = this.editing;
             if (!group) return true;
             if (group.choosing) return false;
             const errors = [];
-            if (group.ways.some(way => way.mode === 'accepted') || group.ways.length > 1) {
-                if (!group.title?.trim()) errors.push('Give this requirement a name, such as Proof of Identity.');
-            }
             if (group.conditional && (group.condition_type === 'always'
                 || (group.condition_type === 'custom' && !group.condition_custom?.trim()))) {
                 errors.push('Select or describe when this requirement applies.');
             }
+            if (group.legacy && group.rule === 'choose_one' && group.ways[0].items.length < 2) errors.push('Choose one needs at least two accepted items.');
             group.ways.forEach((way, index) => {
                 if (!way.items.length) errors.push(group.ways.length === 1
                     ? 'Search and select an item, or add a custom item.'
@@ -456,25 +454,28 @@ export default function governmentIdChecklists(config) {
                 groups: d.groups.map(group => ({
                     id: group.id || null, title: group.title || null, rule: group.rule,
                     condition_type: group.condition_type, condition_custom: group.condition_custom || null,
-                    ways: group.ways.map(way => ({
+                    ...((group.legacy ?? !Array.isArray(group.ways)) ? { items: this.serializeItems(this.ways(group)[0].items) } : { ways: this.ways(group).map(way => ({
                         id: way.id || null, required_count: way.required_count,
                         qualification_type: way.qualification_type,
                         qualification_scope: way.qualification_scope,
                         qualification_custom: way.qualification_custom || null,
-                        items: way.items.map(item => ({
-                            id: item.id || null, type: item.type,
-                            government_id_id: item.government_id_id || null,
-                            document_id: item.document_id || null,
-                            custom_name: item.custom_name || null,
-                            submission_format: item.submission_format,
-                            submission_format_custom: item.submission_format_custom || null,
-                            copies: item.copies === '' ? null : item.copies,
-                            quantity: item.quantity === '' ? null : item.quantity,
-                            instructions: item.instructions || null,
-                        })),
-                    })),
+                        items: this.serializeItems(way.items),
+                    })) }),
                 })),
             };
+        },
+        serializeItems(items) {
+            return items.map(item => ({
+                id: item.id || null, type: item.type,
+                government_id_id: item.government_id_id || null,
+                document_id: item.document_id || null,
+                custom_name: item.custom_name || null,
+                submission_format: item.submission_format,
+                submission_format_custom: item.submission_format_custom || null,
+                copies: item.copies === '' ? null : item.copies,
+                quantity: item.quantity === '' ? null : item.quantity,
+                instructions: item.instructions || null,
+            }));
         },
         async request(url, method, body) {
             const response = await fetch(url, {
@@ -508,6 +509,11 @@ export default function governmentIdChecklists(config) {
             if (this.saving || this.editing) return;
             if (this.deferred) { this.applyDraft(); return; }
             this.errors = [];
+            if (!this.draft.id && this.checklists.some(row => this.sameScenario(row, this.draft))) {
+                this.errors = ['This applicant/application already has a checklist. Edit that checklist instead.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return;
+            }
             this.saving = true;
             try {
                 const id = this.draft.id;
@@ -532,7 +538,7 @@ export default function governmentIdChecklists(config) {
             if (this.deferred) {
                 const removal = new CustomEvent('draft-checklist-removing', { cancelable: true, detail: checklist });
                 if (!window.dispatchEvent(removal)) {
-                    this.$dispatch('notify', { type: 'error', message: 'This checklist has guide steps. Remove its steps before deleting the scenario.' });
+                    this.$dispatch('notify', { type: 'error', message: 'This checklist has guide steps. Remove its steps before deleting the profile.' });
                     return;
                 }
                 this.checklists = this.checklists.filter(item => item.client_key !== checklist.client_key);

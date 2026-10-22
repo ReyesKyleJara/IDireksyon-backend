@@ -271,6 +271,11 @@ class DocumentController extends Controller
     public function destroy(
         Document $document
     ) {
+        $hasPrerequisites = fn () => \App\Models\GovernmentIdPrerequisite::where('prerequisite_document_id', $document->id)->exists();
+        if ($hasPrerequisites()) {
+            return redirect()->route('admin.documents.show', $document)
+                ->with('error', 'This Document is used as a sequencing prerequisite. Remove those links before deleting it.');
+        }
         $hasGuide = fn () => $document->requirementSets()->whereHas('applicationSteps')->exists();
         if ($hasGuide()) {
             return redirect()->route('admin.documents.show', $document)
@@ -284,6 +289,10 @@ class DocumentController extends Controller
         try {
             DB::transaction(fn () => $document->delete());
         } catch (QueryException $exception) {
+            if ($hasPrerequisites()) {
+                return redirect()->route('admin.documents.show', $document)
+                    ->with('error', 'This Document is used as a sequencing prerequisite. Remove those links before deleting it.');
+            }
             if ($hasGuide()) {
                 return redirect()->route('admin.documents.show', $document)
                     ->with('error', 'This document has Application Guide steps. Remove those steps before deleting it.');

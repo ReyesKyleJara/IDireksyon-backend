@@ -1,0 +1,28 @@
+{
+  "format_version": 1,
+  "approved": false,
+  "tables": {
+    "agencies": [],
+    "government_ids": [],
+    "documents": [],
+    "offices": [],
+    "office_schedules": [],
+    "office_schedule_intervals": [],
+    "government_id_requirement_sets": [],
+    "government_id_requirement_groups": [],
+    "government_id_requirement_ways": [],
+    "government_id_requirement_items": [],
+    "government_id_application_steps": [],
+    "government_id_application_step_blocks": [],
+    "government_id_fees": [],
+    "government_id_office": [],
+    "document_requirement_sets": [],
+    "document_requirement_groups": [],
+    "document_requirement_ways": [],
+    "document_requirement_items": [],
+    "document_application_steps": [],
+    "document_application_step_blocks": [],
+    "document_fees": [],
+    "document_office": []
+  }
+}

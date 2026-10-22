@@ -120,6 +120,11 @@ class GovernmentIdController extends Controller
     }
 
 
+    public function content(GovernmentId $governmentId): JsonResponse
+    {
+        return response()->json(['data' => \App\Support\ResidentGovernmentIdContent::forId($governmentId)]);
+    }
+
     public function show(
         GovernmentId $governmentId
     ): JsonResponse {

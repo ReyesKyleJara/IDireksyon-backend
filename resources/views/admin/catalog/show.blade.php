@@ -35,6 +35,7 @@
     $structuredGuideTypes = $governmentId->requirementSets
         ->filter(fn ($set) => $set->applicationSteps->isNotEmpty())
         ->pluck('application_type');
+    if ($recordKind === 'government_id' && $governmentId->applicationSteps()->whereNull('requirement_set_id')->exists()) $structuredGuideTypes = collect(['new', 'renewal', 'replacement']);
     $legacyGuideFields = collect([
         'application_process' => ['new', 'Application Process / Steps'],
         'renewal_process' => ['renewal', 'Renewal Process'],
@@ -150,6 +151,7 @@
     @endif
 
     @include('admin.government_ids.partials.application-guide-view')
+    @include('admin.government_ids.partials.prerequisites')
 
     {{-- APPLICATION GUIDE --}}
     @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee) || $legacyGuideFields->isNotEmpty())

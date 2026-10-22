@@ -95,9 +95,19 @@ class GovernmentId extends Model
             ->withTimestamps();
     }
 
+    public function applicationSteps(): HasMany
+    {
+        return $this->hasMany(GovernmentIdApplicationStep::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function requirementSets(): HasMany
     {
         return $this->hasMany(GovernmentIdRequirementSet::class)->orderBy('id');
+    }
+
+    public function prerequisites(): HasMany
+    {
+        return $this->hasMany(GovernmentIdPrerequisite::class)->orderBy('sort_order')->orderBy('id');
     }
 
     public function fees(): HasMany

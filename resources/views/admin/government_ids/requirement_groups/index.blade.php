@@ -3,11 +3,11 @@
 @section('page_title', 'Manage Requirements')
 @section('content')
 <div class="mx-auto max-w-4xl">
-    <a href="{{ route('admin.government-ids.requirement-sets.index', $governmentId) }}" class="text-sm text-slate-500">← Back to requirement sets</a>
+    <a href="{{ route('admin.government-ids.requirement-sets.index', $governmentId) }}" class="text-sm text-slate-500">← Back to applicability profiles</a>
     <div class="mb-6 mt-5 flex flex-wrap items-start justify-between gap-4">
         <div>
             <p class="admin-eyebrow mb-2">{{ $governmentId->name }}</p>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ $set->display_label }}</h1>
+            @include('admin.government_ids.partials.applicability-profile')
             <p class="mt-2 text-sm text-slate-500">Organize the items an applicant needs to prepare.</p>
         </div>
         <a href="{{ route('admin.government-ids.requirement-sets.groups.create', [$governmentId, $set]) }}" class="admin-primary">Add Group</a>

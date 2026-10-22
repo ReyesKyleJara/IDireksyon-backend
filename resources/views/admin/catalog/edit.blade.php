@@ -28,6 +28,8 @@
         <p class="mt-2 text-sm text-slate-500">Edit {{ strtolower($recordLabel) }} details</p>
     </header>
 
+    @include('admin.government_ids.partials.prerequisites')
+
     <form
         method="POST"
         action="{{ route($recordRoutes.'.update', $governmentId) }}"

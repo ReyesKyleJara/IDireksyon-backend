@@ -4,6 +4,9 @@ use App\Models\ContentChangeLog;
 use App\Models\GovernmentId;
 use App\Models\GovernmentIdRequirementSet;
 use App\Models\User;
+use App\Services\ApplicabilityEvaluator;
+use App\Support\ApplicabilityProfileSummary;
+use App\Support\ApplicantContext;
 
 beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'researcher', 'name' => 'Set Researcher']));
@@ -11,19 +14,86 @@ beforeEach(function () {
     $this->setsUrl = '/admin/government-ids/'.$this->governmentId->id.'/requirement-sets';
 });
 
+it('shows structured applicability and updates matching without replacing records', function () {
+    $set = $this->governmentId->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'adult']);
+    $group = $set->groups()->create(['rule' => 'choose_one', 'condition_type' => 'always']);
+    $item = $group->items()->create(['type' => 'custom', 'custom_name' => 'Existing proof']);
+    $evaluator = new ApplicabilityEvaluator;
+    $context = new ApplicantContext(20, 'new');
+    $this->get($this->setsUrl)->assertOk()->assertSee('Adult · New Application · Age 18+')
+        ->assertSee('Structured profile')->assertSee('Used by 1 requirement groups');
+    expect($evaluator->needsRuleConfiguration($set))->toBeFalse()
+        ->and($evaluator->profileApplies($set, $context))->toBeTrue();
+    $this->put($this->setsUrl.'/'.$set->id, ['application_type' => 'renewal', 'applicant_type' => 'minor'])
+        ->assertSessionHasNoErrors();
+    expect($evaluator->profileApplies($set->fresh(), $context))->toBeFalse()
+        ->and($evaluator->profileApplies($set->fresh(), new ApplicantContext(17, 'renewal')))->toBeTrue()
+        ->and($group->fresh()->rule)->toBe('choose_one')
+        ->and($item->fresh()->custom_name)->toBe('Existing proof')
+        ->and($this->governmentId->requirementSets()->sole()->id)->toBe($set->id);
+});
+
+it('keeps custom content visible editable and manual without label inference', function () {
+    $set = $this->governmentId->requirementSets()->create([
+        'application_type' => 'new', 'applicant_type' => 'custom',
+        'applicant_type_custom' => 'Adult', 'min_age' => 18, 'max_age' => 25,
+    ]);
+    $group = $set->groups()->create(['rule' => 'all', 'condition_type' => 'custom', 'condition_custom' => 'Other situation']);
+    $item = $group->items()->create(['type' => 'custom', 'custom_name' => 'Preserved proof']);
+    $step = $set->applicationSteps()->create(['title' => 'Preserved guide']);
+    $this->get($this->setsUrl)->assertOk()->assertSee('Needs rule setup')->assertSee('Ages 18–25')
+        ->assertSee('Manual selection remains available')->assertSee('1 Application Guide steps');
+    $this->get($this->setsUrl.'/'.$set->id.'/edit')->assertOk()->assertSee('Needs rule setup')->assertSee('Adult');
+    $this->get('/admin/government-ids/'.$this->governmentId->id.'/edit')->assertOk()
+        ->assertViewHas('checklists', fn ($rows) => $rows[0]['id'] === $set->id
+            && $rows[0]['applicability']['needs_rule_setup'] === true
+            && $rows[0]['groups'][0]['items'][0]['id'] === $item->id)
+        ->assertSee('Choose an existing applicability profile to edit');
+    $this->put($this->setsUrl.'/'.$set->id, [
+        'application_type' => 'new', 'applicant_type' => 'custom',
+        'applicant_type_custom' => 'Students', 'min_age' => 18, 'max_age' => 25,
+    ])->assertSessionHasNoErrors();
+    expect((new ApplicabilityEvaluator)->profileApplies($set->fresh(), new ApplicantContext(20, 'new')))->toBeNull();
+    $this->assertModelExists($group);
+    $this->assertModelExists($item);
+    $this->assertModelExists($step);
+    expect($group->fresh()->condition_custom)->toBe('Other situation');
+});
+
+it('shows inclusive custom age limits including zero without implying automatic matching', function ($minimum, $maximum, string $label) {
+    $set = $this->governmentId->requirementSets()->create([
+        'application_type' => 'new', 'applicant_type' => 'custom',
+        'min_age' => $minimum, 'max_age' => $maximum,
+    ]);
+    $summary = ApplicabilityProfileSummary::forProfile($set);
+    expect($summary['summary'])->toContain($label)
+        ->and($summary['needs_rule_setup'])->toBeTrue();
+    $this->get($this->setsUrl)->assertOk()->assertSee($label)->assertSee('Needs rule setup');
+})->with([[0, 0, 'Ages 0–0'], [21, null, 'Age 21+'], [null, 12, 'Age 12 and below'], [null, null, 'No age restriction']]);
+
+it('preserves guide deletion protection on both CMS deletion routes', function () {
+    $set = $this->governmentId->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'adult']);
+    $step = $set->applicationSteps()->create(['title' => 'Keep this guide']);
+    $this->delete($this->setsUrl.'/'.$set->id)->assertSessionHasErrors('application_guide');
+    $this->deleteJson('/admin/government-ids/'.$this->governmentId->id.'/checklists/'.$set->id)
+        ->assertUnprocessable()->assertJsonValidationErrors('application_guide');
+    $this->assertModelExists($set);
+    $this->assertModelExists($step);
+});
+
 it('renders the entry point and creates multiple sets for one ID', function () {
     $this->get('/admin/government-ids/'.$this->governmentId->id.'/edit')->assertOk()->assertSee('Add checklist');
-    $this->get($this->setsUrl)->assertOk()->assertSee('No requirement sets yet.');
-    $this->get($this->setsUrl.'/create')->assertOk()->assertSee('Application Type')->assertSee('Applicant Type');
+    $this->get($this->setsUrl)->assertOk()->assertSee('No applicability profiles yet.');
+    $this->get($this->setsUrl.'/create')->assertOk()->assertSee('Application type?')->assertSee('Who is applying?');
     foreach (['adult', 'minor'] as $applicant) {
         $this->post($this->setsUrl, ['application_type' => 'new', 'applicant_type' => $applicant])
             ->assertSessionHasNoErrors()->assertRedirect($this->setsUrl);
     }
-    $this->get($this->setsUrl)->assertOk()->assertSee('Adult • First-Time Application')->assertSee('Minor • First-Time Application');
+    $this->get($this->setsUrl)->assertOk()->assertSee('Adult · New Application · Age 18+')->assertSee('Minor · New Application · Below 18');
     expect($this->governmentId->requirementSets()->count())->toBe(2)
         ->and($this->governmentId->fresh()->requirements)->toBe('Existing requirements.');
     $set = $this->governmentId->requirementSets()->firstOrFail();
-    $this->get($this->setsUrl.'/'.$set->id.'/edit')->assertOk()->assertSee('Edit Requirement Set');
+    $this->get($this->setsUrl.'/'.$set->id.'/edit')->assertOk()->assertSee('Edit Applicability Profile');
 });
 
 it('updates custom ages and clears unused values when switching to a preset', function () {

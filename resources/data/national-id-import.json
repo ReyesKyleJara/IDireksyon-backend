@@ -1,0 +1,948 @@
+{
+  "aliases": [
+    "Philippine Identification System (PhilSys National ID)",
+    "National ID (PhilSys)",
+    "National ID",
+    "PhilSys National ID",
+    "Philippine National ID",
+    "Philippine Identification Card (PhilID)"
+  ],
+  "agency": {
+    "name": "Philippine Statistics Authority",
+    "acronym": "PSA",
+    "official_website": "https://psa.gov.ph/"
+  },
+  "basic": {
+    "name": "Philippine Identification System (PhilSys National ID)",
+    "level": "National",
+    "purpose": "Serves as a single, foundational government-issued proof of identity to simplify public and private transactions, promote financial inclusion, and streamline access to social protection services.",
+    "description": "Foundational government-issued proof of identity available as a physical National ID card, National ID in paper format, and Digital National ID. The formats use a QR code for authentication; biometric data is collected during registration.",
+    "eligibility": "Filipino citizens and eligible resident aliens. The revised IRR requires resident aliens to present ACR/ACR ID and a sworn certification of more than 180 aggregated days in the Philippines in the year before application.",
+    "official_link": "https://philsys.gov.ph/",
+    "prerequisite_notes": "Accepted documents are alternative routes. The birth-certificate primary route requires a qualifying government-issued ID as well. Custom requirement names are not inventory dependency links.",
+    "processing_time": "Digital and paper-format availability and physical-card delivery vary. Check with PSA; no guaranteed instant generation or delivery deadline is encoded.",
+    "validity": "Confirm applicant-specific validity and biometric updating rules with PSA. The supplied lifetime/one-year claims are retained in the source archive pending targeted review."
+  },
+  "fees": [
+    {
+      "label": "First-time National ID registration",
+      "type": "free",
+      "currency": "PHP",
+      "notes": "PSA states registration is free of charge."
+    },
+    {
+      "label": "National ID in paper format",
+      "type": "free",
+      "currency": "PHP",
+      "notes": "PSA states claiming the paper-format National ID is free of charge."
+    },
+    {
+      "label": "Demographic updating service",
+      "type": "free",
+      "currency": "PHP",
+      "notes": "PSA states demographic updating at selected centers is free of charge."
+    }
+  ],
+  "sources": [
+    "https://philsys.gov.ph/the-national-id/",
+    "https://philsys.gov.ph/supporting-documents/",
+    "https://philsys.gov.ph/registration-process/",
+    "https://philsys.gov.ph/wp-content/uploads/2024/09/RA11055-REVISED-IRR.pdf",
+    "https://philsys.gov.ph/wp-content/uploads/2024/06/Press-Release-Digital-Natl-ID-Natl-ID-eVerify-Natl-ID-Check_CAHC-signed.pdf",
+    "https://philsys.gov.ph/wp-content/uploads/2025/10/Press-Release_PSA-Warns-Against-Double-Registration-for-National-ID-Encourages-the-Public-to-Avail-Updating-Services.pdf",
+    "https://philsys.gov.ph/2021/10/"
+  ],
+  "review_notice": "[NATIONAL_ID_RESEARCH_V1] National ID source review, 2026-10-11. Research import; not a CMS verification sign-off. Existing nonempty legacy fields are preserved and may still contain unverified supplied claims. See resources/data/national-id-review.md.",
+  "scenarios": [
+    {
+      "application_type": "new",
+      "applicant_type": "custom",
+      "applicant_type_custom": "Filipino citizens",
+      "groups": [
+        {
+          "title": "Primary supporting documents — choose one route",
+          "rule": "all",
+          "condition_type": "always",
+          "condition_custom": null,
+          "ways": [
+            {
+              "required_count": 2,
+              "qualification_type": "none",
+              "qualification_scope": "every",
+              "qualification_custom": null,
+              "items": [
+                {
+                  "type": "custom",
+                  "custom_name": "PSA-issued Certificate of Live Birth",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Government-issued ID with full name, front-facing photograph, and signature/thumbmark",
+                  "submission_format": "original",
+                  "instructions": null
+                }
+              ]
+            },
+            {
+              "required_count": 1,
+              "qualification_type": "none",
+              "qualification_scope": "every",
+              "qualification_custom": null,
+              "items": [
+                {
+                  "type": "custom",
+                  "custom_name": "Philippine Passport or ePassport",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "UMID Card (GSIS or SSS)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "LTO Student Permit or Non-Professional/Professional Driver’s License",
+                  "submission_format": "original",
+                  "instructions": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Secondary supporting documents",
+          "rule": "all",
+          "condition_type": "custom",
+          "condition_custom": "No primary supporting document is available.",
+          "ways": [
+            {
+              "required_count": 1,
+              "qualification_type": "none",
+              "qualification_scope": "every",
+              "qualification_custom": null,
+              "items": [
+                {
+                  "type": "custom",
+                  "custom_name": "PSA-issued / NSO-issued Certificate of Live Birth with Birth Reference Number (BReN)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Local Civil Registry Office (LCRO)-issued Certificate of Live Birth",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "PSA-issued Report of Birth or Certificate of Foundling",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Integrated Bar of the Philippines (IBP) ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Professional Regulatory Commission (PRC) ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Seaman’s Book (Seafarer’s Record Book) or Seafarer’s Identity Document (Seaman’s ID)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Overseas Workers Welfare Administration (OWWA) ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Senior Citizen’s ID (OSCA / LGU)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Social Security System (SSS) ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Pantawid Pamilyang Pilipino Program (4Ps) ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "License to Own or Possess Firearms (LTOPF)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "National Bureau of Investigation (NBI) Clearance",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Police Clearance / Police ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Solo Parent’s ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Person with Disability (PWD) ID (NCDA, Mayor's Office, DSWD, or DOH-partnered organizations)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Voter’s ID (COMELEC)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Postal ID (PHLPost)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Taxpayer Identification Number (TIN) Card",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "PhilHealth ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Special Resident Retiree’s Visa (SRRV)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "National ID or Residence ID from other countries",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Professional Identification Card (MARINA)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Civil Service Commission (CSC) Eligibility Card",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Dependent’s ID (AFP / PNP)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Retiree’s ID (PNP, AFP, PCG)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Conductor’s License (LTO)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Philippine Veterans Affairs Office (PVAO) Pensioner’s ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Tribal Certificate/ID (Tribal Affairs Office) or Certificate of Confirmation/Membership (NCIP / ICC / IP / NCMF)",
+                  "submission_format": "original",
+                  "instructions": null
+                }
+              ]
+            },
+            {
+              "required_count": 1,
+              "qualification_type": "custom",
+              "qualification_scope": "every",
+              "qualification_custom": "Must show a front-facing photograph, signature/thumbmark, full name, permanent address, and date of birth. PSA lists a school-ID signature/thumbmark exception for pre-school and elementary students; confirm applicability for other students.",
+              "items": [
+                {
+                  "type": "custom",
+                  "custom_name": "Employee ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "School ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "City / Municipal ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Barangay Clearance / Certificate / ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Voter’s Certification (COMELEC)",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Prison Record / Certificate of Detention",
+                  "submission_format": "original",
+                  "instructions": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Prepare your supporting documents",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "heading",
+              "content": {
+                "body": "Required Documents"
+              }
+            },
+            {
+              "type": "checklist",
+              "content": {
+                "items": [
+                  {
+                    "body": "PSA-issued Certificate of Live Birth AND a government-issued ID with full name, front-facing photo, and signature/thumbmark"
+                  },
+                  {
+                    "body": "Philippine Passport or ePassport"
+                  },
+                  {
+                    "body": "UMID Card (GSIS or SSS)"
+                  },
+                  {
+                    "body": "LTO Student Permit or Non-Professional/Professional Driver’s License"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "content": {
+                "body": "Choose one accepted primary route; the birth-certificate route needs BOTH the birth certificate and a qualifying government-issued ID."
+              }
+            },
+            {
+              "type": "heading",
+              "content": {
+                "body": "If no primary document is available"
+              }
+            },
+            {
+              "type": "checklist",
+              "content": {
+                "items": [
+                  {
+                    "body": "PSA-issued / NSO-issued Certificate of Live Birth with Birth Reference Number (BReN)"
+                  },
+                  {
+                    "body": "Local Civil Registry Office (LCRO)-issued Certificate of Live Birth"
+                  },
+                  {
+                    "body": "PSA-issued Report of Birth or Certificate of Foundling"
+                  },
+                  {
+                    "body": "Integrated Bar of the Philippines (IBP) ID"
+                  },
+                  {
+                    "body": "Professional Regulatory Commission (PRC) ID"
+                  },
+                  {
+                    "body": "Seaman’s Book (Seafarer’s Record Book) or Seafarer’s Identity Document (Seaman’s ID)"
+                  },
+                  {
+                    "body": "Overseas Workers Welfare Administration (OWWA) ID"
+                  },
+                  {
+                    "body": "Senior Citizen’s ID (OSCA / LGU)"
+                  },
+                  {
+                    "body": "Social Security System (SSS) ID"
+                  },
+                  {
+                    "body": "Pantawid Pamilyang Pilipino Program (4Ps) ID"
+                  },
+                  {
+                    "body": "License to Own or Possess Firearms (LTOPF)"
+                  },
+                  {
+                    "body": "National Bureau of Investigation (NBI) Clearance"
+                  },
+                  {
+                    "body": "Police Clearance / Police ID"
+                  },
+                  {
+                    "body": "Solo Parent’s ID"
+                  },
+                  {
+                    "body": "Person with Disability (PWD) ID (NCDA, Mayor's Office, DSWD, or DOH-partnered organizations)"
+                  },
+                  {
+                    "body": "Voter’s ID (COMELEC)"
+                  },
+                  {
+                    "body": "Postal ID (PHLPost)"
+                  },
+                  {
+                    "body": "Taxpayer Identification Number (TIN) Card"
+                  },
+                  {
+                    "body": "PhilHealth ID"
+                  },
+                  {
+                    "body": "Special Resident Retiree’s Visa (SRRV)"
+                  },
+                  {
+                    "body": "National ID or Residence ID from other countries"
+                  },
+                  {
+                    "body": "Professional Identification Card (MARINA)"
+                  },
+                  {
+                    "body": "Civil Service Commission (CSC) Eligibility Card"
+                  },
+                  {
+                    "body": "Dependent’s ID (AFP / PNP)"
+                  },
+                  {
+                    "body": "Retiree’s ID (PNP, AFP, PCG)"
+                  },
+                  {
+                    "body": "Conductor’s License (LTO)"
+                  },
+                  {
+                    "body": "Philippine Veterans Affairs Office (PVAO) Pensioner’s ID"
+                  },
+                  {
+                    "body": "Tribal Certificate/ID (Tribal Affairs Office) or Certificate of Confirmation/Membership (NCIP / ICC / IP / NCMF)"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "heading",
+              "content": {
+                "body": "Additional secondary documents"
+              }
+            },
+            {
+              "type": "checklist",
+              "content": {
+                "items": [
+                  {
+                    "body": "Employee ID"
+                  },
+                  {
+                    "body": "School ID"
+                  },
+                  {
+                    "body": "City / Municipal ID"
+                  },
+                  {
+                    "body": "Barangay Clearance / Certificate / ID"
+                  },
+                  {
+                    "body": "Voter’s Certification (COMELEC)"
+                  },
+                  {
+                    "body": "Prison Record / Certificate of Detention"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Must show a front-facing photograph, signature/thumbmark, full name, permanent address, and date of birth. PSA lists a school-ID signature/thumbmark exception for pre-school and elementary students; confirm applicability for other students."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "These are alternative supporting-document routes, not a requirement to bring every listed ID. Confirm acceptance with PSA if your documents are incomplete."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Visit a National ID registration center",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Check the current PSA registration-center directory and proceed to an operational PSA, LGU, or mall-based center."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Confirm the site’s current services, hours, and walk-in or appointment arrangements before travelling. https://philsys.gov.ph/registration-center/"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Present your supporting documents",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Present the originals of your accepted supporting documents to the Registration Kit Operator."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "If details differ between your PSA birth certificate and the government ID presented, PSA states that the birth-certificate entries prevail."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Validate your details and capture biometrics",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "The operator validates your demographic details and captures applicable biometrics, including a front-facing photograph, fingerprints, and iris scans."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Biometric capture depends on age and applicable PSA rules. Ask the operator about children or applicants unable to provide a biometric."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Review and confirm your information",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Carefully review your encoded demographic and biometric information before confirming it."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "Report spelling errors or incorrect details to the operator before completing registration."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Keep your transaction slip",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Collect the transaction slip containing your Transaction Reference Number (TRN)."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Keep the slip for delivery tracking and checking availability of the National ID in paper format. Ask PSA about current delivery or claiming arrangements."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "new",
+      "applicant_type": "custom",
+      "applicant_type_custom": "Resident aliens",
+      "groups": [
+        {
+          "title": "Resident-alien supporting documents",
+          "rule": "all",
+          "condition_type": "always",
+          "condition_custom": null,
+          "ways": [
+            {
+              "required_count": 2,
+              "qualification_type": "none",
+              "qualification_scope": "every",
+              "qualification_custom": null,
+              "items": [
+                {
+                  "type": "custom",
+                  "custom_name": "Alien Certificate of Registration (ACR) or ACR ID",
+                  "submission_format": "original",
+                  "instructions": null
+                },
+                {
+                  "type": "custom",
+                  "custom_name": "Sworn certification of more than 180 aggregated days of stay in the Philippines during the year before application",
+                  "submission_format": "original",
+                  "instructions": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "title": "Prepare resident-alien supporting documents",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "heading",
+              "content": {
+                "body": "Required Documents"
+              }
+            },
+            {
+              "type": "checklist",
+              "content": {
+                "items": [
+                  {
+                    "body": "Alien Certificate of Registration (ACR) or ACR ID"
+                  },
+                  {
+                    "body": "Sworn certification of more than 180 aggregated days of stay during the year before application"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "The revised IRR allows PSA to require additional supporting documents. Confirm the applicable registration arrangements with PSA."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Visit a National ID registration center",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Check the current PSA registration-center directory and proceed to an operational PSA, LGU, or mall-based center."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Confirm the site’s current services, hours, and walk-in or appointment arrangements before travelling. https://philsys.gov.ph/registration-center/"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Present your supporting documents",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Present the originals of your accepted supporting documents to the Registration Kit Operator."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "If details differ between your PSA birth certificate and the government ID presented, PSA states that the birth-certificate entries prevail."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Validate your details and capture biometrics",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "The operator validates your demographic details and captures applicable biometrics, including a front-facing photograph, fingerprints, and iris scans."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Biometric capture depends on age and applicable PSA rules. Ask the operator about children or applicants unable to provide a biometric."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Review and confirm your information",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Carefully review your encoded demographic and biometric information before confirming it."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "Report spelling errors or incorrect details to the operator before completing registration."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Keep your transaction slip",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Collect the transaction slip containing your Transaction Reference Number (TRN)."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Keep the slip for delivery tracking and checking availability of the National ID in paper format. Ask PSA about current delivery or claiming arrangements."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "custom",
+      "application_type_custom": "Access Digital National ID",
+      "applicant_type": "all",
+      "groups": [],
+      "steps": [
+        {
+          "title": "Open the official Digital National ID service",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Use https://national-id.gov.ph/ or the eGovPH mobile app."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "This is for people already registered in the National ID system. It is not a new registration."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Enter your demographic information",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Follow the official service prompts and enter your demographic information as registered with PSA."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "Your TRN is not seeded as a mandatory digital-access credential; PSA’s published digital-access guidance specifies demographic information and facial verification."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Complete facial verification",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Follow the live facial-verification prompts to confirm your identity."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Access your Digital National ID",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "After successful verification and when your record is available, view or obtain your Digital National ID through the official service."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Availability is not guaranteed immediately after registration. Contact PSA if the service cannot find or verify your record."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "custom",
+      "application_type_custom": "Update demographic details",
+      "applicant_type": "all",
+      "groups": [],
+      "steps": [
+        {
+          "title": "Prepare proof of the details to update",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "heading",
+              "content": {
+                "body": "Documents to prepare"
+              }
+            },
+            {
+              "type": "checklist",
+              "content": {
+                "items": [
+                  {
+                    "body": "Your National ID"
+                  },
+                  {
+                    "body": "Supporting documents for the requested correction, such as a marriage certificate or corrected birth certificate"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "PSA’s updating service is free of charge. Confirm the accepted proof for your requested change."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Visit a center offering updating services",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Present your National ID and supporting documents at a selected registration center offering updating services."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "Do not register a second time to change your information. Confirm the center offers updating before visiting."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "application_type": "replacement",
+      "applicant_type": "all",
+      "groups": [],
+      "steps": [
+        {
+          "title": "Ask PSA about replacement arrangements",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "For a lost, stolen, or damaged card, contact PSA or a registration center to confirm current replacement availability and required documents."
+              }
+            },
+            {
+              "type": "warning",
+              "content": {
+                "body": "The supplied ₱200–₱400 and ₱135–₱400 ranges were not verified against an official fee schedule and are not encoded as payable fees."
+              }
+            }
+          ]
+        },
+        {
+          "title": "Present the documents PSA confirms",
+          "type": "general",
+          "blocks": [
+            {
+              "type": "text",
+              "content": {
+                "body": "Bring the proof and supporting documents requested by PSA; retain a damaged card if applicable."
+              }
+            },
+            {
+              "type": "note",
+              "content": {
+                "body": "Ask about any applicable fee or exemption before paying. Do not register again simply because the card was lost or damaged."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

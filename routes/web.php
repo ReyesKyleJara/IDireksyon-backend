@@ -32,6 +32,9 @@ Route::prefix('admin')
         // Government IDs
         Route::resource('government-ids', GovernmentIdController::class);
 
+        Route::resource('government-ids.prerequisites', \App\Http\Controllers\Admin\GovernmentIdPrerequisiteController::class)
+            ->parameters(['government-ids' => 'governmentId'])->except('show');
+
         Route::post('government-ids/{governmentId}/checklists', [GovernmentIdChecklistController::class, 'store'])
             ->name('government-ids.checklists.store');
         Route::put('government-ids/{governmentId}/checklists/{checklist}', [GovernmentIdChecklistController::class, 'update'])

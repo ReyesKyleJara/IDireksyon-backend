@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\GovernmentIdRequirementItem;
 use App\Models\GovernmentIdRequirementSet;
 use App\Models\GovernmentIdRequirementWay;
+use App\Support\ApplicabilityProfileSummary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -160,6 +161,7 @@ class GovernmentIdChecklists
         return [
             ...$set->only(['id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom', 'min_age', 'max_age']),
             'label' => $set->display_label,
+            'applicability' => ApplicabilityProfileSummary::forProfile($set),
             'groups' => $set->groups->map(function ($group) {
                 $result = [
                     ...$group->only(['id', 'title', 'rule', 'condition_type', 'condition_custom']),

@@ -15,7 +15,7 @@ class GovernmentIdRequirementSetController extends Controller
     {
         return view('admin.government_ids.requirement_sets.index', [
             'governmentId' => $governmentId,
-            'sets' => $governmentId->requirementSets()->paginate(15),
+            'sets' => $governmentId->requirementSets()->withCount(['groups', 'applicationSteps', 'prerequisites'])->paginate(15),
         ]);
     }
 
@@ -47,7 +47,7 @@ class GovernmentIdRequirementSetController extends Controller
         });
 
         return redirect()->route('admin.government-ids.requirement-sets.index', $governmentId)
-            ->with('success', 'Requirement set added.');
+            ->with('success', 'Applicability profile added.');
     }
 
     public function update(GovernmentIdRequirementSetRequest $request, GovernmentId $governmentId, string $requirementSet)
@@ -62,16 +62,21 @@ class GovernmentIdRequirementSetController extends Controller
         });
 
         return redirect()->route('admin.government-ids.requirement-sets.index', $governmentId)
-            ->with('success', 'Requirement set updated.');
+            ->with('success', 'Applicability profile updated.');
     }
 
     public function destroy(GovernmentId $governmentId, string $requirementSet)
     {
         $set = $governmentId->requirementSets()->findOrFail($requirementSet);
         DB::transaction(function () use ($governmentId, $set) {
+            if ($set->prerequisites()->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'prerequisite' => 'This Applicability Profile is used by sequencing prerequisites. Remove or reassign those entries before deleting it.',
+                ]);
+            }
             if ($set->applicationSteps()->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'application_guide' => 'This scenario has an Application Guide. Remove its steps before deleting the scenario.',
+                    'application_guide' => 'This applicability profile has Application Guide steps. Remove its steps before deleting the profile.',
                 ]);
             }
             $set->delete();
@@ -79,7 +84,7 @@ class GovernmentIdRequirementSetController extends Controller
         });
 
         return redirect()->route('admin.government-ids.requirement-sets.index', $governmentId)
-            ->with('success', 'Requirement set deleted.');
+            ->with('success', 'Applicability profile deleted.');
     }
 
     private function setData(GovernmentIdRequirementSetRequest $request): array

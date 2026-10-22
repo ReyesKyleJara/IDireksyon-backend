@@ -1,5 +1,9 @@
 @php
     $guideScenarios = $governmentId->requirementSets->filter(fn ($scenario) => $scenario->applicationSteps->isNotEmpty());
+    if ($governmentId instanceof \App\Models\GovernmentId) {
+        $sharedSteps = $governmentId->applicationSteps()->whereNull('requirement_set_id')->with('blocks')->get();
+        if ($sharedSteps->isNotEmpty()) $guideScenarios = $guideScenarios->prepend((object) ['everyone' => true, 'display_label' => 'Everyone', 'applicationSteps' => $sharedSteps, 'groups' => collect()]);
+    }
 @endphp
 @if($guideScenarios->isNotEmpty())
 <section class="admin-panel mt-6 p-6" aria-label="Application Guide">
@@ -7,7 +11,7 @@
     <div class="mt-5 space-y-5">
         @foreach($guideScenarios as $scenario)
             <div>
-                <h3 class="mb-3 font-semibold text-slate-800">{{ $scenario->display_label }}</h3>
+                <h3 class="mb-3 font-semibold text-slate-800">{{ $scenario instanceof \App\Models\GovernmentIdRequirementSet ? \App\Support\ApplicabilityProfileSummary::forProfile($scenario)['summary'] : $scenario->display_label }}</h3>
                 <div class="space-y-3">
                     @foreach($scenario->applicationSteps as $step)
                         <details class="rounded-xl border border-slate-200" @if($loop->first) open @endif>
@@ -18,7 +22,7 @@
                                     @php
                                         $content = $block->content ?? [];
                                         $hasReference = match ($block->type) {
-                                            'requirements' => $scenario->groups->isNotEmpty(),
+                                            'requirements' => $scenario->groups->isNotEmpty() || ($scenario->everyone ?? false),
                                             'fees' => $governmentId->fees->isNotEmpty() || filled($governmentId->fee),
                                             'offices' => $governmentId->offices->isNotEmpty(),
                                             'processing_time' => filled($governmentId->processing_time),
@@ -26,12 +30,16 @@
                                         };
                                     @endphp
                                     @if($hasReference)
-                                    <div class="space-y-2 text-sm {{ $block->type === 'reminder' ? 'rounded-lg bg-amber-50 p-4' : '' }}">
+                                    <div class="space-y-2 text-sm {{ $block->type === 'note' ? 'rounded-lg bg-blue-50 p-4' : (in_array($block->type, ['reminder', 'warning'], true) ? 'rounded-lg bg-amber-50 p-4' : '') }}">
                                         @if(filled($block->section_title))<h4 class="font-semibold text-slate-900">{{ $block->section_title }}</h4>@endif
                                         @if(in_array($block->type, ['instructions', 'checklist'], true))
                                             @if($block->type === 'instructions')<ol class="list-decimal space-y-3 pl-5">@else<ul class="list-disc space-y-3 pl-5">@endif
                                             @foreach($content['items'] ?? [] as $item)<li class="guide-content">{!! \App\Support\GuideRichText::render(is_string($item) ? $item : ($item['body'] ?? null)) !!}</li>@endforeach
                                             @if($block->type === 'instructions')</ol>@else</ul>@endif
+                                        @elseif($block->type === 'heading')
+                                            <h4 class="font-semibold text-slate-900">{{ $content['body'] ?? '' }}</h4>
+                                        @elseif(in_array($block->type, ['text', 'note', 'warning'], true))
+                                            <p class="whitespace-pre-line">{{ $content['body'] ?? '' }}</p>
                                         @elseif(in_array($block->type, ['reminder', 'custom'], true))
                                             <div class="guide-content">{!! \App\Support\GuideRichText::render($content['body'] ?? null) !!}</div>
                                         @elseif($block->type === 'official_link')
@@ -40,6 +48,7 @@
                                         @else
                                             <div class="guide-content">{!! \App\Support\GuideRichText::render($content['intro'] ?? null) !!}</div>
                                             @if($block->type === 'requirements')
+                                                @if(($scenario->everyone ?? false))<p class="text-slate-600">Use the requirements for the applicant’s selected Applicability Profile.</p>@endif
                                                 @foreach($scenario->groups as $group)
                                                     <div class="rounded-lg border border-slate-200 p-3">
                                                         @if(filled($group->title))<p class="font-semibold">{{ $group->title }}</p>@endif

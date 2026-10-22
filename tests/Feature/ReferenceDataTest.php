@@ -32,7 +32,7 @@ class ReferenceDataTest extends TestCase
         DB::table('government_id_requirement_groups')->insert(['id' => 20, 'requirement_set_id' => 10, 'rule' => 'all', 'sort_order' => 2]);
         DB::table('government_id_requirement_ways')->insert(['id' => 30, 'requirement_group_id' => 20, 'sort_order' => 3]);
         DB::table('government_id_requirement_items')->insert(['id' => 40, 'requirement_group_id' => 20, 'requirement_way_id' => 30, 'type' => 'custom', 'custom_name' => 'Public requirement', 'sort_order' => 4]);
-        DB::table('government_id_application_steps')->insert(['id' => 50, 'requirement_set_id' => 10, 'title' => 'Prepare requirements', 'sort_order' => 5]);
+        DB::table('government_id_application_steps')->insert(['id' => 50, 'government_id_id' => 1, 'requirement_set_id' => 10, 'title' => 'Prepare requirements', 'sort_order' => 5]);
         DB::table('government_id_application_step_blocks')->insert(['id' => 60, 'application_step_id' => 50, 'type' => 'custom', 'content' => json_encode(['body' => 'Public instructions']), 'sort_order' => 6]);
         DB::table('government_id_fees')->insert(['id' => 70, 'government_id_id' => 1, 'label' => 'Public fee', 'amount_min' => '25.50', 'sort_order' => 7]);
         DB::table('users')->insert(['id' => 900, 'name' => 'PRIVATE PERSON', 'email' => 'private@example.test', 'password' => 'PRIVATE HASH']);
@@ -54,6 +54,7 @@ class ReferenceDataTest extends TestCase
         DB::table('document_application_steps')->insert(['id' => 140, 'requirement_set_id' => 100, 'title' => 'Apply', 'sort_order' => 6]);
         DB::table('document_application_step_blocks')->insert(['id' => 150, 'application_step_id' => 140, 'type' => 'text', 'content' => json_encode(['body' => 'Public guidance', 'intro' => ['z' => 'last', 'a' => 'first']]), 'sort_order' => 7]);
         DB::table('document_fees')->insert(['id' => 160, 'document_id' => 50, 'label' => 'Fee', 'amount_min' => '12.30', 'sort_order' => 8]);
+        DB::table('government_id_prerequisites')->insert(['id' => 170, 'government_id_id' => $id, 'requirement_set_id' => 10, 'prerequisite_document_id' => 50, 'sort_order' => 9, 'note' => 'Explicitly obtain first']);
         $data = app(ReferenceData::class)->capture();
         $data['snapshot_state'] = 'exported';
 
@@ -64,6 +65,90 @@ class ReferenceDataTest extends TestCase
     {
         DB::purge('sqlite');
         $this->artisan('migrate', ['--database' => 'sqlite', '--force' => true])->assertSuccessful();
+    }
+
+    public function test_older_v2_snapshots_without_prerequisites_still_import_without_inference(): void
+    {
+        $data = $this->fixture();
+        unset($data['tables']['government_id_prerequisites']);
+        $this->newIsolatedDatabase();
+        app(ReferenceData::class)->import($data);
+        $this->assertSame(0, DB::table('government_id_prerequisites')->count());
+        $this->assertSame(1, DB::table('government_id_requirement_items')->count());
+    }
+
+    public function test_everyone_id_prerequisites_round_trip_with_fixed_ids_and_order(): void
+    {
+        $data = $this->fixture();
+        $data['tables']['government_ids'][] = [...$data['tables']['government_ids'][0], 'id' => 2, 'name' => 'Prerequisite ID'];
+        $data['tables']['government_id_prerequisites'][] = [
+            'id' => 171, 'government_id_id' => 1, 'requirement_set_id' => null,
+            'prerequisite_government_id_id' => 2, 'prerequisite_document_id' => null, 'sort_order' => 3, 'note' => null,
+        ];
+        $this->newIsolatedDatabase();
+        app(ReferenceData::class)->import($data);
+        $this->assertSame($data['tables']['government_id_prerequisites'], app(ReferenceData::class)->capture()['tables']['government_id_prerequisites']);
+    }
+
+    public function test_invalid_prerequisite_targets_and_cross_owner_profiles_are_rejected(): void
+    {
+        $original = $this->fixture();
+        foreach (['both', 'neither', 'self', 'missing', 'wrong_profile', 'cycle'] as $case) {
+            $data = $original;
+            $data['tables']['government_ids'][] = [...$data['tables']['government_ids'][0], 'id' => 2, 'name' => 'Other ID'];
+            $row = &$data['tables']['government_id_prerequisites'][0];
+            switch ($case) {
+                case 'both': $row['prerequisite_government_id_id'] = 2;
+                    break;
+                case 'neither': $row['prerequisite_document_id'] = null;
+                    break;
+                case 'self': $row['prerequisite_document_id'] = null;
+                    $row['prerequisite_government_id_id'] = 1;
+                    break;
+                case 'missing': $row['prerequisite_document_id'] = 999999;
+                    break;
+                case 'wrong_profile': $row['government_id_id'] = 2;
+                    break;
+                case 'cycle':
+                    $row['prerequisite_document_id'] = null;
+                    $row['prerequisite_government_id_id'] = 2;
+                    $data['tables']['government_id_prerequisites'][] = [...$row, 'id' => 171, 'government_id_id' => 2, 'requirement_set_id' => null, 'prerequisite_government_id_id' => 1];
+                    break;
+            }
+            unset($row);
+            try {
+                app(ReferenceData::class)->validate($data);
+                $this->fail("Invalid prerequisite accepted: $case");
+            } catch (\RuntimeException $exception) {
+                $this->assertNotEmpty($exception->getMessage());
+            }
+        }
+    }
+
+    public function test_prerequisite_cycles_and_duplicates_in_snapshots_are_rejected(): void
+    {
+        $data = $this->fixture();
+        $data['tables']['government_id_prerequisites'][] = [...$data['tables']['government_id_prerequisites'][0], 'id' => 171];
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('already exists');
+        app(ReferenceData::class)->validate($data);
+    }
+
+    public function test_import_rejects_cycles_created_by_combining_snapshot_and_local_links(): void
+    {
+        $data = $this->fixture();
+        DB::table('government_ids')->insert(['id' => 2, 'name' => 'Local second ID']);
+        DB::table('government_id_prerequisites')->insert(['id' => 171, 'government_id_id' => 2, 'prerequisite_government_id_id' => 1]);
+        $data = app(ReferenceData::class)->capture();
+        $data['snapshot_state'] = 'exported';
+        // This snapshot contains one edge, while the local database contains its reverse.
+        $data['tables']['government_id_prerequisites'] = [[
+            'id' => 172, 'government_id_id' => 1, 'requirement_set_id' => null,
+            'prerequisite_government_id_id' => 2, 'prerequisite_document_id' => null, 'sort_order' => 0, 'note' => null,
+        ]];
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Circular');
+        app(ReferenceData::class)->import($data);
     }
 
     public function test_round_trip_preserves_all_reference_content_and_repeated_import_is_safe(): void
@@ -84,6 +169,30 @@ class ReferenceDataTest extends TestCase
         $this->assertSame('Teammate', DB::table('users')->value('name'));
         $this->assertSame(1, DB::table('users')->count());
         $this->assertSame(0, DB::table('content_change_logs')->count());
+    }
+
+    public function test_older_v2_guide_rows_gain_owner_without_changing_snapshot_file(): void
+    {
+        $data = $this->fixture();
+        unset($data['tables']['government_id_application_steps'][0]['government_id_id']);
+        $this->newIsolatedDatabase();
+        app(ReferenceData::class)->import($data);
+        $this->assertSame(1, (int) DB::table('government_id_application_steps')->where('id', 50)->value('government_id_id'));
+        $this->assertSame(0, app(ReferenceData::class)->import($data)['inserted']);
+    }
+
+    public function test_shared_steps_round_trip_and_mismatched_owners_are_rejected(): void
+    {
+        $data = $this->fixture();
+        $data['tables']['government_id_application_steps'][0]['requirement_set_id'] = null;
+        $this->newIsolatedDatabase();
+        app(ReferenceData::class)->import($data);
+        $this->assertSame($data['tables'], app(ReferenceData::class)->capture()['tables']);
+        $data['tables']['government_ids'][] = [...$data['tables']['government_ids'][0], 'id' => 2, 'name' => 'Other'];
+        $data['tables']['government_id_application_steps'][0]['requirement_set_id'] = 10;
+        $data['tables']['government_id_application_steps'][0]['government_id_id'] = 2;
+        $this->expectExceptionMessage('ownership');
+        app(ReferenceData::class)->validate($data);
     }
 
     public function test_mysql_json_key_reordering_does_not_create_a_false_conflict(): void

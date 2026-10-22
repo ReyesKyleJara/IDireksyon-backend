@@ -340,7 +340,18 @@ class GovernmentIdController extends Controller
     public function destroy(
         GovernmentId $governmentId
     ) {
-        $hasGuide = fn () => $governmentId->requirementSets()->whereHas('applicationSteps')->exists();
+        $hasResidentGoals = fn () => \App\Models\ResidentRoadmapGoal::where('government_id_id', $governmentId->id)->exists();
+        if ($hasResidentGoals()) {
+            return redirect()->route('admin.government-ids.show', $governmentId)
+                ->with('error', 'This Government ID is a saved resident goal and cannot be deleted.');
+        }
+        $hasPrerequisites = fn () => \App\Models\GovernmentIdPrerequisite::where('government_id_id', $governmentId->id)
+            ->orWhere('prerequisite_government_id_id', $governmentId->id)->exists();
+        if ($hasPrerequisites()) {
+            return redirect()->route('admin.government-ids.show', $governmentId)
+                ->with('error', 'This Government ID has sequencing prerequisite links. Remove those links before deleting it.');
+        }
+        $hasGuide = fn () => $governmentId->applicationSteps()->exists();
         if ($hasGuide()) {
             return redirect()->route('admin.government-ids.show', $governmentId)
                 ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
@@ -353,6 +364,15 @@ class GovernmentIdController extends Controller
         try {
             DB::transaction(fn () => $governmentId->delete());
         } catch (QueryException $exception) {
+            if ($hasResidentGoals()) {
+                return redirect()->route('admin.government-ids.show', $governmentId)
+                    ->with('error', 'This Government ID is a saved resident goal and cannot be deleted.');
+            }
+
+            if ($hasPrerequisites()) {
+                return redirect()->route('admin.government-ids.show', $governmentId)
+                    ->with('error', 'This Government ID has sequencing prerequisite links. Remove those links before deleting it.');
+            }
             if ($hasGuide()) {
                 return redirect()->route('admin.government-ids.show', $governmentId)
                     ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');

@@ -74,9 +74,9 @@ it('saves every section on Add Document and keeps document owned content out of 
         ->and(GovernmentIdRequirementSet::count())->toBe(0);
     $this->get(route('admin.documents.show', $document))->assertOk()->assertSee('Visit the issuing office')
         ->assertSee('Bring your documents.')->assertSee('Existing ID')->assertSee('Municipal office')
-        ->assertSee('Document Researcher')->assertDontSee('Add checklist')->assertDontSee('Apply step');
+        ->assertSee('Document Researcher')->assertDontSee('Add checklist')->assertDontSee('Save step');
     $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Add checklist')
-        ->assertSee('Edit fees')->assertSee('Apply step')->assertSee('Edit offices');
+        ->assertSee('Edit fees')->assertSee('Save step')->assertSee('Edit offices');
 });
 
 it('preserves omitted sections and lets the full form explicitly clear fees and office links', function () {

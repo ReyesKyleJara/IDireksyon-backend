@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\BarangayController;
+use App\Http\Controllers\Api\GovernmentIdApplicabilityController;
 use App\Http\Controllers\Api\GovernmentIdController;
+use App\Http\Controllers\Api\GovernmentIdSequenceController;
 use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
+use App\Http\Controllers\Api\ResidentRoadmapGoalController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +31,10 @@ Route::get('/health', function () {
 Route::get('/barangays', [BarangayController::class, 'index']);
 
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);
+Route::post('/government-ids/{governmentId}/applicability', GovernmentIdApplicabilityController::class);
+Route::post('/government-ids/{governmentId}/sequence', GovernmentIdSequenceController::class);
+Route::get('/government-ids/{governmentId}/content', [GovernmentIdController::class, 'content']);
+
 Route::get('/government-ids/{governmentId}', [
     GovernmentIdController::class,
     'show',
@@ -75,6 +82,11 @@ Route::prefix('auth')->group(function () {
             ResidentAuthController::class,
             'logout',
         ]);
+
+        Route::get('roadmap-goals', [ResidentRoadmapGoalController::class, 'index']);
+        Route::get('roadmap-goals/{governmentId}', [ResidentRoadmapGoalController::class, 'show']);
+        Route::put('roadmap-goals/{governmentId}', [ResidentRoadmapGoalController::class, 'save']);
+        Route::delete('roadmap-goals/{governmentId}', [ResidentRoadmapGoalController::class, 'destroy']);
 
         Route::get('inventory', [
             ResidentInventoryController::class,

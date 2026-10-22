@@ -1,0 +1,92 @@
+NATIONAL ID (PhilSys)
+LINK: [https://philsys.gov.ph/the-national-id/](https://philsys.gov.ph/the-national-id/) 
+FOR FILIPINO RESIDENTS AND FOR FOREIGNER RESIDENTS IN THE PHILIPPINES:
+ID NAME: Philippine Identification System (PhilSys National ID)
+ISSUING AGENCY: Philippine Statistics Authority (PSA)
+PURPOSE: Serves as a single, foundational government-issued proof of identity to simplify public and private transactions, promote financial inclusion, and streamline access to social protection services.
+DESCRIPTION: An official government-issued identification system containing a unique permanent PhilSys Number (PSN), biometric data (facial image, iris scan, fingerprints), and a QR code for secure digital verification. Available in physical card, paper format (ePhilID), and mobile app (Digital National ID) versions.
+ELIGIBILITY: All Filipino citizens (living in the Philippines or abroad) and foreign residents residing in the Philippines for at least six (6) months.
+VALIDITY PERIOD:
+- Filipino Citizens: Permanent / Lifetime validity.
+- Foreign Residents: Valid for one (1) year, renewable annually upon confirmation of legal status.
+REQUIREMENTS NEW APPLICATION (FILIPINO CITIZENS):
+1. PRIMARY SUPPORTING DOCUMENTS The registrant is encouraged to bring any ONE (1) of the following primary documents (Original Copy):
+- PSA-issued Certificate of Live Birth AND one (1) government-issued ID bearing full name, front-facing photo, and signature/thumbmark
+- Philippine Passport or ePassport (DFA)
+- Unified Multi-purpose Identification (UMID) Card (GSIS or SSS)
+- Student Permit, Non-Professional Driver’s License, or Professional Driver’s License (LTO) (Note: In case of discrepancies between the PSA Birth Certificate and the government ID presented, the entry in the PSA Birth Certificate shall prevail).
+2. SECONDARY SUPPORTING DOCUMENTS If no primary document is available, the applicant may submit any ONE (1) of the following secondary documents (Original Copy):
+- PSA-issued / NSO-issued Certificate of Live Birth with Birth Reference Number (BReN)
+- Local Civil Registry Office (LCRO)-issued Certificate of Live Birth
+- PSA-issued Report of Birth or Certificate of Foundling
+- Integrated Bar of the Philippines (IBP) ID
+- Professional Regulatory Commission (PRC) ID
+- Seaman’s Book (Seafarer’s Record Book) or Seafarer’s Identity Document (Seaman’s ID)
+- Overseas Workers Welfare Administration (OWWA) ID
+- Senior Citizen’s ID (OSCA / LGU)
+- Social Security System (SSS) ID
+- Pantawid Pamilyang Pilipino Program (4Ps) ID
+- License to Own or Possess Firearms (LTOPF)
+- National Bureau of Investigation (NBI) Clearance
+- Police Clearance / Police ID
+- Solo Parent’s ID
+- Person with Disability (PWD) ID (NCDA, Mayor's Office, DSWD, or DOH-partnered organizations)
+- Voter’s ID (COMELEC)
+- Postal ID (PHLPost)
+- Taxpayer Identification Number (TIN) Card
+- PhilHealth ID
+- Special Resident Retiree’s Visa (SRRV)
+- National ID or Residence ID from other countries
+- Professional Identification Card (MARINA)
+- Civil Service Commission (CSC) Eligibility Card
+- Dependent’s ID (AFP / PNP)
+- Retiree’s ID (PNP, AFP, PCG)
+- Conductor’s License (LTO)
+- Philippine Veterans Affairs Office (PVAO) Pensioner’s ID
+- Tribal Certificate/ID (Tribal Affairs Office) or Certificate of Confirmation/Membership (NCIP / ICC / IP / NCMF)
+3. ADDITIONAL SECONDARY DOCUMENTS (Requires photo, signature/thumbmark, full name, permanent address, and birthdate):
+- Employee ID
+- School ID (for pre-school, elementary, and high school; signature/thumbmark of ID owner is not required)
+- City / Municipal ID
+- Barangay Clearance / Barangay Certificate / Barangay ID
+- Voter’s Certification (COMELEC)
+- Prison Record or Certificate of Detention
+PREREQUISITES / DEPENDENCIES:
+- PSA Birth Certificate or any accepted primary/secondary supporting document.
+APPLICATION FEE / COSTS:
+- First-Time Registration: Free of Charge (₱0.00).
+- ePhilID Paper Copy & Digital ID: Free of Charge (₱0.00).
+APPLICATION PROCESS / STEPS (NEW APPLICATION - WALK-IN):
+1. Visit Registration Center: Proceed to any operational PhilSys Registration Center (Fixed PSA offices, municipal halls, or mall-based booths). No online pre-registration or appointment is needed.
+2. Document Screening: Present your original primary or secondary supporting documents to the Registration Kit Operator.
+3. Biometric Capture: Have your demographic data validated and biometrics captured (front-facing photograph, 10-fingerprint scan, dual-iris scan).
+4. Review Information: Carefully review and confirm your encoded demographic details on the display screen.
+5. Collect Transaction Slip: Receive your official transaction slip containing your unique Transaction Reference Number (TRN).
+DIGITAL NATIONAL ID GENERATION (ONLINE STEP-BY-STEP):
+1. Download the eGovPH Mobile App or visit [https://philsys.gov.ph/](https://philsys.gov.ph/) 
+2. Create an account using your active mobile number and select Digital National ID.
+3. Enter your Transaction Reference Number (TRN) from your registration slip.
+4. Complete the mandatory live facial recognition check on your smartphone.
+5. Access, view, or screenshot your official Digital National ID for immediate use in transactions.
+RENEWAL PROCESS: Not applicable for adult Filipino citizens (lifetime validity). Mandatory biometric recapture and renewal are required for foreign residents (annually) and minors upon reaching age 5 and age 18.
+REPLACEMENT PROCESS (UPDATE DETAILS / LOST CARD):
+- Updating Demographic Data: Visit a registration center with supporting documents (e.g., Marriage Certificate or corrected Birth Certificate) for validation.
+- Lost / Stolen Card: Present a notarized Affidavit of Loss (or police blotter for stolen cards), a primary/secondary ID, pay a replacement fee (₱200–₱400), and undergo biometric verification.
+- Damaged Card: Surrender physical damaged card at a registration center alongside valid supporting ID and undergo biometric verification (₱135–₱400; free if due to manufacturing defect).
+PROCESSING TIME:
+- Digital National ID: Instant generation online via eGovPH app after registration.
+- ePhilID (Paper Format): Printed on the spot or available for pickup at registration centers.
+- Physical Polycarbonate Card: Produced by BSP and delivered via PHLPost to the registered home address.
+GOVERNMENT OFFICES / LOCATIONS FOR SANTA MARIA, BULACAN RESIDENTS:
+- Fixed Provincial Office: PSA Bulacan Provincial Office (Malolos, Bulacan).
+- Local Municipal Centers: Santa Maria Municipal Hall / LGU PhilSys Booths.
+- Mall-Based Booths: SM City Marilao, SM City Baliwag, Robinsons Place Malolos.
+OFFICE HOURS: Monday to Friday, 8:00 AM – 5:00 PM (excluding public holidays; mall sites follow mall operating hours).
+OFFICIAL WEBSITE / APPLICATION LINK:
+- Official Site: [https://philsys.gov.ph/](https://philsys.gov.ph/) 
+OFFICIAL SOURCES:
+- Philippine Statistics Authority (PSA) PhilSys Portal ([https://philsys.gov.ph/](https://philsys.gov.ph/))
+- Republic Act No. 11055 (Philippine Identification System Act)
+LAST VERIFIED / UPDATED DATE: September 2026
+
+

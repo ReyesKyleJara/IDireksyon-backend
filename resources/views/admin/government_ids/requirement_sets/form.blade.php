@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
-@section('title', ($set->exists ? 'Edit Requirement Set' : 'Add Requirement Set').' | IDireksyon')
-@section('page_title', $set->exists ? 'Edit Requirement Set' : 'Add Requirement Set')
+@section('title', ($set->exists ? 'Edit Applicability Profile' : 'Add Applicability Profile').' | IDireksyon')
+@section('page_title', $set->exists ? 'Edit Applicability Profile' : 'Add Applicability Profile')
 @section('content')
 @php
     $value = function ($field) use ($set) {
@@ -10,12 +10,15 @@
     $initial = ['application' => $value('application_type'), 'applicant' => $value('applicant_type')];
 @endphp
 <div class="mx-auto max-w-2xl">
-    <a href="{{ route('admin.government-ids.requirement-sets.index', $governmentId) }}" class="text-sm text-slate-500">← Back to requirement sets</a>
+    <a href="{{ route('admin.government-ids.requirement-sets.index', $governmentId) }}" class="text-sm text-slate-500">← Back to applicability profiles</a>
     <div class="mb-7 mt-5">
         <p class="admin-eyebrow mb-2">{{ $governmentId->name }}</p>
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $set->exists ? 'Edit Requirement Set' : 'Add Requirement Set' }}</h1>
-        <p class="mt-2 text-sm text-slate-500">Choose the broad situation this checklist applies to.</p>
+        <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $set->exists ? 'Edit Applicability Profile' : 'Add Applicability Profile' }}</h1>
+        <p class="mt-2 text-sm text-slate-500">Define who this profile applies to. Requirements and linked guide steps use these same fields.</p>
     </div>
+    @if($set->exists)
+        <div class="admin-panel mb-5 p-5">@include('admin.government_ids.partials.applicability-profile')</div>
+    @endif
     @if($errors->any())
         <div role="alert" class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <p class="mb-2 font-semibold">Please check the following:</p>
@@ -31,8 +34,13 @@
             @method('PUT')
         @endif
         <section class="admin-panel space-y-5 p-6">
+            <h2 class="font-semibold">Applies To</h2>
+            <div x-show="application === 'custom' || applicant === 'custom'" class="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+                <p class="font-semibold">Needs rule setup</p>
+                <p>Automatic matching is disabled until structured applicability rules are configured. Manual selection remains available. Custom labels and age limits are preserved; their meaning is not inferred.</p>
+            </div>
             <div>
-                <label for="application_type" class="mb-2 block text-sm font-medium">Application Type *</label>
+                <label for="application_type" class="mb-2 block text-sm font-medium">Application type? *</label>
                 <select id="application_type" name="application_type" x-model="application" class="admin-input" required>
                     <option value="">Select application type</option>
                     @foreach($applicationTypes as $key => $label)
@@ -47,7 +55,7 @@
                 @error('application_type_custom')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
             </div>
             <div>
-                <label for="applicant_type" class="mb-2 block text-sm font-medium">Applicant Type *</label>
+                <label for="applicant_type" class="mb-2 block text-sm font-medium">Who is applying? *</label>
                 <select id="applicant_type" name="applicant_type" x-model="applicant" class="admin-input" required>
                     <option value="">Select applicant type</option>
                     @foreach($applicantTypes as $key => $label)
@@ -58,7 +66,7 @@
             </div>
             <p x-show="applicant === 'adult'" x-cloak class="text-sm text-slate-600">Age requirement: 18 and above (automatic).</p>
             <p x-show="applicant === 'minor'" x-cloak class="text-sm text-slate-600">Age requirement: below 18 (automatic).</p>
-            <p x-show="applicant === 'all'" x-cloak class="text-sm text-slate-600">No age restriction for this set.</p>
+            <p x-show="applicant === 'all'" x-cloak class="text-sm text-slate-600">No age restriction for this profile.</p>
             <div x-show="applicant === 'custom'" x-cloak class="space-y-5">
                 <div>
                     <label for="applicant_type_custom" class="mb-2 block text-sm font-medium">Custom Applicant Label <span class="font-normal text-slate-500">(optional)</span></label>
@@ -80,10 +88,10 @@
                 <p class="text-sm text-slate-500">Use one age limit or both for a range. Leave both blank for no age restriction. Limits include the ages entered.</p>
             </div>
         </section>
-        <p class="text-sm text-slate-500">The set name is generated from your selections. These choices select a checklist; the ID’s eligibility rules still apply.</p>
+        <p class="text-sm text-slate-500">The profile name is generated from your selections. These choices select a checklist; the ID’s eligibility rules still apply.</p>
         <div class="flex justify-end gap-3">
             <a href="{{ route('admin.government-ids.requirement-sets.index', $governmentId) }}" class="admin-secondary">Cancel</a>
-            <button type="submit" class="admin-primary">{{ $set->exists ? 'Save Changes' : 'Save Requirement Set' }}</button>
+            <button type="submit" class="admin-primary">{{ $set->exists ? 'Save Changes' : 'Save Applicability Profile' }}</button>
         </div>
     </form>
 </div>

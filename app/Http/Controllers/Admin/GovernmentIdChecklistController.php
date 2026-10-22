@@ -28,9 +28,14 @@ class GovernmentIdChecklistController extends Controller
     {
         DB::transaction(function () use ($governmentId, $checklist) {
             $set = $governmentId->requirementSets()->lockForUpdate()->findOrFail($checklist);
+            if ($set->prerequisites()->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'prerequisite' => 'This Applicability Profile is used by sequencing prerequisites. Remove or reassign those entries before deleting it.',
+                ]);
+            }
             if ($set->applicationSteps()->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'application_guide' => 'This scenario has an Application Guide. Remove its steps before deleting the scenario.',
+                    'application_guide' => 'This applicability profile has Application Guide steps. Remove its steps before deleting the profile.',
                 ]);
             }
             $set->delete();

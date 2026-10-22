@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /** Fixed-ID reference snapshots. Never reads account tables or writes existing rows. */
@@ -34,7 +35,7 @@ class ReferenceData
         'government_id_requirement_groups' => 'id requirement_set_id title rule condition_type condition_custom sort_order',
         'government_id_requirement_ways' => 'id requirement_group_id required_count qualification_type qualification_scope qualification_custom sort_order',
         'government_id_requirement_items' => 'id requirement_group_id type government_id_id document_id custom_name submission_format submission_format_custom copies instructions sort_order requirement_way_id quantity',
-        'government_id_application_steps' => 'id requirement_set_id title short_description type sort_order',
+        'government_id_application_steps' => 'id government_id_id requirement_set_id title short_description type sort_order',
         'government_id_application_step_blocks' => 'id application_step_id type section_title content sort_order',
         'government_id_fees' => 'id government_id_id label type amount_min amount_max currency is_optional notes sort_order',
         'government_id_office' => 'id government_id_id office_id new_application_status renewal_status replacement_status service_notes source_url last_verified_at last_verified_by',
@@ -46,6 +47,7 @@ class ReferenceData
         'document_application_step_blocks' => 'id application_step_id type section_title content sort_order',
         'document_fees' => 'id document_id label type amount_min amount_max currency is_optional notes sort_order',
         'document_office' => 'id document_id office_id new_application_status renewal_status replacement_status service_notes source_url last_verified_at last_verified_by',
+        'government_id_prerequisites' => 'id government_id_id requirement_set_id prerequisite_government_id_id prerequisite_document_id sort_order note',
     ];
 
     public function capture(): array
@@ -79,6 +81,7 @@ class ReferenceData
 
     public function validate(array $data): void
     {
+        $data = $this->upgradeGuideOwners($data);
         if (array_diff(array_keys($data), ['format_version', 'metadata', 'snapshot_state', 'tables'])
             || ($data['format_version'] ?? null) !== 2
             || ($data['metadata'] ?? null) !== self::DEVELOPMENT_METADATA
@@ -131,6 +134,18 @@ class ReferenceData
                         throw new RuntimeException("Missing dataset dependency: $table #{$row['id']} $field");
                     }
                 }
+                if ($table === 'government_id_application_steps') {
+                    $owner = $row['government_id_id'];
+                    if (! is_int($owner) || ! isset($ids['government_ids'][$owner])
+                        || ($row['requirement_set_id'] !== null && ($ids['government_id_requirement_sets'][$row['requirement_set_id']]['government_id_id'] ?? null) !== $owner)) {
+                        throw new RuntimeException('Invalid guide Government ID ownership.');
+                    }
+                }
+                if ($table === 'government_id_prerequisites'
+                    && (! is_int($row['government_id_id']) || ! is_int($row['sort_order']) || $row['sort_order'] < 0 || $row['sort_order'] > 4294967295
+                        || ($row['note'] !== null && (! is_string($row['note']) || mb_strlen($row['note']) > 500)))) {
+                    throw new RuntimeException('Invalid prerequisite fields.');
+                }
                 if (str_ends_with($table, '_requirement_items') && $row['requirement_way_id'] !== null) {
                     $wayTable = str_replace('_items', '_ways', $table);
                     if ($ids[$wayTable][$row['requirement_way_id']]['requirement_group_id'] !== $row['requirement_group_id']) {
@@ -139,6 +154,35 @@ class ReferenceData
                 }
             }
         }
+        $this->validatePrerequisites($data['tables']['government_id_prerequisites'], array_column($data['tables']['government_id_requirement_sets'], 'government_id_id', 'id'));
+    }
+
+    /** Old v2 snapshots have profile ownership only; never guess ownership for shared steps. */
+    private function upgradeGuideOwners(array $data): array
+    {
+        $profiles = [];
+        foreach (($data['tables']['government_id_requirement_sets'] ?? []) as $profile) {
+            if (is_array($profile) && isset($profile['id'])) {
+                $profiles[$profile['id']] = $profile['government_id_id'] ?? null;
+            }
+        }
+        if (isset($data['tables']['government_id_application_steps']) && is_array($data['tables']['government_id_application_steps'])) {
+            foreach ($data['tables']['government_id_application_steps'] as &$step) {
+                if (is_array($step) && ! array_key_exists('government_id_id', $step)) {
+                    $step['government_id_id'] = $profiles[$step['requirement_set_id'] ?? 0] ?? null;
+                }
+            }
+            unset($step);
+        }
+
+        // Old v2 snapshots predate explicit prerequisites. An absent table means no configured links,
+        // never dependencies inferred from their ordinary requirement references.
+        $oldTables = array_values(array_diff(array_keys(self::COLUMNS), ['government_id_prerequisites']));
+        if (is_array($data['tables'] ?? null) && array_keys($data['tables']) === $oldTables) {
+            $data['tables']['government_id_prerequisites'] = [];
+        }
+
+        return $data;
     }
 
     private function foreignKeys(string $table): array
@@ -146,7 +190,7 @@ class ReferenceData
         $keys = [];
         foreach (explode(' ', self::COLUMNS[$table]) as $field) {
             $target = match ($field) {
-                'agency_id' => 'agencies', 'government_id_id' => 'government_ids', 'document_id' => 'documents',
+                'agency_id' => 'agencies', 'government_id_id', 'prerequisite_government_id_id' => 'government_ids', 'document_id', 'prerequisite_document_id' => 'documents',
                 'office_id' => 'offices', 'office_schedule_id' => 'office_schedules',
                 'requirement_set_id' => (str_starts_with($table, 'document_') ? 'document' : 'government_id').'_requirement_sets',
                 'requirement_group_id' => str_replace('_requirement_items', '_requirement_groups', str_replace('_requirement_ways', '_requirement_groups', $table)),
@@ -206,12 +250,24 @@ class ReferenceData
     public function import(array $data): array
     {
         $this->assertDevelopmentEnvironment();
+        $data = $this->upgradeGuideOwners($data);
         $this->validate($data);
         if ($data['snapshot_state'] !== 'exported') {
             throw new RuntimeException('Development snapshot has not been exported yet. Explicit export authorization is required.');
         }
 
         return DB::transaction(function () use ($data) {
+            // Same graph-write lock as model saves; validate against local links as well as the snapshot.
+            DB::table('government_ids')->orderBy('id')->lockForUpdate()->get(['id']);
+            $links = DB::table('government_id_prerequisites')->lockForUpdate()->get()->keyBy('id')->map(fn ($row) => (array) $row)->all();
+            foreach ($data['tables']['government_id_prerequisites'] as $row) {
+                $links[$row['id']] = $row;
+            }
+            $owners = DB::table('government_id_requirement_sets')->pluck('government_id_id', 'id')->all();
+            foreach ($data['tables']['government_id_requirement_sets'] as $profile) {
+                $owners[$profile['id']] = $profile['government_id_id'];
+            }
+            $this->validatePrerequisites(array_values($links), $owners);
             $counts = ['inserted' => 0, 'skipped' => 0];
             foreach ($data['tables'] as $table => $rows) {
                 foreach ($rows as $row) {
@@ -241,5 +297,14 @@ class ReferenceData
 
             return $counts;
         });
+    }
+
+    private function validatePrerequisites(array $rows, array $profileOwners): void
+    {
+        try {
+            app(PrerequisiteGraph::class)->validate($rows, $profileOwners);
+        } catch (ValidationException $exception) {
+            throw new RuntimeException('Invalid prerequisite configuration: '.implode(' ', $exception->errors()['prerequisite']), previous: $exception);
+        }
     }
 }
