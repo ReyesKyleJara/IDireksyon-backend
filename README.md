@@ -48,6 +48,10 @@ Government ID checklists save through their own endpoints. Fees, office selectio
 
 The ID Sources/Website section is currently removed from the create, edit, and view screens. Existing database values and API fields remain intact.
 
+## Unified server
+
+Run `..\start-system.cmd` from this folder (or `.\start-system.cmd` from the parent folder) to build resident web and CMS assets and serve both with the API on port 8000. Resident web is `/app/`; CMS is `/admin`. See the frontend README for phone and Google Maps key configuration. Set `GOOGLE_MAPS_SERVER_API_KEY` in this backend?s `.env` for Places/Routes. No database reset or seed is run.
+
 ## Local development
 
 The project uses PHP 8.2+, Laravel 12, Sanctum, Blade, Alpine, Tailwind, Vite, and Tiptap. Dependency versions are locked in composer.lock and package-lock.json.

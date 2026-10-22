@@ -25,15 +25,15 @@ test('phone account saves normalized mobile number', function () {
 test('password update checks current password and confirmation before saving', function () {
     $user = User::factory()->create(['password' => Hash::make('old-password')]);
     $this->withToken($user->createToken('test')->plainTextToken);
-    $body = ['current_password' => 'wrong', 'password' => 'new-password', 'password_confirmation' => 'new-password'];
+    $body = ['current_password' => 'wrong', 'password' => 'New-Resident-pass123!!', 'password_confirmation' => 'New-Resident-pass123!!'];
     $this->postJson('/api/auth/password', $body)->assertUnprocessable();
     expect(Hash::check('old-password', $user->fresh()->password))->toBeTrue();
     $body['current_password'] = 'old-password';
     $body['password_confirmation'] = 'mismatch';
     $this->postJson('/api/auth/password', $body)->assertUnprocessable();
-    $body['password_confirmation'] = 'new-password';
+    $body['password_confirmation'] = 'New-Resident-pass123!!';
     $this->postJson('/api/auth/password', $body)->assertOk();
-    expect(Hash::check('new-password', $user->fresh()->password))->toBeTrue();
+    expect(Hash::check('New-Resident-pass123!!', $user->fresh()->password))->toBeTrue();
 });
 
 test('account endpoints require an active resident session', function () {

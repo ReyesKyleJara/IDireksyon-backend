@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Hash;
 function residentData(array $overrides = []): array
 {
     return array_replace(['name' => 'Juan', 'email' => 'juan@example.com',
-        'password' => 'password123', 'password_confirmation' => 'password123',
+        'password' => 'Resident-pass123!', 'password_confirmation' => 'Resident-pass123!',
         'terms_accepted' => true], $overrides);
 }
 
@@ -15,8 +15,8 @@ test('residents register and authenticate with email or normalized phone', funct
         ->assertCreated()->assertJsonStructure(['token', 'user' => ['id', 'name']]);
     $user = User::first();
     expect($user->role)->toBe('resident');
-    expect(Hash::check('password123', $user->password))->toBeTrue();
-    $this->postJson('/api/auth/login', ['identifier' => $identifier, 'password' => 'password123'])->assertOk();
+    expect(Hash::check('Resident-pass123!', $user->password))->toBeTrue();
+    $this->postJson('/api/auth/login', ['identifier' => $identifier, 'password' => 'Resident-pass123!'])->assertOk();
     $this->withToken($response->json('token'))->getJson('/api/auth/me')->assertOk();
     $this->withToken($response->json('token'))->postJson('/api/auth/logout')->assertOk();
     expect($user->tokens()->count())->toBe(1);
@@ -33,12 +33,12 @@ test('registration validates confirmation agreement and duplicates', function ()
 });
 
 test('resident login rejects wrong passwords inactive accounts and cms accounts', function () {
-    $user = User::factory()->create(['password' => 'password123']);
+    $user = User::factory()->create(['password' => 'Resident-pass123!']);
     $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'wrong'])->assertUnprocessable();
     $user->forceFill(['is_active' => false])->save();
-    $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'password123'])->assertUnprocessable();
+    $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'Resident-pass123!'])->assertUnprocessable();
     $user->forceFill(['is_active' => true, 'role' => 'super_admin'])->save();
-    $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'password123'])->assertUnprocessable();
+    $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'Resident-pass123!'])->assertUnprocessable();
     expect($user->tokens()->count())->toBe(0);
 });
 

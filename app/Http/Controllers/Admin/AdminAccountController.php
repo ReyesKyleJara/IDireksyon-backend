@@ -92,7 +92,7 @@ class AdminAccountController extends Controller
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($account?->id)],
             'role' => ['required', Rule::in(array_keys(User::CMS_ROLES))],
             'is_active' => ['required', 'boolean'],
-            'password' => [$account ? 'nullable' : 'required', 'string', 'confirmed', Password::min(12)],
+            'password' => [$account ? 'nullable' : 'required', 'string', 'confirmed', Password::defaults()],
         ]);
     }
 

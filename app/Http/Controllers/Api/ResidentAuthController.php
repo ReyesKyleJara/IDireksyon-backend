@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class ResidentAuthController extends Controller
@@ -55,7 +56,7 @@ class ResidentAuthController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:8',
+                Password::defaults(),
                 'max:128',
                 'confirmed',
             ],
@@ -360,7 +361,7 @@ class ResidentAuthController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:8',
+                Password::defaults(),
                 'max:128',
                 'confirmed',
                 'different:current_password',

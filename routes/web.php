@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 
+Route::get('/app/{path?}', function () {
+    abort_unless(is_file(public_path('app/index.html')), 503, 'Build the resident web app using start-system.ps1 first.');
+    return response()->file(public_path('app/index.html'), ['Cache-Control' => 'no-cache']);
+})->where('path', '.*');
+
 Route::get('/dashboard', fn () => redirect()->route(auth()->user()->cmsHomeRoute()))
     ->middleware(['auth', 'can:access-cms'])
     ->name('dashboard');

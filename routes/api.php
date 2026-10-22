@@ -6,6 +6,11 @@ use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
 use Illuminate\Support\Facades\Route;
 
+Route::prefix('maps')->middleware('throttle:30,1')->group(function () {
+    Route::post('search', [\App\Http\Controllers\Api\MapController::class, 'search']);
+    Route::post('route', [\App\Http\Controllers\Api\MapController::class, 'route']);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Health Check

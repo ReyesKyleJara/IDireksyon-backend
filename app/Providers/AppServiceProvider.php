@@ -9,6 +9,7 @@ use App\Models\Office;
 use App\Observers\CmsAuditObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
+
         GovernmentId::observe(CmsAuditObserver::class);
         Document::observe(CmsAuditObserver::class);
         Office::observe(CmsAuditObserver::class);

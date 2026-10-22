@@ -28,7 +28,7 @@ it('lets researchers maintain content but denies account management even by dire
 it('creates and edits staff accounts without exposing or resetting their password accidentally', function () {
     $super = User::factory()->create(['role' => 'super_admin']);
     $this->actingAs($super)->get('/admin')->assertOk()->assertSee('Admin Users')->assertSee($super->name);
-    $payload = ['username' => 'research.team', 'name' => 'Research team', 'email' => 'research@example.test', 'role' => 'researcher', 'is_active' => 1, 'password' => 'a-long-test-password', 'password_confirmation' => 'a-long-test-password'];
+    $payload = ['username' => 'research.team', 'name' => 'Research team', 'email' => 'research@example.test', 'role' => 'researcher', 'is_active' => 1, 'password' => 'A-long-test-password123!', 'password_confirmation' => 'A-long-test-password123!'];
     $this->post('/admin/users', $payload)->assertSessionHasNoErrors()->assertRedirect('/admin/users');
     $account = User::where('email', $payload['email'])->firstOrFail();
     expect(Hash::check($payload['password'], $account->password))->toBeTrue();
