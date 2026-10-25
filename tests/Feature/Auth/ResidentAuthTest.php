@@ -11,6 +11,9 @@ function residentData(array $overrides = []): array
 }
 
 test('residents register and authenticate with email or normalized phone', function (array $contact, string $identifier) {
+    if (! empty($contact['email'])) {
+        $contact['email_verification_token'] = signupEmailProof($contact['email']);
+    }
     $response = $this->postJson('/api/auth/register', residentData($contact))
         ->assertCreated()->assertJsonStructure(['token', 'user' => ['id', 'name']]);
     $user = User::first();
@@ -28,7 +31,7 @@ test('residents register and authenticate with email or normalized phone', funct
 test('registration validates confirmation agreement and duplicates', function () {
     $this->postJson('/api/auth/register', residentData(['password_confirmation' => 'wrong', 'terms_accepted' => false]))
         ->assertUnprocessable()->assertJsonValidationErrors(['password', 'terms_accepted']);
-    $this->postJson('/api/auth/register', residentData())->assertCreated();
+    $this->postJson('/api/auth/register', residentData(['email_verification_token' => signupEmailProof('juan@example.com')]))->assertCreated();
     $this->postJson('/api/auth/register', residentData())->assertUnprocessable()->assertJsonValidationErrors('email');
 });
 

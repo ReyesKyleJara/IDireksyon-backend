@@ -26,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
+        Password::defaults(fn () => Password::min(8)->max(20)->mixedCase()->numbers()->symbols());
 
         GovernmentId::observe(CmsAuditObserver::class);
         Document::observe(CmsAuditObserver::class);

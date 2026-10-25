@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\SignupEmailVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class ResidentAuthController extends Controller
             : $value;
     }
 
-    public function register(Request $request): JsonResponse
+    public function register(Request $request, SignupEmailVerification $verification): JsonResponse
     {
         $request->merge([
             'email' => is_string($request->email)
@@ -57,16 +58,18 @@ class ResidentAuthController extends Controller
                 'required',
                 'string',
                 Password::defaults(),
-                'max:128',
+                'max:20',
                 'confirmed',
             ],
+
+            'email_verification_token' => ['required_with:email', 'nullable', 'string', 'max:200'],
 
             'terms_accepted' => [
                 'accepted',
             ],
         ]);
 
-        return DB::transaction(function () use ($data) {
+        $createAccount = fn () => DB::transaction(function () use ($data) {
             $user = User::create(
                 collect($data)
                     ->only([
@@ -77,8 +80,16 @@ class ResidentAuthController extends Controller
                     ->all()
             );
 
+            if (! empty($data['email'])) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
+
             return $this->session($user, 201);
         });
+
+        return ! empty($data['email'])
+            ? $verification->consume($data['email'], $data['email_verification_token'], $createAccount)
+            : $createAccount();
     }
 
     public function login(Request $request): JsonResponse
@@ -362,7 +373,7 @@ class ResidentAuthController extends Controller
                 'required',
                 'string',
                 Password::defaults(),
-                'max:128',
+                'max:20',
                 'confirmed',
                 'different:current_password',
             ],
@@ -375,8 +386,7 @@ class ResidentAuthController extends Controller
             )
         ) {
             throw ValidationException::withMessages([
-                'current_password' =>
-                    'Your current password is incorrect.',
+                'current_password' => 'Your current password is incorrect.',
             ]);
         }
 

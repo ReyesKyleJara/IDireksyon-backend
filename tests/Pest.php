@@ -1,6 +1,9 @@
 <?php
 
+use App\Mail\SignupEmailCode;
+use App\Services\SignupEmailVerification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /*
@@ -47,4 +50,15 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function signupEmailProof(string $email): string
+{
+    Mail::fake();
+    $email = strtolower(trim($email));
+    $verification = app(SignupEmailVerification::class);
+    $id = $verification->send($email);
+    $mail = Mail::sent(SignupEmailCode::class)->last();
+
+    return $verification->verify($id, $mail->code);
 }

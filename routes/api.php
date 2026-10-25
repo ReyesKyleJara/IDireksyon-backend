@@ -2,13 +2,15 @@
 
 use App\Http\Controllers\Api\BarangayController;
 use App\Http\Controllers\Api\GovernmentIdController;
+use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
+use App\Http\Controllers\Api\SignupEmailVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('maps')->middleware('throttle:30,1')->group(function () {
-    Route::post('search', [\App\Http\Controllers\Api\MapController::class, 'search']);
-    Route::post('route', [\App\Http\Controllers\Api\MapController::class, 'route']);
+    Route::post('search', [MapController::class, 'search']);
+    Route::post('route', [MapController::class, 'route']);
 });
 
 /*
@@ -45,6 +47,11 @@ Route::get('/government-ids/{governmentId}', [
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('email-verification/send', [SignupEmailVerificationController::class, 'send'])
+        ->middleware('throttle:5,1');
+    Route::post('email-verification/verify', [SignupEmailVerificationController::class, 'verify'])
+        ->middleware('throttle:10,1');
+
     Route::post('register', [
         ResidentAuthController::class,
         'register',
