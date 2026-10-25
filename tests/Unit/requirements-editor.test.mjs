@@ -188,3 +188,163 @@ test('new deferred scenarios cannot duplicate applied requirements', () => {
     assert.match(state.errors[0], /already has a checklist/);
     assert.equal(state.creationPayload, before);
 });
+
+test('standalone custom text is one actual item with an inferred name and no title', () => {
+    const state = make(); state.addRequirement();
+    const way = state.editing.ways[0];
+    state.singleItemText(way, '2x2 Picture');
+    assert.equal(way.items.length, 1);
+    assert.equal(state.requirementName(state.previewGroups[0]), '2x2 Picture');
+    assert.equal(state.waySummary(way), '2x2 Picture');
+    assert.equal(state.finishRequirement(), true);
+    const group = state.payload().groups[0];
+    assert.equal(group.title, null);
+    assert.equal(group.ways[0].required_count, 1);
+    assert.equal(group.ways[0].items[0].type, 'custom');
+    assert.equal(group.ways[0].items[0].custom_name, '2x2 Picture');
+});
+
+test('directory selection replaces standalone text without creating a second item', () => {
+    const option = { id: 50, type: 'document', name: 'PSA Birth Certificate' };
+    const state = make([], { options: [option] }); state.addRequirement();
+    const way = state.editing.ways[0];
+    state.singleItemText(way, 'PSA'); state.addItem(way, option);
+    assert.equal(way.items.length, 1);
+    assert.equal(state.waySummary(way), option.name);
+    assert.equal(state.finishRequirement(), true);
+    const saved = state.payload().groups[0].ways[0];
+    assert.equal(saved.required_count, 1);
+    assert.equal(saved.items[0].document_id, 50);
+    assert.equal(saved.items[0].custom_name, null);
+});
+
+test('standalone name edits and mode switches preserve saved IDs and advanced details', () => {
+    const original = advanced(); original.ways = [original.ways[1]];
+    const state = make([original]); state.editRequirement(0);
+    const way = state.editing.ways[0]; const before = clone(way.items[0]);
+    state.selection(way, 'accepted'); state.setCount(way, 2);
+    state.selection(way, 'specific');
+    assert.equal(way.required_count, 1);
+    assert.deepEqual(way.items[0], before);
+    state.singleItemText(way, 'Signed photo');
+    assert.equal(way.items[0].id, before.id);
+    for (const field of ['copies', 'quantity', 'submission_format', 'submission_format_custom', 'instructions']) {
+        assert.equal(way.items[0][field], before[field]);
+    }
+    assert.equal(way.qualification_type, 'unexpired');
+    assert.equal(state.finishRequirement(), true);
+});
+
+test('choose N validates its count and preserves the existing multi-item payload', () => {
+    const state = make(); state.addRequirement();
+    state.editing.title = 'Supporting Documents';
+    const way = state.editing.ways[0]; state.selection(way, 'accepted');
+    for (const name of ['Passport', 'NBI Clearance', 'Driver license', 'Birth certificate']) {
+        state.addItem(way); way.items.at(-1).custom_name = name;
+    }
+    state.setCount(way, 5); assert.equal(state.finishRequirement(), false);
+    state.setCount(way, 0); assert.equal(state.finishRequirement(), false);
+    state.setCount(way, 2);
+    assert.equal(state.waySummary(way), 'Choose 2 of 4 accepted items');
+    assert.equal(state.finishRequirement(), true);
+    assert.equal(state.payload().groups[0].ways[0].required_count, 2);
+    assert.equal(state.payload().groups[0].ways[0].items.length, 4);
+});
+
+test('empty standalone and multi-item modes fail validation; all mode normalizes its count', () => {
+    for (const mode of ['specific', 'accepted', 'all']) {
+        const state = make(); state.addRequirement();
+        state.selection(state.editing.ways[0], mode);
+        assert.equal(state.finishRequirement(), false);
+    }
+    const state = make(); state.addRequirement();
+    const way = state.editing.ways[0]; state.selection(way, 'all');
+    for (const name of ['Barangay Clearance', 'PSA Birth Certificate']) {
+        state.addItem(way); way.items.at(-1).custom_name = name;
+    }
+    way.required_count = 99;
+    assert.equal(state.finishRequirement(), true);
+    assert.equal(state.payload().groups[0].ways[0].required_count, 2);
+});
+
+test('single item alternatives retain OR boundaries and conditional details', () => {
+    const state = make(); state.addRequirement();
+    state.editing.conditional = true; state.editing.condition_type = 'custom';
+    state.editing.condition_custom = 'Only when requested';
+    state.singleItemText(state.editing.ways[0], 'Passport'); state.addWay();
+    state.singleItemText(state.editing.ways[1], 'NBI Clearance');
+    assert.equal(state.finishRequirement(), true);
+    const group = state.payload().groups[0];
+    assert.equal(group.ways.length, 2);
+    assert.deepEqual(group.ways.map(way => way.required_count), [1, 1]);
+    assert.equal(group.condition_custom, 'Only when requested');
+});
+
+
+test('clearing standalone text stays invalid and removing it clears the search', () => {
+    const state = make(); state.addRequirement(); const way = state.editing.ways[0];
+    state.singleItemText(way, '2x2 Picture'); state.singleItemText(way, '');
+    assert.equal(way.items[0].custom_name, '');
+    assert.equal(state.finishRequirement(), false);
+    state.singleItemText(way, '2x2 Picture'); state.removeItem(way, 0);
+    assert.equal(way.search, ''); assert.equal(way.items.length, 0);
+});
+
+test('switching a multi-item way to one item never silently discards items', () => {
+    const state = make([advanced()]); state.editRequirement(0);
+    const way = state.editing.ways[0]; const before = clone(way);
+    state.selection(way, 'specific');
+    assert.deepEqual(way, before);
+});
+
+test('More options starts collapsed for new and saved ways without affecting payloads', () => {
+    const state = make([advanced()]); const before = clone(state.payload());
+    assert.ok(state.draft.groups[0].ways.every(way => way.optionsOpen === false));
+    state.editRequirement(0);
+    const way = state.editing.ways[0];
+    const originalItems = clone(way.items);
+    way.optionsOpen = true; way.qualificationOpen = true;
+    way.optionsOpen = false;
+    assert.deepEqual(way.items, originalItems);
+    assert.equal(way.qualification_custom, 'Show address');
+    assert.equal(way.qualification_scope, 'at_least_one');
+    assert.equal(state.finishRequirement(), true);
+    assert.deepEqual(state.payload(), before);
+    assert.equal(state.dirty(), false);
+    state.editRequirement(0);
+    assert.ok(state.editing.ways.every(row => row.optionsOpen === false));
+    state.cancelRequirement(); state.addRequirement();
+    assert.equal(state.editing.ways[0].optionsOpen, false);
+    state.singleItemText(state.editing.ways[0], '1x1 Picture (White Background)');
+    state.addWay();
+    assert.equal(state.editing.ways[1].optionsOpen, false);
+});
+
+test('collapsed optional details keep draft edits and cancellation restores saved values', () => {
+    const state = make([advanced()]); const before = clone(state.payload());
+    state.editRequirement(0); const way = state.editing.ways[0];
+    way.optionsOpen = true;
+    Object.assign(way.items[0], { quantity: 5, copies: 4, instructions: 'White background' });
+    way.qualification_custom = 'Signed'; way.optionsOpen = false;
+    assert.equal(state.finishRequirement(), true);
+    const saved = state.payload().groups[0].ways[0];
+    assert.equal(saved.items[0].quantity, 5); assert.equal(saved.items[0].copies, 4);
+    assert.equal(saved.items[0].instructions, 'White background');
+    assert.equal(saved.qualification_custom, 'Signed');
+    state.editRequirement(0); state.editing.ways[0].items[0].quantity = 99;
+    state.cancelRequirement();
+    assert.equal(state.payload().groups[0].ways[0].items[0].quantity, 5);
+    assert.equal(before.groups[0].ways[0].items[0].quantity, 2);
+});
+
+test('compact card keeps advanced controls behind More options and shortens actions', () => {
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/partials/requirement-editor.blade.php', import.meta.url), 'utf8');
+    assert.match(view, /Requirement type/);
+    assert.match(view, /One specific item/);
+    assert.match(view, /More options ▾/);
+    assert.ok(view.indexOf('x-show="way.optionsOpen"') < view.indexOf('Advanced qualifications ▾'));
+    assert.match(view, /x-show="way.mode !== 'specific'" class="space-y-2"/);
+    assert.match(view, /@click="cancelRequirement\(\)">Cancel<\/button>/);
+    assert.match(view, /@click="finishRequirement\(\)">Done<\/button>/);
+    assert.doesNotMatch(view, /Cancel card changes|Done editing|What must they provide\?/);
+});

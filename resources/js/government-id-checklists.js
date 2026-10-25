@@ -227,7 +227,7 @@ export default function governmentIdChecklists(config) {
             result.ways = this.ways(result).map(way => ({
                 ...way, key: ++this.sequence, search: '', type: way.items[0]?.type || 'document',
                 mode: result.legacy && result.rule === 'all' ? 'all' : way.items.length <= 1 && Number(way.required_count) === 1 ? 'specific' : Number(way.required_count) === way.items.length ? 'all' : 'accepted',
-                qualificationOpen: false,
+                qualificationOpen: false, optionsOpen: false,
                 items: way.items.map(item => ({ ...item, key: ++this.sequence, details: false })),
             }));
             delete result.items;
@@ -271,7 +271,7 @@ export default function governmentIdChecklists(config) {
             return {
                 id: null, key: ++this.sequence, required_count: 1,
                 qualification_type: 'none', qualification_scope: 'every', qualification_custom: '',
-                mode: 'specific', search: '', qualificationOpen: false, items: [],
+                mode: 'specific', search: '', qualificationOpen: false, optionsOpen: false, items: [],
             };
         },
         addRequirement() {
@@ -289,6 +289,7 @@ export default function governmentIdChecklists(config) {
             this.editingIndex = index;
             this.editing = copy(this.draft.groups[index]);
             this.editing.advancedOpen = false;
+            this.editing.ways.forEach(way => { way.optionsOpen = false; });
             this.editing.choosing = false;
             this.editing.visited = true;
             this.errors = [];
@@ -339,7 +340,7 @@ export default function governmentIdChecklists(config) {
             return true;
         },
         selection(way, mode) {
-            if (mode === 'specific' && (way.items.length > 1 || Number(way.required_count) !== 1)) return;
+            if (mode === 'specific' && way.items.length > 1) return;
             way.mode = mode;
             if (mode === 'all') way.required_count = way.items.length || 1;
             if (mode === 'specific') way.required_count = 1;
@@ -374,9 +375,20 @@ export default function governmentIdChecklists(config) {
             // Keep selected results in place so researchers can continue down the list.
             return this.options.filter(option => option.name.toLocaleLowerCase().includes(search)).slice(0, 20);
         },
+        singleItemText(way, value) {
+            way.search = value;
+            if (way.items.length && this.itemName(way.items[0]) === value) return;
+            if (!way.items.length) this.addItem(way);
+            // Keep the item's identity and optional details while changing its source/name.
+            Object.assign(way.items[0], {
+                type: 'custom', custom_name: value,
+                government_id_id: null, document_id: null,
+            });
+            way.required_count = 1;
+        },
         addItem(way, option = null, event = null) {
-            if (way.items.length >= 50 || (way.mode === 'specific' && way.items.length > 0)
-                || (option && this.isSelected(way, option))) return;
+            if (way.items.length >= 50 || (option && this.isSelected(way, option))) return;
+            if (way.mode === 'specific' && way.items.length && !option) return;
             const searchInput = event?.currentTarget?.closest('[data-requirement-search]')?.querySelector('input[type="search"]');
             const item = {
                 id: null, key: ++this.sequence, type: option?.type || 'custom',
@@ -386,7 +398,11 @@ export default function governmentIdChecklists(config) {
                 copies: '', quantity: '', instructions: '', details: false,
             };
             if (way.mode === 'specific') {
-                way.items = [item];
+                way.items = [{ ...item, ...way.items[0],
+                    type: item.type, government_id_id: item.government_id_id,
+                    document_id: item.document_id, custom_name: option ? null : '',
+                }];
+                way.required_count = 1;
                 way.search = '';
             } else {
                 way.items.push(item);
@@ -397,6 +413,7 @@ export default function governmentIdChecklists(config) {
         removeItem(way, index) {
             way.items.splice(index, 1);
             if (way.mode === 'all') way.required_count = way.items.length;
+            if (way.mode === 'specific') way.search = '';
         },
         finishRequirement() {
             const group = this.editing;
@@ -409,11 +426,16 @@ export default function governmentIdChecklists(config) {
             }
             if (group.legacy && group.rule === 'choose_one' && group.ways[0].items.length < 2) errors.push('Choose one needs at least two accepted items.');
             group.ways.forEach((way, index) => {
+                if (way.mode === 'specific') way.required_count = 1;
+                if (way.mode === 'all') way.required_count = way.items.length;
+                if (way.mode === 'specific' && way.items.length !== 1) {
+                    errors.push('Enter or select the one item the applicant needs.');
+                }
                 if (!way.items.length) errors.push(group.ways.length === 1
                     ? 'Search and select an item, or add a custom item.'
                     : 'Way ' + (index + 1) + ': select what the applicant needs.');
-                if (!Number.isInteger(Number(way.required_count)) || Number(way.required_count) < 1
-                    || Number(way.required_count) > way.items.length) {
+                if (way.mode !== 'specific' && (!Number.isInteger(Number(way.required_count)) || Number(way.required_count) < 1
+                    || Number(way.required_count) > way.items.length)) {
                     errors.push('The number needed must be between 1 and the number of accepted items.');
                 }
                 if (way.qualification_type === 'custom' && !way.qualification_custom?.trim()) errors.push('Describe the custom qualification.');

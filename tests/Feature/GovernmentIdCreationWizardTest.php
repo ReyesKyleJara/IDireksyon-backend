@@ -10,26 +10,21 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
 });
 
-it('renders case removal forms and redirects deletion to wizard cases', function () {
-    $id = GovernmentId::create(['name' => 'Case removal ID']);
-    $case = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
-    $deleteUrl = route('admin.government-ids.wizard.cases.destroy', [$id, $case]);
-
-    $this->get(wizardUrl($id, 'cases'))->assertOk()->assertSee($deleteUrl, false)
-        ->assertSee('Remove applicant case?');
-    $this->delete($deleteUrl)->assertRedirect(wizardUrl($id, 'cases'))
-        ->assertSessionHas('success', 'Applicant case removed.');
-    expect($id->requirementSets()->count())->toBe(0);
-    $this->get(wizardUrl($id, 'cases'))->assertOk()->assertSee('No applicant cases added yet.');
-});
-
-it('rejects wizard removal of a case belonging to another Government ID', function () {
-    $id = GovernmentId::create(['name' => 'First ID']);
-    $other = GovernmentId::create(['name' => 'Other ID']);
-    $case = $other->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
-
-    $this->delete(route('admin.government-ids.wizard.cases.destroy', [$id, $case]))->assertNotFound();
-    expect($other->requirementSets()->whereKey($case->id)->exists())->toBeTrue();
+it('uses six wizard steps and retires wizard case actions', function () {
+    $steps = [
+        'basic' => 'Basic Info', 'requirements' => 'Requirements', 'fees' => 'Fees',
+        'guide' => 'Application Guide', 'offices' => 'Offices', 'review' => 'Review',
+    ];
+    $page = $this->get(route('admin.government-ids.create'))->assertOk()
+        ->assertSeeInOrder(array_values($steps))->assertDontSee('Applicant Cases')->assertDontSee('Application Types');
+    expect($page->viewData('steps'))->toBe($steps);
+    $id = GovernmentId::create(['name' => 'Retired cases']);
+    $set = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $this->get(wizardUrl($id, 'cases'))->assertNotFound();
+    $this->post(wizardSaveUrl($id, 'cases'))->assertNotFound();
+    $this->post(route('admin.government-ids.wizard.cases', $id))->assertNotFound();
+    $this->delete(route('admin.government-ids.wizard.cases.destroy', [$id, $set]))->assertNotFound();
+    expect($id->requirementSets()->count())->toBe(1);
 });
 
 it('shows four visible basic cards and preserves hidden legacy fields when saving About this ID', function () {
@@ -53,7 +48,7 @@ it('shows four visible basic cards and preserves hidden legacy fields when savin
         'eligibility_age_type' => 'minimum', 'eligibility_min_age' => 18,
         'eligibility_citizenship' => 'filipino', 'eligibility_residency' => 'custom',
         'eligibility_residency_custom' => 'Example municipality', 'eligibility_other_conditions' => 'General eligibility note',
-    ])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'cases'));
+    ])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'requirements'));
     $id->refresh();
     expect($id->description)->toBe('An ID used to prove identity.')
         ->and($id->purpose)->toBe('Keep existing purpose')
@@ -80,29 +75,35 @@ it('creates one ID from basics and reuses it on repeated submission and resume',
     $data = ['creation_key' => $key, 'name' => 'Guided ID', 'agency_id' => $agency->id,
         'validity_type' => 'fixed', 'validity_value' => 5, 'validity_unit' => 'year',
         'processing_time_type' => 'same_day', 'description' => 'Saved basic description'];
-    $this->post(route('admin.government-ids.wizard.store'), $data)->assertSessionHasNoErrors();
+    $this->post(route('admin.government-ids.wizard.store'), $data)->assertSessionHasNoErrors()
+        ->assertRedirect(wizardUrl(GovernmentId::sole(), 'requirements'));
     $id = GovernmentId::sole();
     expect($id->validity)->toBe('5 years')->and($id->processing_time)->toBe('Same day')
-        ->and($id->fees()->count())->toBe(0)->and($id->requirementSets()->count())->toBe(0);
-    $this->post(route('admin.government-ids.wizard.store'), $data)->assertRedirect(wizardUrl($id, 'cases'));
-    expect(GovernmentId::count())->toBe(1);
-    $this->get(route('admin.government-ids.create'))->assertSee('Resume saved creation')->assertSee('Guided ID');
+        ->and($id->fees()->count())->toBe(0)->and($id->requirementSets()->count())->toBe(1);
+    $this->post(route('admin.government-ids.wizard.store'), $data)->assertRedirect(wizardUrl($id, 'requirements'));
+    expect(GovernmentId::count())->toBe(1)
+        ->and($id->requirementSets()->count())->toBe(1);
+    $set = $id->requirementSets()->sole();
+    expect($set->application_type)->toBe('new')->and($set->applicant_type)->toBe('all')
+        ->and($set->application_type_custom)->toBeNull()->and($set->applicant_type_custom)->toBeNull()
+        ->and($set->min_age)->toBeNull()->and($set->max_age)->toBeNull();
+    expect(session('id_creation_resume'))->toBe(['id' => $id->id, 'step' => 'requirements']);
+    $this->get(route('admin.government-ids.create'))->assertSee('Resume')->assertSee('Guided ID');
     $this->get(wizardUrl($id, 'basic'))->assertSee('Saved basic description');
 });
 
-it('saves cases requirements fees guide and offices to the same ID and reviews actual counts', function () {
+it('saves requirements fees guide and offices to the same ID and reviews actual counts', function () {
     $key = $this->get(route('admin.government-ids.create'))->viewData('creationKey');
     $this->post(route('admin.government-ids.wizard.store'), ['creation_key' => $key, 'name' => 'Complete wizard'])->assertSessionHasNoErrors();
     $id = GovernmentId::sole();
-    $this->get(wizardUrl($id, 'cases'))->assertOk()->assertSee('Who is this information for?');
-    $caseUrl = route('admin.government-ids.wizard.cases', $id);
-    $case = ['application_type' => 'custom', 'application_type_custom' => 'General', 'applicant_type' => 'all'];
-    $this->post($caseUrl, $case)->assertRedirect(wizardUrl($id, 'cases'))->assertSessionHasNoErrors();
-    $this->post($caseUrl, $case)->assertSessionHasNoErrors();
-    expect($id->requirementSets()->count())->toBe(1);
+    $case = ['application_type' => 'new', 'applicant_type' => 'all'];
     $set = $id->requirementSets()->sole();
-    $this->post(wizardSaveUrl($id, 'cases'))->assertRedirect(wizardUrl($id, 'requirements'));
-    $this->get(wizardUrl($id, 'requirements'))->assertOk()->assertSee('governmentIdChecklists', false)->assertSee('Edit checklist');
+    $this->get(wizardUrl($id, 'requirements'))->assertOk()->assertSee('governmentIdChecklists', false)
+        ->assertSee('Save Requirements')->assertSee('Edit Requirements')->assertSee('if (checklists.length) open(checklists[0])', false)
+        ->assertDontSee('Who is applying?')->assertDontSee('What kind of application?')
+        ->assertDontSee('Applicant label')->assertDontSee('Minimum age')->assertDontSee('Maximum age')
+        ->assertDontSee('+ Add checklist')->assertDontSee('Choose an existing checklist')
+        ->assertDontSee('deleteChecklist(checklist)', false)->assertDontSee('Edit applicant and application details');
 
     $document = Document::create(['name' => 'Proof of birth']);
     $reference = GovernmentId::create(['name' => 'Accepted identity card']);
@@ -114,14 +115,18 @@ it('saves cases requirements fees guide and offices to the same ID and reviews a
         ]]],
     ]]];
     $this->putJson(route('admin.government-ids.checklists.update', [$id, $set->id]), $checklist)->assertOk();
-    expect($set->groups()->sole()->items()->count())->toBe(2);
+    expect($set->groups()->sole()->items()->count())->toBe(2)
+        ->and($id->requirementSets()->count())->toBe(1)
+        ->and($set->fresh()->applicant_type)->toBe('all')
+        ->and($set->fresh()->min_age)->toBeNull()->and($set->fresh()->max_age)->toBeNull();
     $this->post(wizardSaveUrl($id, 'requirements'))->assertRedirect(wizardUrl($id, 'fees'));
     $this->get(wizardUrl($id, 'fees'))->assertOk()->assertSee('governmentIdFeeEditor', false);
     $this->post(wizardSaveUrl($id, 'fees'), ['fees' => [
         ['label' => 'Application', 'type' => 'fixed', 'amount_min' => 100],
         ['label' => 'Delivery', 'type' => 'range', 'amount_min' => 50, 'amount_max' => 80],
     ]])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'guide'));
-    $this->get(wizardUrl($id, 'guide'))->assertOk()->assertSee('governmentIdGuide', false);
+    $this->get(wizardUrl($id, 'guide'))->assertOk()->assertSee('governmentIdGuide', false)
+        ->assertDontSee('+ Add scenario')->assertDontSee('Application type')->assertDontSee('Applicant type');
     $guide = [[...$case, 'id' => $set->id, 'steps' => [
         ['title' => 'Submit application', 'type' => 'general', 'blocks' => [
             ['type' => 'official_link', 'section_title' => 'Apply online', 'content' => ['label' => 'Official portal', 'url' => 'https://example.gov.ph']],
@@ -135,9 +140,9 @@ it('saves cases requirements fees guide and offices to the same ID and reviews a
         'office_id' => $office->id, 'new_application_status' => 'available',
         'renewal_status' => 'unknown', 'replacement_status' => 'unavailable', 'service_notes' => 'Appointment required',
     ]]])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'review'));
-    $review = $this->get(wizardUrl($id, 'review'))->assertOk()->assertSee('1 case')->assertSee('1 group / 2 items')
+    $review = $this->get(wizardUrl($id, 'review'))->assertOk()->assertDontSee('Applicant Cases')->assertDontSee('Application Types')->assertSee('1 group / 2 items')
         ->assertSee('2 fees')->assertSee('1 step')->assertSee('1 linked office');
-    expect($review->viewData('counts'))->toBe(['cases' => 1, 'groups' => 1, 'items' => 2, 'fees' => 2, 'guide' => 1, 'offices' => 1]);
+    expect($review->viewData('counts'))->toBe(['groups' => 1, 'items' => 2, 'fees' => 2, 'guide' => 1, 'offices' => 1]);
     $this->get(wizardUrl($id, 'fees'))->assertSee('Application')->assertSee('Delivery');
     $this->get(wizardUrl($id, 'requirements'))->assertSee('Proof');
     $this->get(wizardUrl($id, 'guide'))->assertSee('Submit application')->assertSee('Official portal');
@@ -151,19 +156,25 @@ it('saves cases requirements fees guide and offices to the same ID and reviews a
     $this->get(route('admin.government-ids.show', $id))->assertOk();
     $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Save Changes')
         ->assertSee('governmentIdChecklists', false)->assertSee('governmentIdGuide', false)
+        ->assertSee('Who is applying?')->assertSee('+ Add checklist')->assertSee('+ Add scenario')
+        ->assertSee('Choose an existing checklist')->assertSee('deleteChecklist(checklist)', false)
         ->assertDontSee('Government ID creation steps')->assertDontSee('Save &amp; Continue', false);
 });
 
 it('allows every optional section to be empty and guide creation without requirements', function () {
-    $id = GovernmentId::create(['name' => 'Minimal ID']);
-    foreach (['cases' => 'requirements', 'requirements' => 'fees', 'fees' => 'guide', 'guide' => 'offices', 'offices' => 'review'] as $step => $next) {
+    $key = $this->get(route('admin.government-ids.create'))->viewData('creationKey');
+    $this->post(route('admin.government-ids.wizard.store'), ['creation_key' => $key, 'name' => 'Minimal ID'])
+        ->assertSessionHasNoErrors();
+    $id = GovernmentId::sole();
+    $set = $id->requirementSets()->sole();
+    foreach (['requirements' => 'fees', 'fees' => 'guide', 'guide' => 'offices', 'offices' => 'review'] as $step => $next) {
         $this->get(wizardUrl($id, $step))->assertOk();
         $this->post(wizardSaveUrl($id, $step))->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, $next));
     }
     $this->get(wizardUrl($id, 'review'))->assertSee('Not added yet');
-    $this->get(wizardUrl($id, 'guide'))->assertSee('Requirements are not complete yet. You can still add application steps.');
+    $this->get(wizardUrl($id, 'guide'))->assertSee('Requirements are not complete yet');
     $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode([[
-        'application_type' => 'new', 'applicant_type' => 'all',
+        'id' => $set->id, 'application_type' => 'new', 'applicant_type' => 'all',
         'steps' => [['title' => 'Start here', 'type' => 'general', 'blocks' => []]],
     ]])])->assertSessionHasNoErrors();
     expect($id->requirementSets()->sole()->groups()->count())->toBe(0)
@@ -171,16 +182,31 @@ it('allows every optional section to be empty and guide creation without require
     $this->post(wizardSaveUrl($id, 'review'))->assertRedirect(route('admin.government-ids.show', $id));
 });
 
-it('does not duplicate Adult and Minor cases after model age normalization', function () {
-    $id = GovernmentId::create(['name' => 'Age cases']);
-    foreach (['adult', 'minor'] as $applicant) {
-        $data = ['application_type' => 'new', 'applicant_type' => $applicant];
-        $this->post(route('admin.government-ids.wizard.cases', $id), $data)->assertSessionHasNoErrors();
-        $this->post(route('admin.government-ids.wizard.cases', $id), $data)->assertSessionHasNoErrors();
-    }
+it('keeps legacy sets intact while showing only the neutral set in wizard editors', function () {
+    $key = $this->get(route('admin.government-ids.create'))->viewData('creationKey');
+    $this->post(route('admin.government-ids.wizard.store'), ['creation_key' => $key, 'name' => 'Legacy compatible ID']);
+    $id = GovernmentId::sole();
+    $default = $id->requirementSets()->sole();
+    $legacy = $id->requirementSets()->create(['application_type' => 'renewal', 'applicant_type' => 'minor']);
+    $legacy->applicationSteps()->create(['title' => 'Legacy renewal step', 'type' => 'general', 'sort_order' => 0]);
+    $page = $this->get(wizardUrl($id, 'requirements'))->assertOk();
+    expect(array_column($page->viewData('checklists'), 'id'))->toBe([$default->id]);
+    $this->get(wizardUrl($id, 'guide'))->assertOk()->assertDontSee('Legacy renewal step');
+    $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode([[
+        'id' => $default->id, 'application_type' => 'new', 'applicant_type' => 'all', 'steps' => [],
+    ]])])->assertSessionHasNoErrors();
     expect($id->requirementSets()->count())->toBe(2)
-        ->and($id->requirementSets()->where('applicant_type', 'adult')->sole()->min_age)->toBe(18)
-        ->and($id->requirementSets()->where('applicant_type', 'minor')->sole()->max_age)->toBe(17);
+        ->and($legacy->fresh()->max_age)->toBe(17)
+        ->and($legacy->applicationSteps()->sole()->title)->toBe('Legacy renewal step');
+    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Legacy renewal step');
+});
+
+it('maps an old cases resume to requirements without exposing the removed step', function () {
+    $id = GovernmentId::create(['name' => 'Saved creation']);
+    $response = $this->withSession(['id_creation_resume' => ['id' => $id->id, 'step' => 'cases']])
+        ->get(route('admin.government-ids.create'))->assertOk()
+        ->assertSee(wizardUrl($id, 'requirements'), false)->assertDontSee(wizardUrl($id, 'cases'), false);
+    expect($response->viewData('resume')['step'])->toBe('requirements');
 });
 
 it('keeps validation on the current step preserves input and does not write partial data', function () {
@@ -190,9 +216,6 @@ it('keeps validation on the current step preserves input and does not write part
     ])->assertRedirect(route('admin.government-ids.create'))->assertSessionHasErrors('name')->assertSessionHasInput('description', 'Keep my description');
     expect(GovernmentId::count())->toBe(0);
     $id = GovernmentId::create(['name' => 'Validation ID']);
-    $this->from(wizardUrl($id, 'cases'))->post(route('admin.government-ids.wizard.cases', $id), [
-        'application_type' => 'custom', 'application_type_custom' => '', 'applicant_type' => 'all',
-    ])->assertRedirect(wizardUrl($id, 'cases'))->assertSessionHasErrors('application_type_custom');
     $this->from(wizardUrl($id, 'fees'))->post(wizardSaveUrl($id, 'fees'), ['fees' => [['label' => 'Keep fee', 'type' => 'fixed']]])
         ->assertRedirect(wizardUrl($id, 'fees'))->assertSessionHasErrors('fees.0.amount_min')->assertSessionHasInput('fees.0.label', 'Keep fee');
     $this->get(wizardUrl($id, 'fees'))->assertOk()->assertSee('Keep fee')->assertSee('Enter the fee amount.');

@@ -205,11 +205,38 @@ it('rolls back all nested writes when audit logging fails', function () {
 
 
 it('shares the inline requirements editor with Documents and preserves read only views', function () {
+    $key = $this->get(route('admin.government-ids.create'))->assertOk()->viewData('creationKey');
+    $this->post(route('admin.government-ids.wizard.store'), [
+        'creation_key' => $key, 'name' => 'Wizard requirements ID',
+    ])->assertSessionHasNoErrors();
+    $wizardId = GovernmentId::where('name', 'Wizard requirements ID')->sole();
+    $set = $wizardId->requirementSets()->sole();
+    expect($set->application_type)->toBe('new')->and($set->applicant_type)->toBe('all')
+        ->and($set->min_age)->toBeNull()->and($set->max_age)->toBeNull();
+
+    $this->get(route('admin.government-ids.wizard.show', [$wizardId, 'requirements']))->assertOk()
+        ->assertViewHas('checklists', fn ($rows) => count($rows) === 1 && $rows[0]['id'] === $set->id && $rows[0]['groups'] === [])
+        ->assertSee('Inline requirements editor')->assertSee('Requirements draft preview')
+        ->assertSee('if (checklists.length) open(checklists[0])', false)
+        ->assertSee('+ Add requirement')->assertSee('editRequirement(groupIndex)', false)
+        ->assertSee('Save Requirements')->assertDontSee('checklist-dialog')
+        ->assertDontSee('Applicant Cases')->assertDontSee('Application Types')
+        ->assertDontSee('Who is applying?')->assertDontSee('What kind of application?')
+        ->assertDontSee('Choose an existing checklist')->assertDontSee('+ Add checklist')
+        ->assertDontSee('Edit applicant and application details')
+        ->assertDontSee('x-model="draft.applicant_type"', false)
+        ->assertDontSee('x-model="draft.application_type"', false)
+        ->assertDontSee('<option value="adult">', false)->assertDontSee('<option value="minor">', false)
+        ->assertDontSee('<option value="renewal">', false)->assertDontSee('<option value="replacement">', false);
+
     $document = Document::create(['name' => 'Example certificate']);
-    foreach ([route('admin.government-ids.wizard.show', [$this->target, 'requirements']), '/admin/documents/create', '/admin/documents/'.$document->id.'/edit'] as $url) {
+    foreach ([route('admin.government-ids.edit', $wizardId), '/admin/documents/create', '/admin/documents/'.$document->id.'/edit'] as $url) {
         $this->get($url)->assertOk()->assertSee('Inline requirements editor')
             ->assertSee('Requirements draft preview')->assertSee('Who is applying?')
-            ->assertSee('What kind of application?')->assertDontSee('checklist-dialog');
+            ->assertSee('What kind of application?')->assertDontSee('checklist-dialog')
+            ->assertSee('Choose an existing checklist')->assertSee('+ Add checklist')
+            ->assertSee('<option value="adult">', false)->assertSee('<option value="minor">', false)
+            ->assertSee('<option value="renewal">', false)->assertSee('<option value="replacement">', false);
     }
     $this->get('/admin/documents/'.$document->id)->assertOk()->assertDontSee('Inline requirements editor');
 });

@@ -1,4 +1,5 @@
 @php
+    $wizardMode = $wizardMode ?? false;
     $checklistConfig = [
         'createLabel' => $createLabel ?? 'Create ID',
         'deferred' => $deferred ?? false,
@@ -18,7 +19,7 @@
 @endphp
 
 @if(($editable ?? false) || count($checklists))
-<section id="checklist-requirements" class="admin-panel mt-6 p-6" x-data="governmentIdChecklists(@js($checklistConfig))" @draft-guide-scenario.window="acceptGuideScenario($event.detail)">
+<section id="checklist-requirements" class="admin-panel mt-6 p-6" x-data="governmentIdChecklists(@js($checklistConfig))" @if($wizardMode) x-init="$nextTick(() => { if (checklists.length) open(checklists[0]); })" @endif @draft-guide-scenario.window="acceptGuideScenario($event.detail)">
     @if($deferred ?? false)
         <input type="hidden" name="requirements_payload" x-ref="pendingPayload" :value="creationPayload" :disabled="!ready" disabled>
         <p x-show="formError" x-text="formError" role="alert" class="mb-3 text-sm text-red-700"></p>
@@ -33,28 +34,32 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Requirements</h2>
-            @if($editable ?? false)
+            @if(($editable ?? false) && !$wizardMode)
                 <p class="mt-1 text-sm text-slate-500">Checklists for each application and applicant type.</p>
             @endif
         </div>
-        @if($editable ?? false)
+        @if(($editable ?? false) && !$wizardMode)
             <button type="button" class="admin-primary" @click="open(null, $event)" :disabled="deleting !== null || saving || !!draft" x-ref="addChecklistButton">+ Add checklist</button>
         @endif
     </div>
-    @if($editable ?? false)
+    @if(($editable ?? false) && !$wizardMode)
         <p x-cloak x-show="checklists.length === 0 && !draft" class="text-sm text-slate-500">No checklists yet. Add a checklist for an application and applicant type.</p>
     @endif
     <div x-show="!draft" class="space-y-4">
         <template x-for="checklist in checklists" :key="checklist.id || checklist.client_key">
             <article class="rounded-xl border border-slate-200 p-5">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    @unless($wizardMode)
                     <div>
                         <h3 class="font-semibold text-slate-900" x-text="checklistLabel(checklist)"></h3>
                     </div>
+                    @endunless
                     @if($editable ?? false)
                         <div class="flex gap-3">
-                            <button type="button" class="admin-secondary" @click="selected = String(checklists.indexOf(checklist)); open(checklist, $event)" :disabled="deleting !== null">Edit checklist</button>
+                            <button type="button" class="admin-secondary" @click="selected = String(checklists.indexOf(checklist)); open(checklist, $event)" :disabled="deleting !== null">{{ $wizardMode ? 'Edit Requirements' : 'Edit checklist' }}</button>
+                            @unless($wizardMode)
                             <button type="button" class="text-sm text-red-700" @click="deleteChecklist(checklist)" :disabled="deleting !== null" :aria-label="'Delete ' + checklist.label" x-text="deleting !== null && deleting === checklist.id ? 'Deleting…' : 'Delete'"></button>
+                            @endunless
                         </div>
                     @endif
                 </div>
@@ -88,17 +93,20 @@
     </div>
 
     @if($editable ?? false)
+    @unless($wizardMode)
     <label x-cloak x-show="showScenarioSelector" class="mt-4 block text-sm font-medium">Choose an existing checklist to edit
         <select class="admin-input mt-2" :value="selected" @change="selectChecklist($event.target.value); $event.target.value = selected" :disabled="saving || deleting !== null">
             <option value="">Select a checklist</option>
             <template x-for="(checklist, index) in checklists" :key="checklist.id || checklist.client_key"><option :value="String(index)" x-text="checklistLabel(checklist)"></option></template>
         </select>
     </label>
+    @endunless
     <div x-ref="errors" x-show="errors.length" tabindex="-1" role="alert" class="my-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
         <ul class="list-disc pl-4"><template x-for="(error, index) in errors" :key="index"><li x-text="error"></li></template></ul>
     </div>
     <template x-if="draft">
         <fieldset :disabled="saving" class="mt-5 min-w-0 space-y-5" aria-label="Inline requirements editor">
+            @unless($wizardMode)
             <h3 class="font-semibold">Applicant and application</h3>
             <details :open="selected === ''" class="space-y-3">
                 <summary x-ref="scenarioDetails" x-show="selected !== ''" class="cursor-pointer text-sm font-medium">Edit applicant and application details</summary>
@@ -126,6 +134,7 @@
                 </div>
             </div>
             </details>
+            @endunless
             <div class="grid items-start gap-5 xl:grid-cols-2">
                 <div class="min-w-0 space-y-4">
                     <h3 class="font-semibold">Requirement cards</h3>
@@ -147,13 +156,22 @@
                     <template x-if="editing && editingIndex === null"><article class="rounded-xl border border-blue-400 p-4">@include('admin.government_ids.partials.requirement-editor')</article></template>
                     <button type="button" x-ref="addRequirementButton" class="admin-secondary" @click="addRequirement()" :disabled="!!editing || draft.groups.length >= 100">+ Add requirement</button>
                 </div>
-                @include('admin.government_ids.partials.requirements-preview')
+                @if($wizardMode)
+                    {{-- Keep the shared preview, without exposing the hidden scenario label. --}}
+                    <div class="min-w-0" x-data="{ checklistLabel() { return '' } }">
+                        @include('admin.government_ids.partials.requirements-preview')
+                    </div>
+                @else
+                    @include('admin.government_ids.partials.requirements-preview')
+                @endif
             </div>
             <div class="space-y-3 border-t border-slate-200 pt-4">
+                @unless($wizardMode)
                 <p class="text-sm text-slate-600" x-text="deferred ? 'Apply checklist keeps this draft in the form. ' + createLabel + ' saves all sections together.' : 'Save checklist saves these requirements now. The main form saves other details and the Application Guide separately.'"></p>
+                @endunless
                 <div class="flex flex-wrap justify-end gap-3">
-                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">Cancel checklist changes</button>
-                    <button type="button" class="admin-primary" @click="save()" :disabled="saving || !!editing" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : 'Save checklist')"></button>
+                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">{{ $wizardMode ? 'Cancel' : 'Cancel checklist changes' }}</button>
+                    <button type="button" class="admin-primary" @click="save()" :disabled="saving || !!editing" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : '{{ $wizardMode ? 'Save Requirements' : 'Save checklist' }}')"></button>
                 </div>
             </div>
         </fieldset>

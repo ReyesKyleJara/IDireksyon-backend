@@ -11,13 +11,13 @@
                 <template x-for="(way, index) in ways(group)" :key="way.key">
                     <div class="mt-3 space-y-2 text-sm">
                         <p x-show="index > 0" class="font-semibold">OR</p>
-                        <p class="font-medium" x-text="way.items.length ? waySummary(way) : 'Select an item to complete this draft.'"></p>
+                        <p x-show="ways(group).length > 1 || !way.items.length || waySummary(way) !== requirementName(group)" class="font-medium" x-text="way.items.length ? waySummary(way) : 'Select an item to complete this draft.'"></p>
                         <p x-show="Number(way.required_count) > way.items.length || Number(way.required_count) < 1" class="text-red-700">Incomplete draft: check the number of accepted items needed.</p>
                         <p x-show="qualification(way)" class="text-blue-800" x-text="qualification(way)"></p>
-                        <ul class="list-disc space-y-2 pl-5">
+                        <ul class="space-y-2" :class="way.items.length === 1 && Number(way.required_count) === 1 ? 'list-none' : 'list-disc pl-5'">
                             <template x-for="item in way.items" :key="item.key">
                                 <li class="break-words">
-                                    <span x-text="itemName(item)"></span>
+                                    <span x-show="way.items.length !== 1 || Number(way.required_count) !== 1" x-text="itemName(item)"></span>
                                     <p x-show="item.quantity" x-text="'Quantity: ' + item.quantity"></p>
                                     <p x-show="submission(item)" x-text="submission(item)"></p>
                                     <p x-show="item.instructions" class="whitespace-pre-line" x-text="item.instructions"></p>
