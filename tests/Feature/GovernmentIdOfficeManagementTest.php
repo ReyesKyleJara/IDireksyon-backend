@@ -24,7 +24,7 @@ function officeLinkRow(Office $office, array $overrides = []): array
 it('creates an ID with several draft branches and displays their service details', function () {
     $one = Office::create(['name' => 'Branch One']);
     $two = Office::create(['name' => 'Branch Two']);
-    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Linked Offices')->assertSee('Select a branch');
+    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Offices')->assertDontSee('Select a branch');
     $this->post('/admin/government-ids', [
         'name' => 'Multiple branches ID', 'office_links_present' => 1,
         'office_location' => 'Legacy location', 'office_hours' => 'Legacy hours',
@@ -45,8 +45,11 @@ it('creates an ID with several draft branches and displays their service details
         ->assertJsonMissingPath('data.offices');
 });
 
-it('offers embedded office creation when the directory is empty', function () {
-    $this->get('/admin/government-ids/create')->assertOk()->assertSee('No offices yet.')
+it('preserves embedded office creation in edit and links existing offices in the wizard', function () {
+    $id = GovernmentId::create(['name' => 'Empty offices']);
+    $this->get(route('admin.government-ids.wizard.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
+        ->assertDontSee('offices-dialog')->assertDontSee('iframe', false);
+    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('No offices yet.')
         ->assertSee('offices-dialog')->assertSee('Add office')->assertSee('iframe', false);
     $this->get(route('admin.offices.create', ['embedded' => 1]))->assertOk()
         ->assertSee('Office / Branch Name');
@@ -132,7 +135,7 @@ it('preserves historical source and verification data when editing services', fu
 it('removes form verification controls and rejects forged connection metadata', function () {
     $office = Office::create(['name' => 'One']);
     $id = GovernmentId::create(['name' => 'Target']);
-    foreach (['/admin/government-ids/create', '/admin/government-ids/'.$id->id.'/edit'] as $url) {
+    foreach ([route('admin.government-ids.wizard.show', [$id, 'offices']), '/admin/government-ids/'.$id->id.'/edit'] as $url) {
         $this->get($url)->assertOk()->assertDontSee('Official Service Source')
             ->assertDontSee('verify_today', false)->assertDontSee('Verification Status')
             ->assertSee('value="unknown"', false)

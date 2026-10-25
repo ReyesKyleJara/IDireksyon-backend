@@ -94,7 +94,7 @@ it('retains both drafts after unrelated validation failure without creating any 
         ->assertSessionHasInput('requirements_payload', $this->payload['requirements_payload'])
         ->assertSessionHasInput('application_guide_payload', $this->payload['application_guide_payload']);
     expect(GovernmentId::count())->toBe(1)->and(GovernmentIdRequirementSet::count())->toBe(0);
-    $this->get('/admin/government-ids/create')->assertOk()->assertSee('requirements_payload')->assertSee('oldPayload');
+    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Save &amp; Continue', false)->assertDontSee('requirements_payload');
 });
 
 it('rejects unreadable requirement payloads before writing records', function ($raw) {

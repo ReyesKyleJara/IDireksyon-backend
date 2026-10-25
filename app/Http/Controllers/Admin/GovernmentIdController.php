@@ -108,19 +108,7 @@ class GovernmentIdController extends Controller
 
     public function create()
     {
-        $offices = Office::with('agency')->orderBy('name')->get();
-
-        $agencies = Agency::query()
-            ->orderBy('name')
-            ->get();
-
-        $checklists = [];
-        $requirementOptions = $this->requirementOptions();
-
-        return view(
-            'admin.government_ids.create',
-            compact('agencies', 'offices', 'checklists', 'requirementOptions')
-        );
+        return app(GovernmentIdCreationWizardController::class)->create(request());
     }
 
     public function store(Request $request)

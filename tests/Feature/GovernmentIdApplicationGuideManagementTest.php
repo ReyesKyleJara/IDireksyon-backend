@@ -39,8 +39,9 @@ beforeEach(function () {
     $this->url = '/admin/government-ids/'.$this->target->id;
 });
 
-it('renders the editor on create and edit and keeps View read only', function () {
-    $this->get('/admin/government-ids/create')->assertOk()->assertSee('governmentIdGuide', false)->assertSee('Apply step');
+it('renders the editor in guided creation and edit and keeps View read only', function () {
+    $this->get('/admin/government-ids/create')->assertOk()->assertDontSee('governmentIdGuide', false);
+    $this->get(route('admin.government-ids.wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false)->assertSee('Apply step');
     $this->get($this->url.'/edit')->assertOk()->assertSee('Application Guide')->assertSee('Apply step')->assertDontSee('Existing guide text')->assertDontSee('name="application_process"', false);
     $this->get($this->url)->assertOk()->assertDontSee('Apply step');
 });
@@ -230,4 +231,15 @@ it('shows structured content without legacy duplicates while preserving stored c
         ->and($this->target->fresh()->requirements)->toBe('Legacy requirements summary');
     $set->applicationSteps()->delete();
     $this->get($this->url)->assertOk()->assertSee('Keep the earlier instructions');
+});
+
+
+it('renders draggable inline guide cards using the existing scenario contract', function () {
+    $this->get($this->url.'/edit')->assertOk()
+        ->assertSee('Drag a card to reorder.')
+        ->assertSee('startStepDrag', false)->assertSee('cardKeydown', false)
+        ->assertSee('Application step editor')->assertSee('More Content')
+        ->assertSee('Apply step')->assertSee('Add scenario')
+        ->assertDontSee('Select an Applicability Profile')
+        ->assertDontSee('Guide position (starts at 0)');
 });
