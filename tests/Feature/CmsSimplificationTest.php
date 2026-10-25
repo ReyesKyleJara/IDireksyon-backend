@@ -27,7 +27,7 @@ it('lets researchers use the dashboard and office directory while protecting adm
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
     $this->get('/admin')->assertOk()->assertDontSee('Admin Users')->assertDontSee('Audit Logs');
     $this->get('/admin/offices')->assertOk()->assertSee('Test Office');
-    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Test Agency')->assertSee('Save &amp; Continue', false)->assertDontSee('Test Office');
+    $this->get('/admin/government-ids/create')->assertOk()->assertSee('Test Agency')->assertSeeText('Save & Continue', false)->assertDontSee('Test Office');
     $this->get('/admin/users')->assertForbidden();
     $this->get('/admin/audit-logs')->assertForbidden();
     $this->post('/admin/users', ['role' => 'super_admin'])->assertForbidden();

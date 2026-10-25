@@ -216,10 +216,10 @@ it('shares the inline requirements editor with Documents and preserves read only
 
     $this->get(route('admin.government-ids.wizard.show', [$wizardId, 'requirements']))->assertOk()
         ->assertViewHas('checklists', fn ($rows) => count($rows) === 1 && $rows[0]['id'] === $set->id && $rows[0]['groups'] === [])
-        ->assertSee('Inline requirements editor')->assertSee('Requirements draft preview')
+        ->assertSee('Inline requirements editor')->assertSee('Requirements draft preview')->assertSee('Requirement cards')->assertSee('xl:grid-cols-2')
         ->assertSee('if (checklists.length) open(checklists[0])', false)
         ->assertSee('+ Add requirement')->assertSee('editRequirement(groupIndex)', false)
-        ->assertSee('Save Requirements')->assertDontSee('checklist-dialog')
+        ->assertDontSee('Save Requirements')->assertSee('Continue →')->assertDontSee('checklist-dialog')
         ->assertDontSee('Applicant Cases')->assertDontSee('Application Types')
         ->assertDontSee('Who is applying?')->assertDontSee('What kind of application?')
         ->assertDontSee('Choose an existing checklist')->assertDontSee('+ Add checklist')

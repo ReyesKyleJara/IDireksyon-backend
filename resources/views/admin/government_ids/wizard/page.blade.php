@@ -193,6 +193,11 @@
             ? route('admin.government-ids.wizard.save', [$governmentId, $step])
             : route('admin.government-ids.wizard.store') }}"
         class="space-y-6"
+        @if($step === 'guide')
+            novalidate
+            x-data="{ guideSaving: false }"
+            @guide-saving.window="guideSaving = $event.detail"
+        @endif
     >
         @csrf
 
@@ -266,15 +271,29 @@
     $guideRows = array_slice($guideRows, 0, 1);
     $guideConfig = [
         'deferred' => $deferred ?? false,
+        'wizard' => true,
+        'nextUrl' => route('admin.government-ids.wizard.show', [$governmentId, 'offices']),
+        'stepTypes' => \App\Models\GovernmentIdApplicationStep::TYPES,
+        'previewReferences' => [
+            'requirements' => $governmentId->requirementSets->firstWhere('id', $guideRows[0]['id'] ?? null)?->groups->count() ?? 0,
+            'fees' => $governmentId->fees->count(),
+            'offices' => $governmentId->offices->count(),
+            'processingTime' => $governmentId->processing_time,
+            'officeAction' => $governmentId->agency?->acronym
+                ? 'Find a '.$governmentId->agency->acronym.' office →'
+                : 'Find an office →',
+        ],
         'scenarios' => $guideRows,
         'oldPayload' => is_string(old('application_guide_payload')) ? old('application_guide_payload') : null,
     ];
 @endphp
-<section class="admin-panel p-6" aria-label="Application Guide" x-data="governmentIdGuide(@js($guideConfig))" @guide-scenario-changed.window="scenarioChanged($event.detail)">
+<section class="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]" aria-label="Application Guide" x-data="governmentIdGuide(@js($guideConfig))" @guide-scenario-changed.window="scenarioChanged($event.detail)">
+    <div class="admin-panel min-w-0 p-6">
     <input type="hidden" x-ref="guidePayload" name="application_guide_payload" :disabled="!ready" :value="payload" disabled>
+    <fieldset :disabled="saving" class="min-w-0">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div><h2 class="text-lg font-semibold text-slate-900">Application Guide</h2><p class="mt-1 text-sm text-slate-500">Explain what the applicant should do, one step at a time.</p></div>
-        <span class="text-xs text-slate-500">Saved with the main form</span>
+        <span class="text-xs text-slate-500">Changes are saved when you continue.</span>
     </div>
     <noscript><p class="mt-3 text-sm text-amber-700">Enable JavaScript to edit the Application Guide. Existing steps will be preserved.</p></noscript>
     @foreach($errors->getMessages() as $field => $messages)
@@ -282,7 +301,7 @@
             @foreach($messages as $message)<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@endforeach
         @endif
     @endforeach
-    <p x-ref="guideError" tabindex="-1" x-show="error" x-text="error" class="mt-3 text-sm text-red-600" role="alert"></p>
+    <p x-ref="guideError" tabindex="-1" x-show="error" x-text="error" class="mt-3 whitespace-pre-line text-sm text-red-600" role="alert"></p>
     <template x-if="current">
         <div class="mt-5 space-y-4">
             <p id="guide-reorder-help" class="text-xs text-slate-500">Drag a card to reorder. With its header focused, press Alt + ↑ or ↓. Press Escape to cancel dragging.</p>
@@ -297,40 +316,38 @@
                         @pointercancel="cancelStepDrag()" @lostpointercapture="cancelStepDrag()" @keydown="cardKeydown($event, index)" @click="finishCardClick($event)">
                         <span aria-hidden="true" class="shrink-0 text-lg text-slate-400">⋮⋮</span>
                         <div class="min-w-0 flex-1">
-                            <h3 class="break-words text-sm font-semibold text-slate-900"><span x-text="(index + 1) + '. '"></span><span x-text="step.title"></span></h3>
-                            <p class="mt-1 truncate text-sm text-slate-500" x-text="summary(step)"></p>
+                            <p class="text-xs font-medium text-slate-500" x-text="'Step ' + (index + 1)"></p>
+                            <h3 class="mt-1 break-words text-sm font-semibold text-slate-900" x-text="step.title"></h3>
+                            <p class="mt-2 whitespace-pre-line text-sm text-slate-600" x-text="summary(step)"></p>
+                            <p x-show="officialLinkHost(step)" class="mt-2 break-words text-xs text-blue-800" x-text="officialLinkHost(step)"></p>
                         </div>
                         <button type="button" class="guide-tool flex min-h-10 min-w-10 shrink-0 items-center justify-center" @click.stop="draft && stepIndex === index ? applyStep() : editStep(index)"
-                            :disabled="!!stepDrag || (!!draft && stepIndex !== index)" :aria-label="(draft && stepIndex === index ? 'Save and collapse step ' : 'Expand step ') + (index + 1)" :aria-expanded="!!draft && stepIndex === index"
-                            :aria-controls="'guide-step-' + step.key" :data-guide-step="step.key"><span aria-hidden="true" x-text="draft && stepIndex === index ? '⌃' : '⌄'"></span></button>
-                        <div class="relative shrink-0" @click.outside="if (openMenuKey === step.key) closeMenu(false)" @keydown.escape.stop.prevent="closeMenu()">
-                            <button type="button" class="guide-tool flex min-h-10 min-w-10 items-center justify-center text-xl" @click.stop="toggleMenu(step.key)" :disabled="!!stepDrag"
-                                :aria-label="'Actions for step ' + (index + 1)" aria-haspopup="menu" :aria-expanded="openMenuKey === step.key" :aria-controls="'guide-menu-' + step.key" :data-step-menu-trigger="step.key"><span aria-hidden="true">⋮</span></button>
-                            <div x-show="openMenuKey === step.key" x-cloak :id="'guide-menu-' + step.key" :data-step-menu="step.key" role="menu" :aria-label="'Actions for step ' + (index + 1)"
-                                class="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg border border-slate-200 bg-white p-1 shadow-lg" @keydown="menuKeydown($event)">
-                                <button type="button" role="menuitem" class="guide-tool block w-full p-2 text-left" :disabled="!!draft && stepIndex !== index" @click.stop="closeMenu(false); editMenuStep(index)">Edit</button>
-                                <button type="button" role="menuitem" class="guide-tool block w-full p-2 text-left text-red-700" :disabled="!!draft" @click.stop="closeMenu(); removeStep(index)">Delete</button>
-                            </div>
-                        </div>
+                            :disabled="!!stepDrag || (!!draft && stepIndex !== index)" :aria-label="(draft && stepIndex === index ? 'Finish step ' : 'Edit step ') + (index + 1)" :aria-expanded="!!draft && stepIndex === index"
+                            :aria-controls="'guide-step-' + step.key" :data-guide-step="step.key"><span x-text="draft && stepIndex === index ? 'Done' : 'Edit'"></span></button>
+                        <button type="button" class="guide-tool shrink-0 text-sm text-red-700" :disabled="!!draft || !!stepDrag"
+                            @click.stop="removeStep(index)" :aria-label="'Delete step ' + (index + 1)">Delete</button>
                     </div>
                     <div :id="'guide-step-' + step.key" class="px-4" :class="draft && stepIndex === index ? 'pb-4' : ''">
-                        <template x-if="draft && stepIndex === index"><div>@include('admin.government_ids.partials.application-guide-step-editor')</div></template>
+                        <template x-if="draft && stepIndex === index"><div>@include('admin.government_ids.partials.application-guide-step-editor', ['wizardGuide' => true])</div></template>
                     </div>
                 </article>
             </template>
             <template x-if="draft && stepIndex === -1">
                 <article class="min-w-0 rounded-xl border border-blue-400 p-4">
                     <h3 class="mb-4 font-semibold" x-text="'Step ' + (current.steps.length + 1) + '. New application step'"></h3>
-                    @include('admin.government_ids.partials.application-guide-step-editor')
+                    @include('admin.government_ids.partials.application-guide-step-editor', ['wizardGuide' => true])
                 </article>
             </template>
             <button type="button" x-ref="addStepButton" class="admin-secondary" @click="editStep()" :disabled="!!draft || !!stepDrag || addingScenario || current.steps.length >= 100">+ Add Application Step</button>
             <p class="sr-only" role="status" aria-live="polite" x-text="dragStatus"></p>
             <p x-show="stepDrag?.active" class="text-sm font-medium text-blue-800">Dragging — release at the highlighted edge. Press Escape to cancel.</p>
-            <p x-show="current.dirty || draft" class="text-sm text-amber-700" role="status">Unsaved guide changes — save the main entry to keep them.</p>
-            <p class="text-xs text-slate-500">Step changes, deletions, and order are saved with the main form. Saving Requirements separately does not save this guide.</p>
+            <p x-show="current.dirty || draft" class="text-sm text-amber-700" role="status">Unsaved guide changes — continue to save them.</p>
+            <p class="text-xs text-slate-500">Continue saves your steps, content, and order, then opens Offices.</p>
         </div>
     </template>
+    </fieldset>
+    </div>
+    @include('admin.government_ids.wizard.app-preview')
 </section>
 
 
@@ -390,8 +407,11 @@
                     <button
                         type="submit"
                         class="admin-primary"
+                        @if($step === 'guide') :disabled="guideSaving" :aria-busy="guideSaving" @endif
                     >
-                        @if($step === 'review')
+                        @if($step === 'guide')
+                            <span x-text="guideSaving ? 'Saving…' : 'Continue'">Continue</span>
+                        @elseif($step === 'review')
                             Finish
                         @elseif($step === 'requirements')
                             Continue →

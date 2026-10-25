@@ -10,6 +10,68 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
 });
 
+it('keeps existing duplicate guide references until the researcher intentionally removes them', function () {
+    $id = GovernmentId::create(['name' => 'Duplicate reference ID']);
+    $set = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $step = $set->applicationSteps()->create(['title' => 'Prepare requirements']);
+    $content = ['intro' => ['type' => 'doc', 'content' => [['type' => 'paragraph']]]];
+    $first = $step->blocks()->create(['type' => 'requirements', 'section_title' => 'Required Documents', 'content' => $content, 'sort_order' => 0]);
+    $second = $step->blocks()->create(['type' => 'requirements', 'section_title' => 'Existing extra reference', 'content' => $content, 'sort_order' => 1]);
+    $this->get(wizardUrl($id, 'guide'))->assertOk()->assertSee('Duplicate references:')
+        ->assertSee('referenceEntries')->assertSee('Required Documents')->assertSee('Existing extra reference');
+    expect($step->blocks()->pluck('id')->all())->toBe([$first->id, $second->id]);
+    $payload = [[
+        'id' => $set->id, 'application_type' => 'new', 'applicant_type' => 'all',
+        'steps' => [['id' => $step->id, 'title' => $step->title, 'type' => 'general', 'blocks' => [
+            ['id' => $first->id, 'type' => 'requirements', 'section_title' => $first->section_title, 'content' => $content],
+            ['id' => $second->id, 'type' => 'requirements', 'section_title' => $second->section_title, 'content' => $content],
+        ]]],
+    ]];
+    $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode($payload)])
+        ->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'offices'));
+    expect($step->blocks()->pluck('id')->all())->toBe([$first->id, $second->id]);
+    array_pop($payload[0]['steps'][0]['blocks']);
+    $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode($payload)])
+        ->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'offices'));
+    expect($step->blocks()->sole()->id)->toBe($first->id);
+});
+
+it('reads current saved requirements for guide references without duplicating guide content', function () {
+    $agency = Agency::create(['name' => 'Department of Foreign Affairs', 'acronym' => 'DFA']);
+    $id = GovernmentId::create(['name' => 'Reference preview ID', 'agency_id' => $agency->id]);
+    $set = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $step = $set->applicationSteps()->create(['title' => 'Prepare Your Requirements']);
+    $reference = $step->blocks()->create([
+        'type' => 'requirements',
+        'content' => ['intro' => ['type' => 'doc', 'content' => [['type' => 'paragraph']]]],
+    ]);
+    $originalContent = $reference->content;
+    $set->groups()->create(['title' => 'Proof of identity', 'rule' => 'all', 'condition_type' => 'always']);
+
+    $page = $this->get(wizardUrl($id, 'guide'))->assertOk()
+        ->assertSee('Use existing ID information')->assertSee('View requirements')
+        ->assertSee('View applicable fees')->assertSee('Find a DFA office');
+    expect($page->viewData('counts')['groups'])->toBe(1);
+
+    // A later Requirements save changes its own records, not the guide reference.
+    $set->groups()->create(['title' => 'Proof of citizenship', 'rule' => 'all', 'condition_type' => 'always']);
+    $page = $this->get(wizardUrl($id, 'guide'))->assertOk();
+    expect($page->viewData('counts')['groups'])->toBe(2)
+        ->and($step->blocks()->count())->toBe(1)
+        ->and($reference->fresh()->content)->toBe($originalContent)
+        ->and($reference->fresh()->type)->toBe('requirements');
+
+    $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode([[
+        'id' => $set->id, 'application_type' => 'new', 'applicant_type' => 'all', 'steps' => [[
+            'id' => $step->id, 'title' => $step->title, 'type' => 'general', 'blocks' => [[
+                'id' => $reference->id, 'type' => 'requirements', 'content' => $originalContent,
+            ]],
+        ]],
+    ]])])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'offices'));
+    expect($set->groups()->count())->toBe(2)->and($step->blocks()->sole()->id)->toBe($reference->id)
+        ->and($reference->fresh()->content)->toBe($originalContent);
+});
+
 it('uses six wizard steps and retires wizard case actions', function () {
     $steps = [
         'basic' => 'Basic Info', 'requirements' => 'Requirements', 'fees' => 'Fees',
@@ -99,7 +161,8 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
     $case = ['application_type' => 'new', 'applicant_type' => 'all'];
     $set = $id->requirementSets()->sole();
     $this->get(wizardUrl($id, 'requirements'))->assertOk()->assertSee('governmentIdChecklists', false)
-        ->assertSee('Save Requirements')->assertSee('Edit Requirements')->assertSee('if (checklists.length) open(checklists[0])', false)
+        ->assertDontSee('Save Requirements')->assertSee('Requirements draft preview')->assertSee('Requirement cards')->assertSee('xl:grid-cols-2')
+        ->assertDontSee('Edit Requirements')->assertSee('Continue →')->assertSee('if (checklists.length) open(checklists[0])', false)
         ->assertDontSee('Who is applying?')->assertDontSee('What kind of application?')
         ->assertDontSee('Applicant label')->assertDontSee('Minimum age')->assertDontSee('Maximum age')
         ->assertDontSee('+ Add checklist')->assertDontSee('Choose an existing checklist')
@@ -126,6 +189,11 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
         ['label' => 'Delivery', 'type' => 'range', 'amount_min' => 50, 'amount_max' => 80],
     ]])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'guide'));
     $this->get(wizardUrl($id, 'guide'))->assertOk()->assertSee('governmentIdGuide', false)
+        ->assertSee('Optional Link')->assertSee('Link Label')->assertSee('Reminder / Note')->assertSee('Done')
+        ->assertSee('Use existing ID information')->assertSee('These blocks use the information already saved for this Government ID.')
+        ->assertSee('App preview')->assertSee('Intended resident presentation. The mobile app does not read this guide yet.')
+        ->assertSee('Resident guide preview')->assertSee('Your application steps will appear here as you add them.')
+        ->assertDontSee('Apply step')->assertDontSee('Save &amp; Continue', false)->assertDontSee('save the main entry')
         ->assertDontSee('+ Add scenario')->assertDontSee('Application type')->assertDontSee('Applicant type');
     $guide = [[...$case, 'id' => $set->id, 'steps' => [
         ['title' => 'Submit application', 'type' => 'general', 'blocks' => [
@@ -157,6 +225,8 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
     $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Save Changes')
         ->assertSee('governmentIdChecklists', false)->assertSee('governmentIdGuide', false)
         ->assertSee('Who is applying?')->assertSee('+ Add checklist')->assertSee('+ Add scenario')
+        ->assertDontSee('App preview')
+        ->assertDontSee('Optional Link')->assertDontSee('Use existing ID information')
         ->assertSee('Choose an existing checklist')->assertSee('deleteChecklist(checklist)', false)
         ->assertDontSee('Government ID creation steps')->assertDontSee('Save &amp; Continue', false);
 });

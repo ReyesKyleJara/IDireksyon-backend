@@ -5,6 +5,7 @@
         'deferred' => $deferred ?? false,
         'oldPayload' => ($deferred ?? false) && is_string(old('requirements_payload')) ? old('requirements_payload') : null,
         'editable' => $editable ?? false,
+        'wizardMode' => $wizardMode,
         'qualifications' => \App\Models\GovernmentIdRequirementWay::QUALIFICATIONS,
         'checklists' => $checklists,
         'options' => $requirementOptions,
@@ -45,6 +46,7 @@
     @if(($editable ?? false) && !$wizardMode)
         <p x-cloak x-show="checklists.length === 0 && !draft" class="text-sm text-slate-500">No checklists yet. Add a checklist for an application and applicant type.</p>
     @endif
+    @unless($wizardMode)
     <div x-show="!draft" class="space-y-4">
         <template x-for="checklist in checklists" :key="checklist.id || checklist.client_key">
             <article class="rounded-xl border border-slate-200 p-5">
@@ -91,6 +93,8 @@
             </article>
         </template>
     </div>
+
+    @endunless
 
     @if($editable ?? false)
     @unless($wizardMode)
@@ -139,6 +143,9 @@
                 <div class="min-w-0 space-y-4">
                     <h3 class="font-semibold">Requirement cards</h3>
                     <p class="text-sm text-slate-500">Each card is a separate requirement. Alternatives inside a card are joined by OR.</p>
+                    @if($wizardMode)
+                        <p x-show="!draft.groups.length && !editing" class="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No requirements added yet.</p>
+                    @endif
                     <template x-for="(group, groupIndex) in draft.groups" :key="group.key">
                         <article class="min-w-0 rounded-xl border border-slate-300 p-4">
                             <div x-show="editingIndex !== groupIndex || !editing">
@@ -146,8 +153,8 @@
                                 <p class="mt-1 text-sm text-blue-800" x-text="group.condition_type === 'always' ? 'Required' : 'Only if: ' + conditionLabel(group)"></p>
                                 <template x-for="(way, index) in group.ways" :key="way.key"><div class="mt-2 text-sm"><p x-text="(index ? 'OR — ' : '') + waySummary(way)"></p><p class="text-slate-600" x-text="qualification(way)"></p></div></template>
                                 <div class="mt-3 flex flex-wrap gap-3">
-                                    <button type="button" class="admin-secondary" @click="editRequirement(groupIndex)" :disabled="!!editing" :aria-label="'Edit ' + requirementName(group)" :aria-expanded="editingIndex === groupIndex && !!editing">Edit</button>
-                                    <button type="button" class="text-sm text-red-700" @click="removeRequirement(groupIndex)" :disabled="!!editing" :aria-label="'Delete ' + requirementName(group)">Delete</button>
+                                    <button type="button" class="admin-secondary" @click="editRequirement(groupIndex)" :disabled="!!editing || saving" :aria-label="'Edit ' + requirementName(group)" :aria-expanded="editingIndex === groupIndex && !!editing">Edit</button>
+                                    <button type="button" class="text-sm text-red-700" @click="removeRequirement(groupIndex)" :disabled="!!editing || saving" :aria-label="'Delete ' + requirementName(group)">Delete</button>
                                 </div>
                             </div>
                             <template x-if="editing && editingIndex === groupIndex"><div>@include('admin.government_ids.partials.requirement-editor')</div></template>
@@ -156,24 +163,17 @@
                     <template x-if="editing && editingIndex === null"><article class="rounded-xl border border-blue-400 p-4">@include('admin.government_ids.partials.requirement-editor')</article></template>
                     <button type="button" x-ref="addRequirementButton" class="admin-secondary" @click="addRequirement()" :disabled="!!editing || draft.groups.length >= 100">+ Add requirement</button>
                 </div>
-                @if($wizardMode)
-                    {{-- Keep the shared preview, without exposing the hidden scenario label. --}}
-                    <div class="min-w-0" x-data="{ checklistLabel() { return '' } }">
-                        @include('admin.government_ids.partials.requirements-preview')
-                    </div>
-                @else
-                    @include('admin.government_ids.partials.requirements-preview')
-                @endif
+                @include('admin.government_ids.partials.requirements-preview')
             </div>
+            @unless($wizardMode)
             <div class="space-y-3 border-t border-slate-200 pt-4">
-                @unless($wizardMode)
                 <p class="text-sm text-slate-600" x-text="deferred ? 'Apply checklist keeps this draft in the form. ' + createLabel + ' saves all sections together.' : 'Save checklist saves these requirements now. The main form saves other details and the Application Guide separately.'"></p>
-                @endunless
                 <div class="flex flex-wrap justify-end gap-3">
-                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">{{ $wizardMode ? 'Cancel' : 'Cancel checklist changes' }}</button>
-                    <button type="button" class="admin-primary" @click="save()" :disabled="saving || !!editing" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : '{{ $wizardMode ? 'Save Requirements' : 'Save checklist' }}')"></button>
+                    <button type="button" class="admin-secondary" @click="close()" :disabled="saving">Cancel checklist changes</button>
+                    <button type="button" class="admin-primary" @click="save()" :disabled="saving || !!editing" x-text="saving ? 'Saving…' : (deferred ? 'Apply checklist' : 'Save checklist')"></button>
                 </div>
             </div>
+            @endunless
         </fieldset>
     </template>
     @endif

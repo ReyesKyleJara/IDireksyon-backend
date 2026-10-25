@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Barangay;
 use App\Models\Document;
 use App\Models\GovernmentId;
 use App\Models\User;
@@ -24,6 +25,9 @@ test('resident setup persists only the authenticated users inventory', function 
 
     $this->withToken($token)
         ->postJson('/api/auth/profile-setup', [
+            'name' => 'Test Resident',
+            'date_of_birth' => '2000-01-01',
+            'barangay_id' => Barangay::create(['name' => 'Test Barangay'])->id,
             'government_id_ids' => [
                 $passport->id,
                 $nationalId->id,
@@ -72,22 +76,28 @@ test('resident setup persists only the authenticated users inventory', function 
         ->toBe(0);
 });
 
-test('setup permits skipping both steps and rejects invalid selections', function () {
+test('setup permits skipping both inventory steps and rejects invalid selections', function () {
     $user = User::factory()->create();
 
     $this->withToken(
         $user->createToken('test')->plainTextToken
     );
 
-    $this->postJson('/api/auth/profile-setup', [
+    $profile = [
+        'name' => 'Test Resident',
+        'date_of_birth' => '2000-01-01',
+        'barangay_id' => Barangay::create(['name' => 'Test Barangay'])->id,
+    ];
+
+    $this->postJson('/api/auth/profile-setup', array_merge($profile, [
         'government_id_ids' => [999999],
         'document_ids' => [],
-    ])->assertUnprocessable();
+    ]))->assertUnprocessable()->assertJsonValidationErrors('government_id_ids.0');
 
-    $this->postJson('/api/auth/profile-setup', [
+    $this->postJson('/api/auth/profile-setup', array_merge($profile, [
         'government_id_ids' => [],
         'document_ids' => [],
-    ])->assertOk();
+    ]))->assertOk();
 
     expect($user->fresh()->ownedGovernmentIds()->count())
         ->toBe(0);

@@ -42,6 +42,8 @@
 
         <button
             type="button"
+            x-show="fees.length > 0"
+            x-cloak
             class="admin-secondary whitespace-nowrap"
             @click="addFee()"
         >
@@ -272,6 +274,7 @@
 
         <div
             x-show="fees.length === 0"
+            x-cloak
             class="rounded-xl border border-dashed border-slate-300 p-6 text-center"
         >
 
@@ -284,7 +287,7 @@
                 class="admin-secondary mt-3"
                 @click="addFee()"
             >
-                + Add First Fee
+                + Add Fee
             </button>
 
         </div>

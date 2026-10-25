@@ -41,7 +41,8 @@ beforeEach(function () {
 
 it('renders the editor in guided creation and edit and keeps View read only', function () {
     $this->get('/admin/government-ids/create')->assertOk()->assertDontSee('governmentIdGuide', false);
-    $this->get(route('admin.government-ids.wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false)->assertSee('Apply step');
+    $this->get(route('admin.government-ids.wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false)
+        ->assertSee('Done')->assertDontSee('Apply step')->assertDontSee('save the main entry');
     $this->get($this->url.'/edit')->assertOk()->assertSee('Application Guide')->assertSee('Apply step')->assertDontSee('Existing guide text')->assertDontSee('name="application_process"', false);
     $this->get($this->url)->assertOk()->assertDontSee('Apply step');
 });

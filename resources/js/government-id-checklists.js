@@ -5,6 +5,7 @@ export default function governmentIdChecklists(config) {
         createLabel: config.createLabel || 'Create ID',
         checklists: config.checklists || [],
         deferred: !!config.deferred,
+        wizardMode: !!config.wizardMode,
         ready: false,
         restoreError: false,
         formError: '',
@@ -63,6 +64,13 @@ export default function governmentIdChecklists(config) {
             if (!this.deferred) {
                 this.form = this.$el.closest('form');
                 this.submitHandler = event => {
+                    if (this.wizardMode) {
+                        if (!this.submitting) {
+                            event.preventDefault();
+                            this.continueWizard(event.submitter);
+                        }
+                        return;
+                    }
                     if (this.draft || this.saving) {
                         event.preventDefault();
                         this.errors = ['Save or cancel the open requirements before saving the main form.'];
@@ -526,9 +534,30 @@ export default function governmentIdChecklists(config) {
             }
             document.querySelector('[data-checklist-history="fallback"]')?.remove();
         },
+        async continueWizard(submitter) {
+            if (this.saving || this.submitting) return false;
+            if (this.editing) {
+                this.errors = ['Finish or cancel the open requirement before continuing.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return false;
+            }
+            if (!this.draft?.id) {
+                this.errors = ['The saved requirements could not be loaded. Refresh this page before continuing.'];
+                this.$nextTick(() => this.$refs.errors?.focus());
+                return false;
+            }
+            // Reuse the existing endpoint; only advance after it confirms the save.
+            if (submitter) submitter.disabled = true;
+            const saved = await this.save();
+            if (submitter) submitter.disabled = false;
+            if (!saved) return false;
+            this.submitting = true;
+            this.form.requestSubmit(submitter || undefined);
+            return true;
+        },
         async save() {
             // Only the checklist overview saves to the server. Enter in the item editor stays local.
-            if (this.saving || this.editing) return;
+            if (this.saving || this.editing) return false;
             if (this.deferred) { this.applyDraft(); return; }
             this.errors = [];
             if (!this.draft.id && this.checklists.some(row => this.sameScenario(row, this.draft))) {
@@ -547,10 +576,17 @@ export default function governmentIdChecklists(config) {
                 this.$dispatch('notify', { type: 'success', message: 'Checklist saved.' });
                 this.$dispatch('guide-scenario-changed', data.checklist);
                 this.saving = false;
-                this.close(true);
+                if (this.wizardMode) {
+                    // Keep the full-width list available until the wizard form navigates.
+                    this.open(data.checklist);
+                } else {
+                    this.close(true);
+                }
+                return true;
             } catch (error) {
                 this.errors = error.messages || ['Could not reach the server. Your entries have been kept. Please try again.'];
                 this.$nextTick(() => this.$refs.errors?.focus());
+                return false;
             } finally {
                 this.saving = false;
             }

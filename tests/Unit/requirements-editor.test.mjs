@@ -348,3 +348,106 @@ test('compact card keeps advanced controls behind More options and shortens acti
     assert.match(view, /@click="finishRequirement\(\)">Done<\/button>/);
     assert.doesNotMatch(view, /Cancel card changes|Done editing|What must they provide\?/);
 });
+
+test('wizard restores two columns and a live read-only preview without restoring a separate save action', () => {
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/partials/checklists.blade.php', import.meta.url), 'utf8');
+    assert.match(view, /grid items-start gap-5 xl:grid-cols-2/);
+    assert.match(view, /Requirement cards/);
+    assert.match(view, /@include\('admin.government_ids.partials.requirements-preview'\)/);
+    assert.doesNotMatch(view, /Save Requirements/);
+    const preview = readFileSync(new URL('../../resources/views/admin/government_ids/partials/requirements-preview.blade.php', import.meta.url), 'utf8');
+    const wizard = preview.split('@else')[0];
+    assert.match(wizard, /group in previewGroups/);
+    assert.match(wizard, /'Required' : 'Conditional'/);
+    assert.match(wizard, /<details :open="way.items.length <= 4"/);
+    assert.match(wizard, /accepted IDs/);
+    assert.match(wizard, /aria-label="OR alternative"/);
+    assert.doesNotMatch(wizard, /x-model|@click|<form|text-blue/);
+    const state = make([advanced()]); const before = clone(state.payload());
+    state.editRequirement(0); state.editing.title = 'Locally edited title';
+    assert.equal(state.previewGroups[0].title, 'Locally edited title');
+    assert.deepEqual(state.payload(), before, 'previewing an unfinished edit does not apply it');
+    assert.equal(state.finishRequirement(), true);
+    assert.equal(state.previewGroups[0].title, 'Locally edited title');
+});
+
+function wizardState(groups = [advanced()]) {
+    const state = make(groups, { wizardMode: true, url: '/checklists' });
+    state.init();
+    state.navigation = [];
+    state.form = { requestSubmit(button) { state.navigation.push(button); } };
+    return state;
+}
+
+test('wizard Continue waits for the existing PUT save before submitting the Fees transition', async () => {
+    const state = wizardState(); const before = clone(state.payload());
+    let resolveSave; const requests = [];
+    state.request = (url, method, body) => {
+        requests.push({ url, method, body });
+        return new Promise(resolve => { resolveSave = resolve; });
+    };
+    const button = { disabled: false };
+    const pending = state.continueWizard(button);
+    assert.equal(state.saving, true); assert.equal(button.disabled, true);
+    assert.deepEqual(state.navigation, []);
+    assert.equal(await state.continueWizard(button), false, 'double submission must not send another save');
+    assert.equal(requests.length, 1);
+    assert.deepEqual(requests[0], { url: '/checklists/10', method: 'PUT', body: before });
+    resolveSave({ checklist: { id: 10, ...before } });
+    assert.equal(await pending, true);
+    assert.deepEqual(state.navigation, [button]);
+    assert.equal(button.disabled, false); assert.equal(state.submitting, true);
+    assert.deepEqual(state.payload(), before);
+    assert.equal(state.dirty(), false);
+    let blocked = false;
+    state.submitHandler({ preventDefault() { blocked = true; }, submitter: button });
+    assert.equal(blocked, false, 'the successful native wizard submission is allowed through');
+});
+
+for (const error of [{ messages: ['Invalid requirement count.'] }, new Error('offline')]) {
+    test(`wizard Continue retains its draft and does not navigate on ${error.messages ? 'validation' : 'network'} failure`, async () => {
+        const state = wizardState(); const before = clone(state.payload());
+        state.request = async () => { throw error; };
+        const button = { disabled: false };
+        assert.equal(await state.continueWizard(button), false);
+        assert.deepEqual(state.navigation, []); assert.deepEqual(state.payload(), before);
+        assert.equal(state.submitting, false); assert.equal(state.saving, false);
+        assert.equal(button.disabled, false); assert.equal(state.errors.length, 1);
+        if (error.messages) assert.deepEqual(state.errors, error.messages);
+    });
+}
+
+test('wizard Continue blocks an unfinished card without saving or discarding it', async () => {
+    const state = wizardState(); state.addRequirement();
+    state.singleItemText(state.editing.ways[0], 'Unfinished photo');
+    const before = clone(state.editing);
+    state.request = async () => { assert.fail('unfinished card must not save'); };
+    assert.equal(await state.continueWizard(), false);
+    assert.deepEqual(state.editing, before); assert.deepEqual(state.navigation, []);
+    assert.deepEqual(state.errors, ['Finish or cancel the open requirement before continuing.']);
+});
+
+test('wizard cannot create a replacement checklist when its existing draft is missing', async () => {
+    const state = wizardState(); state.draft = null;
+    state.request = async () => { assert.fail('missing default checklist must not create a new one'); };
+    assert.equal(await state.continueWizard(), false);
+    assert.deepEqual(state.navigation, []); assert.match(state.errors[0], /could not be loaded/);
+});
+
+test('Back leaves wizard drafts under the existing unsaved-change protection without saving', () => {
+    const state = wizardState(); state.draft.groups[0].title = 'Unsaved title';
+    state.request = async () => { assert.fail('leaving must not save'); };
+    let warned = false;
+    state.beforeUnload({ preventDefault() { warned = true; } });
+    assert.equal(warned, true); assert.equal(state.submitting, false);
+    assert.equal(state.draft.groups[0].title, 'Unsaved title');
+});
+
+test('normal mode still blocks parent submission until its separate checklist action is complete', async () => {
+    const state = make([advanced()]); state.init(); let prevented = false;
+    state.submitHandler({ preventDefault() { prevented = true; } });
+    assert.equal(prevented, true); assert.match(state.errors[0], /Save or cancel/);
+    const saved = { id: 10, ...state.payload() };
+    state.request = async () => ({ checklist: saved });
+    assert.equal(await state.save(), true); assert.equal(state.draft, null);
+});

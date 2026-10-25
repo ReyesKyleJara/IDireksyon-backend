@@ -256,3 +256,257 @@ test('draggable card view expands inline and keeps main scenario controls', () =
     assert.match(view, /startStepDrag/); assert.match(view, /cardKeydown/);
     assert.match(view, /startScenario/); assert.doesNotMatch(view, /<dialog|x-teleport|Everyone|Applicability/);
 });
+
+test('wizard Done stores simple link and note in existing blocks, preserving additional content and IDs', () => {
+    const row = scenario();
+    row.steps[0].blocks.push({ id: 210, type: 'official_link', content: { label: 'Another site', url: 'https://example.org', description: 'Keep me' } },
+        { id: 211, type: 'reminder', content: { body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Plain note' }] }] } } },
+        { id: 212, type: 'reminder', content: { body: document('Keep bold reminder') } });
+    const state = make([row], { wizard: true });
+    state.editStep(0);
+    assert.equal(state.simpleOfficialUrl, 'https://example.gov.ph/book');
+    assert.equal(state.simpleReminderText, 'Plain note');
+    state.simpleOfficialUrl = 'https://passport.gov.ph';
+    state.simpleReminderText = 'Bring receipt.\nArrive early.';
+    assert.equal(state.current.dirty, false);
+    state.applyStep();
+    const saved = JSON.parse(state.payload)[0].steps[0];
+    assert.equal(saved.id, 10);
+    assert.deepEqual(saved.blocks[1], { ...row.steps[0].blocks[1], content: { ...row.steps[0].blocks[1].content, url: 'https://passport.gov.ph' } });
+    assert.deepEqual(saved.blocks.find(block => block.id === 210), row.steps[0].blocks.find(block => block.id === 210));
+    assert.equal(saved.blocks.find(block => block.id === 211).content.body.content[1].content[0].text, 'Arrive early.');
+    assert.deepEqual(saved.blocks.find(block => block.id === 212), row.steps[0].blocks.find(block => block.id === 212));
+    assert.deepEqual(saved.blocks[0], row.steps[0].blocks[0]);
+});
+
+test('wizard keeps formatted reminders advanced and unchanged and handles optional fields without duplicates', () => {
+    const row = scenario(); row.steps[0].blocks.push({ id: 220, type: 'reminder', content: { body: document('Rich note') } });
+    const state = make([row], { wizard: true }); state.editStep(0);
+    assert.equal(state.simpleReminderSupported, false);
+    state.simpleReminderText = 'Must not flatten'; state.applyStep();
+    assert.equal(state.payload, '[]');
+    state.editStep(); state.draft.title = 'Simple';
+    state.simpleOfficialUrl = 'https://passport.gov.ph'; state.simpleOfficialUrl = 'https://passport.gov.ph/book';
+    state.simpleReminderText = 'Bring receipt'; state.simpleReminderText = 'Bring signed receipt';
+    assert.equal(state.draft.blocks.length, 2);
+    state.advancedOpen = true; state.advancedOpen = false;
+    assert.equal(state.simpleReminderText, 'Bring signed receipt');
+    state.simpleOfficialUrl = ''; state.simpleReminderText = ''; assert.equal(state.draft.blocks.length, 0);
+    state.simpleOfficialUrl = 'javascript:alert(1)'; assert.equal(state.applyStep(), false);
+    state.simpleOfficialUrl = 'https://passport.gov.ph'; assert.equal(state.applyStep(), true);
+    assert.equal(JSON.parse(state.payload)[0].steps[1].blocks[0].type, 'official_link');
+});
+
+test('wizard Continue blocks even a valid open step without applying it', () => {
+    const state = make([scenario()], { wizard: true }); state.editStep(); state.draft.title = 'Not done';
+    let prevented = false;
+    state.listeners.submit({ preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(state.error, 'Finish or cancel the open application step before continuing.');
+    assert.equal(state.current.steps.length, 1); assert.ok(state.draft); assert.equal(state.savePromise, null);
+});
+
+test('checklist item additions keep existing items and use valid rich-text documents', () => {
+    const state = make([scenario()], { wizard: true }); state.editStep(0);
+    const checklist = state.draft.blocks.find(block => block.type === 'checklist');
+    const original = clone(checklist.content.items);
+    state.addItem(checklist);
+    assert.deepEqual(checklist.content.items.slice(0, 2), original);
+    assert.deepEqual(checklist.content.items[2].body, { type: 'doc', content: [{ type: 'paragraph' }] });
+});
+
+test('wizard Continue awaits persistence, blocks duplicate requests and only navigates after success', async () => {
+    const originalFetch = globalThis.fetch, originalFormData = globalThis.FormData;
+    try {
+        const state = make([scenario()], { wizard: true, nextUrl: 'http://localhost/creation/offices' });
+        state.form.action = 'http://localhost/creation/guide';
+        window.location = { href: state.form.action, assign(url) { this.destination = url; } };
+        let resolveSave, calls = 0;
+        globalThis.FormData = class {};
+        globalThis.fetch = async () => { calls++; return new Promise(resolve => { resolveSave = resolve; }); };
+        state.editStep(0); state.draft.title = 'Changed'; state.applyStep();
+        state.listeners.submit({ preventDefault() {} });
+        assert.equal(state.saving, true); assert.equal(window.location.destination, undefined);
+        state.listeners.submit({ preventDefault() {} }); assert.equal(calls, 1);
+        assert.equal(JSON.parse(state.$refs.guidePayload.value)[0].steps[0].title, 'Changed');
+        resolveSave({ ok: true, redirected: true, url: 'http://localhost/creation/offices' });
+        await state.savePromise;
+        assert.equal(window.location.destination, 'http://localhost/creation/offices');
+        assert.equal(state.submitting, true); assert.equal(state.saving, false);
+    } finally { globalThis.fetch = originalFetch; globalThis.FormData = originalFormData; }
+});
+
+test('wizard save errors retain the full draft for validation, server and network failures', async () => {
+    const originalFetch = globalThis.fetch, originalFormData = globalThis.FormData;
+    try {
+        globalThis.FormData = class {};
+        for (const failure of ['validation', 'server', 'network', 'session']) {
+            const state = make([scenario()], { wizard: true, nextUrl: 'http://localhost/creation/offices' });
+            state.form.action = 'http://localhost/creation/guide';
+            window.location = { href: state.form.action, assign() { assert.fail('Must not navigate after failure'); } };
+            state.editStep(0); state.draft.title = 'Keep my work'; state.applyStep();
+            const payload = state.payload;
+            globalThis.fetch = async () => {
+                if (failure === 'network') throw new Error('Network unavailable');
+                if (failure === 'session') return { ok: true, redirected: true, url: 'http://localhost/login' };
+                return { ok: false, json: async () => failure === 'validation' ? { errors: { 'application_guide.0.steps.0.title': ['Title is invalid'] } } : { message: 'Server failed' } };
+            };
+            state.listeners.submit({ preventDefault() {} }); await state.savePromise;
+            assert.ok(state.error); assert.equal(state.saving, false); assert.equal(state.submitting, false);
+            assert.equal(state.payload, payload); assert.equal(state.current.dirty, true);
+        }
+    } finally { globalThis.fetch = originalFetch; globalThis.FormData = originalFormData; }
+});
+
+test('preview uses the current draft without applying, dirtying, or changing serialized guide data', () => {
+    const state = make([scenario()], { wizard: true });
+    const original = clone(state.current);
+    assert.equal(state.payload, '[]');
+    assert.equal(state.previewSteps[0], state.current.steps[0]);
+    state.editStep(0); state.draft.title = 'Live title'; state.draft.short_description = 'Live instructions';
+    state.simpleOfficialUrl = 'https://passport.gov.ph';
+    state.simpleReminderText = 'Live reminder';
+    assert.equal(state.previewSteps[0], state.draft);
+    assert.equal(state.previewSteps[0].title, 'Live title');
+    const reminder = state.previewSteps[0].blocks.find(block => block.type === 'reminder');
+    assert.equal(state.previewContent(reminder.content.body), 'Live reminder');
+    assert.equal(state.officialLinkHost(state.previewSteps[0]), 'passport.gov.ph');
+    state.previewSteps.forEach(step => step.blocks.forEach(block => state.previewContent(block.content.body)));
+    assert.equal(state.payload, '[]'); assert.deepEqual(state.current, original);
+    state.close(); assert.deepEqual(state.previewSteps, original.steps);
+});
+
+test('preview is empty without steps and follows new steps Done reordering and local deletion', () => {
+    const row = scenario(); row.steps = [];
+    const state = make([row], { wizard: true });
+    assert.deepEqual(state.previewSteps, []);
+    state.editStep(); state.draft.title = 'Book appointment';
+    assert.equal(state.previewSteps.length, 1); assert.equal(state.current.steps.length, 0);
+    state.applyStep();
+    state.editStep(); state.draft.title = 'Prepare'; state.applyStep();
+    state.moveStep(1, -1);
+    assert.deepEqual(state.previewSteps.map(step => step.title), ['Prepare', 'Book appointment']);
+    const payload = state.payload;
+    state.previewSteps; assert.equal(state.payload, payload);
+    state.removeStep(0);
+    assert.deepEqual(state.previewSteps.map(step => step.title), ['Book appointment']);
+});
+
+test('preview leaves saved rich blocks and identifiers untouched and uses safe compact reference text', () => {
+    const state = make([scenario()], { wizard: true,
+        previewReferences: { requirements: 5, fees: 2, offices: 3, processingTime: '10–15 working days' },
+        stepTypes: { office_visit: 'Office Visit' },
+    });
+    const payload = send(state);
+    assert.equal(state.previewStepType(state.previewSteps[0]), 'Office Visit');
+    assert.equal(state.previewReference('requirements'), '5 requirements to prepare');
+    assert.equal(state.previewReference('fees'), 'Processing fees available');
+    assert.equal(state.previewReference('offices'), '3 offices available');
+    assert.equal(state.previewReference('processing_time'), '10–15 working days');
+    assert.equal(state.previewUrl('javascript:alert(1)'), null);
+    assert.equal(state.previewUrl('https://passport.gov.ph'), 'https://passport.gov.ph/');
+    assert.equal(state.previewContent(document('<script>Text only</script>')), '<script>Text only</script>');
+    assert.ok(state.previewContent('x'.repeat(1000)).length <= 601);
+    assert.deepEqual(JSON.parse(state.payload)[0], payload);
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/wizard/app-preview.blade.php', import.meta.url), 'utf8');
+    assert.doesNotMatch(view, /x-html|x-model|name=|type="submit"/);
+});
+
+test('wizard optional link and note disclosures start collapsed and preserve saved values across toggles', () => {
+    const row = scenario();
+    row.steps[0].blocks.push({ id: 230, type: 'reminder', content: { body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bring receipt' }] }] } } });
+    const state = make([row], { wizard: true }); state.editStep(0);
+    assert.equal(state.advancedOpen, false); assert.equal(state.optionalLinkOpen, false); assert.equal(state.reminderOpen, false);
+    assert.equal(state.simpleOfficialLabel, 'Book online'); assert.equal(state.simpleOfficialUrl, 'https://example.gov.ph/book');
+    assert.equal(state.simpleReminderText, 'Bring receipt');
+    const original = JSON.stringify(state.draft);
+    state.advancedOpen = true; state.optionalLinkOpen = true; state.reminderOpen = true;
+    state.optionalLinkOpen = false; state.reminderOpen = false; state.advancedOpen = false;
+    assert.equal(JSON.stringify(state.draft), original); assert.equal(state.payload, '[]');
+    state.optionalLinkOpen = true; state.simpleOfficialLabel = 'DFA Passport Appointment System';
+    state.simpleOfficialUrl = 'https://passport.gov.ph'; state.simpleReminderText = 'Bring appointment receipt';
+    const edited = JSON.stringify(state.draft);
+    state.optionalLinkOpen = false; state.reminderOpen = false; state.advancedOpen = false;
+    assert.equal(JSON.stringify(state.draft), edited);
+    state.applyStep();
+    const saved = JSON.parse(state.payload)[0].steps[0];
+    assert.equal(saved.blocks.find(block => block.id === 102).content.label, 'DFA Passport Appointment System');
+    assert.equal(saved.blocks.find(block => block.id === 102).content.description, 'Choose a date.');
+    assert.equal(saved.blocks.find(block => block.type === 'reminder').id, 230);
+    state.editStep(0);
+    assert.equal(state.optionalLinkOpen, false); assert.equal(state.reminderOpen, false);
+    assert.equal(state.simpleOfficialLabel, 'DFA Passport Appointment System');
+});
+
+test('wizard link label before URL uses one existing link structure and requirements use reference-only content', () => {
+    const state = make([scenario()], { wizard: true }); state.editStep(); state.draft.title = 'Prepare Your Requirements';
+    state.simpleOfficialLabel = 'DFA Passport Appointment System'; state.simpleOfficialUrl = 'https://passport.gov.ph';
+    state.addBlock('requirements'); state.applyStep();
+    const blocks = JSON.parse(state.payload)[0].steps[1].blocks;
+    assert.equal(blocks.filter(block => block.type === 'official_link').length, 1);
+    assert.deepEqual(blocks.find(block => block.type === 'official_link').content, { label: 'DFA Passport Appointment System', url: 'https://passport.gov.ph', description: '' });
+    assert.deepEqual(blocks.find(block => block.type === 'requirements').content, { intro: { type: 'doc', content: [{ type: 'paragraph' }] } });
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/partials/application-guide-step-editor.blade.php', import.meta.url), 'utf8');
+    assert.ok(view.indexOf('More Content &amp; Settings <span') < view.indexOf('>Optional Link</summary>'));
+    assert.match(view, /:open="optionalLinkOpen"/); assert.match(view, /:open="reminderOpen"/);
+    assert.match(view, /Use existing ID information/);
+    assert.match(view, /These blocks use the information already saved for this Government ID/);
+    const preview = readFileSync(new URL('../../resources/views/admin/government_ids/wizard/app-preview.blade.php', import.meta.url), 'utf8');
+    assert.match(preview, /requirements: 'Requirements'/); assert.match(preview, /View applicable fees/);
+    assert.doesNotMatch(preview, /x-model|x-html/);
+});
+
+test('wizard references are unique per step at the action layer and can be re-added after removal', () => {
+    const state = make([scenario()], { wizard: true }); state.editStep();
+    for (const type of ['requirements', 'fees', 'offices', 'processing_time']) {
+        state.addBlock(type); const original = clone(state.draft.blocks);
+        state.addBlock(type); state.addBlock(type);
+        assert.deepEqual(state.draft.blocks, original);
+        assert.equal(state.hasReference(type), true);
+        state.removeBlock(state.draft.blocks.findIndex(block => block.type === type));
+        assert.equal(state.hasReference(type), false);
+        state.addBlock(type);
+        assert.equal(state.draft.blocks.filter(block => block.type === type).length, 1);
+    }
+    state.addBlock('custom'); state.addBlock('custom');
+    assert.equal(state.draft.blocks.filter(block => block.type === 'custom').length, 2);
+    const custom = state.draft.blocks.find(block => block.type === 'custom');
+    const before = clone(custom); state.changeBlockType(custom, 'requirements');
+    assert.deepEqual(custom, before);
+    assert.deepEqual(Object.keys(state.contentBlockNames), ['instructions', 'checklist', 'reminder', 'official_link', 'custom']);
+});
+
+test('saved duplicate references are warned about and previewed once without silently editing data', () => {
+    const row = scenario();
+    const original = row.steps[0].blocks.find(block => block.type === 'requirements');
+    row.steps[0].blocks.push({ ...clone(original), id: 500, section_title: 'Extra saved reference' });
+    const state = make([row], { wizard: true });
+    assert.equal(state.previewBlocks(state.current.steps[0]).filter(block => block.type === 'requirements').length, 1);
+    assert.equal(state.payload, '[]');
+    state.editStep(0);
+    assert.deepEqual(state.duplicateReferenceLabels, ['Requirements']);
+    assert.equal(state.referenceEntries.filter(entry => entry.block.type === 'requirements').length, 2);
+    assert.equal(state.referenceEntries.find(entry => entry.block.id === 500).block.section_title, 'Extra saved reference');
+    state.addBlock('requirements');
+    assert.equal(state.draft.blocks.filter(block => block.type === 'requirements').length, 2);
+    state.draft.title = 'Intentional title edit'; state.applyStep();
+    assert.deepEqual(JSON.parse(state.payload)[0].steps[0].blocks, row.steps[0].blocks);
+    state.editStep(0); state.removeBlock(state.draft.blocks.findIndex(block => block.id === 500));
+    assert.deepEqual(state.duplicateReferenceLabels, []);
+    state.applyStep();
+    assert.equal(JSON.parse(state.payload)[0].steps[0].blocks.filter(block => block.type === 'requirements').length, 1);
+});
+
+test('normal edit keeps its existing generic references and reference duplication behavior', () => {
+    const state = make([scenario()]); state.editStep();
+    state.addBlock('requirements'); state.addBlock('requirements');
+    assert.equal(state.draft.blocks.length, 2);
+    assert.equal(state.contentBlockNames, state.availableBlockNames);
+    assert.equal(state.blockNames.requirements, 'Existing requirements');
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/partials/application-guide-step-editor.blade.php', import.meta.url), 'utf8');
+    assert.match(view, /:aria-pressed="hasReference/);
+    assert.match(view, /entry in referenceEntries/);
+    assert.match(view, /x-if="!isLiveReference\(block.type\)"/);
+    const preview = readFileSync(new URL('../../resources/views/admin/government_ids/wizard/app-preview.blade.php', import.meta.url), 'utf8');
+    assert.match(preview, /previewBlocks\(previewStep\)/);
+});

@@ -69,9 +69,10 @@ it('preserves saved source data when the simplified ID form omits it', function 
 
 it('opens the updated ID creation form without legacy requirement text fields', function () {
     $this->get('/admin/government-ids/create')->assertOk()
-        ->assertSee('Back to directory')->assertSee('Save &amp; Continue', false)
+        ->assertSee('Back to directory')->assertSeeText('Save & Continue', false)
         ->assertSee('Eligibility')->assertSee('Validity')->assertSee('Processing Time')
-        ->assertSee('Application Guide')->assertSee('Applicant Cases')
+        ->assertSeeInOrder(['Basic Info', 'Requirements', 'Fees', 'Application Guide', 'Offices', 'Review'])
+        ->assertDontSee('Applicant Cases')
         ->assertDontSee('fees-dialog')->assertDontSee('offices-dialog')->assertDontSee('Add checklist')
         ->assertDontSee('requirements_payload')
         ->assertDontSee('name="requirements"', false)
