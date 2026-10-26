@@ -7,8 +7,19 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
 });
 
+it('uses the same six-step layout for Add and Edit in both modules', function () {
+    foreach ([['documents', Document::class, 'Document'], ['government-ids', \App\Models\GovernmentId::class, 'Government ID']] as [$resource, $model, $label]) {
+        $record = $model::create(['name' => 'Saved entry']);
+        foreach (['/admin/'.$resource.'/create' => 'creation', '/admin/'.$resource.'/'.$record->id.'/edit' => 'editing'] as $url => $mode) {
+            $this->get($url)->assertOk()->assertSee($label.' '.$mode.' steps')
+                ->assertSeeInOrder(['Basic Info', 'Requirements', 'Fees', 'Application Guide', 'Offices', 'Review'])
+                ->assertSeeText('Save & Continue', false)->assertDontSee('Document form sections');
+        }
+    }
+});
+
 it('creates basic document information and opens read only details with no empty sections', function () {
-    $this->get('/admin/documents/create')->assertOk()->assertSee('Basic Information')->assertSee('Add checklist')->assertSee('Apply step')->assertSee('Edit fees')->assertSee('Linked Offices');
+    $this->get('/admin/documents/create')->assertOk()->assertSee('Basic Information')->assertSee('Document creation steps')->assertSeeText('Save & Continue', false)->assertDontSee('Add checklist')->assertDontSee('Edit fees');
     $this->post('/admin/documents', [
         'name' => 'PSA Birth Certificate', 'level' => 'National', 'category' => 'Civil Registry',
         'issued_by' => 'Philippine Statistics Authority', 'description' => 'A civil registry document.',
@@ -24,7 +35,8 @@ it('creates basic document information and opens read only details with no empty
 
 it('edits the same document and preserves optional details omitted by a basic only update', function () {
     $document = Document::create(['name' => 'Existing document', 'requirements' => 'Bring the original.', 'fee' => '0']);
-    $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Bring the original.');
+    $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Edit Document');
+    expect($document->fresh()->requirements)->toBe('Bring the original.');
     $this->put(route('admin.documents.update', $document), ['name' => 'Updated document', 'description' => 'Updated description'])
         ->assertSessionHasNoErrors()->assertRedirect(route('admin.documents.show', $document));
     expect($document->fresh()->requirements)->toBe('Bring the original.')->and($document->fresh()->fee)->toBe('0');
@@ -36,7 +48,7 @@ it('redisplays valid values and shows errors when validation fails', function ()
         'name' => 'Keep this entry', 'description' => 'Keep this description', 'fee' => ['invalid'],
     ])->assertRedirect('/admin/documents/create')->assertSessionHasErrors('fee');
     $this->get('/admin/documents/create')->assertOk()->assertSee('Keep this entry')->assertSee('Keep this description')
-        ->assertSee('Please check the highlighted fields.');
+        ->assertSee('Please check the highlighted information.');
     expect(Document::count())->toBe(0);
 });
 

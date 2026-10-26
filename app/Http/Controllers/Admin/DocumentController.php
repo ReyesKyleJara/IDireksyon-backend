@@ -80,19 +80,7 @@ class DocumentController extends Controller
 
     public function create()
     {
-        $offices = Office::with('agency')->orderBy('name')->get();
-
-        $agencies = Agency::query()
-            ->orderBy('name')
-            ->get();
-
-        $checklists = [];
-        $requirementOptions = $this->requirementOptions();
-
-        return view(
-            'admin.documents.create',
-            compact('agencies', 'offices', 'checklists', 'requirementOptions')
-        );
+        return app(DocumentCreationWizardController::class)->create(request());
     }
 
     public function store(Request $request)
@@ -164,46 +152,7 @@ class DocumentController extends Controller
 
     public function edit(Document $document)
     {
-        $document->load([
-            'agency',
-            'requirementSets.groups.items.governmentId',
-            'requirementSets.groups.items.document',
-            'requirementSets.groups.ways',
-            'requirementSets.applicationSteps.blocks',
-            'offices.agency',
-            'offices.schedules.intervals',
-            'fees' => fn ($query) => $query->orderBy('sort_order'),
-        ]);
-
-        $offices = Office::with('agency')->orderBy('name')->get();
-
-        $agencies = Agency::query()
-            ->orderBy('name')
-            ->get();
-
-        $checklists = $document->requirementSets
-            ->map(fn ($set) => GovernmentIdChecklistController::present($set))->values()->all();
-        $requirementOptions = $this->requirementOptions();
-
-        return view(
-            'admin.documents.edit',
-            compact(
-                'document',
-                'agencies',
-                'offices',
-                'checklists',
-                'requirementOptions'
-            )
-        );
-    }
-
-    private function requirementOptions(): array
-    {
-        return GovernmentId::orderBy('name')->get(['id', 'name'])
-            ->map(fn ($id) => ['id' => $id->id, 'name' => $id->name, 'type' => 'government_id'])
-            ->concat(Document::orderBy('name')->get(['id', 'name'])
-                ->map(fn ($document) => ['id' => $document->id, 'name' => $document->name, 'type' => 'document']))
-            ->sortBy('name')->values()->all();
+        return app(DocumentCreationWizardController::class)->edit(request(), $document);
     }
 
     public function update(

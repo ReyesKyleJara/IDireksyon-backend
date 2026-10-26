@@ -118,7 +118,7 @@ it('shows four visible basic cards and preserves hidden legacy fields when savin
         ->and($id->validity)->toBe('Until age 60')->and($id->processing_time)->toBe('3–5 working days')
         ->and($id->eligibility_min_age)->toBe(18)->and($id->eligibility_residency_custom)->toBe('Example municipality');
     $this->get(wizardUrl($id, 'basic'))->assertOk()->assertSee('An ID used to prove identity.')->assertSee('General eligibility note');
-    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Keep existing purpose')->assertDontSee('About this ID');
+    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('About this ID')->assertDontSee('name="purpose"', false);
 });
 
 function wizardUrl(GovernmentId $id, string $step): string
@@ -222,13 +222,11 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
     $this->post(wizardSaveUrl($id, 'review'))->assertRedirect(route('admin.government-ids.show', $id))
         ->assertSessionMissing('id_creation_resume');
     $this->get(route('admin.government-ids.show', $id))->assertOk();
-    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Save Changes')
-        ->assertSee('governmentIdChecklists', false)->assertSee('governmentIdGuide', false)
-        ->assertSee('Who is applying?')->assertSee('+ Add checklist')->assertSee('+ Add scenario')
-        ->assertDontSee('App preview')
-        ->assertDontSee('Optional Link')->assertDontSee('Use existing ID information')
-        ->assertSee('Choose an existing checklist')->assertSee('deleteChecklist(checklist)', false)
-        ->assertDontSee('Government ID creation steps')->assertDontSee('Save &amp; Continue', false);
+    $this->get(route('admin.government-ids.edit', $id))->assertOk()
+        ->assertSee('Edit Government ID')->assertSee('Government ID editing steps')->assertSeeText('Save & Continue', false);
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'guide']))->assertOk()
+        ->assertSee('App preview')->assertSee('Optional Link')->assertSee('Use existing ID information')
+        ->assertDontSee('Apply step')->assertDontSee('+ Add scenario');
 });
 
 it('allows every optional section to be empty and guide creation without requirements', function () {
@@ -268,7 +266,7 @@ it('keeps legacy sets intact while showing only the neutral set in wizard editor
     expect($id->requirementSets()->count())->toBe(2)
         ->and($legacy->fresh()->max_age)->toBe(17)
         ->and($legacy->applicationSteps()->sole()->title)->toBe('Legacy renewal step');
-    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Legacy renewal step');
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'guide']))->assertOk()->assertSee('Legacy renewal step');
 });
 
 it('maps an old cases resume to requirements without exposing the removed step', function () {

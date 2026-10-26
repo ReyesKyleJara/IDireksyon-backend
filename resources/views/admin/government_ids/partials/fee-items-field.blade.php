@@ -6,6 +6,7 @@
             $selectedFees ?? []
         )->map(function ($fee) {
             return [
+                'id' => $fee->id,
                 'label' => $fee->label,
                 'type' => $fee->type,
                 'amount_min' => $fee->amount_min,
@@ -83,6 +84,7 @@
 
                 <div class="grid gap-4 sm:grid-cols-2">
 
+                    <input type="hidden" :name="`fees[${index}][id]`" :value="fee.id || ''">
                     {{-- LABEL --}}
                     <div>
 
@@ -304,6 +306,7 @@
                 Date.now().toString()
                 + Math.random().toString(36),
 
+            id: fee.id ?? null,
             label: fee.label ?? '',
             type: fee.type ?? 'fixed',
 

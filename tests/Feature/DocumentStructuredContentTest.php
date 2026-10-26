@@ -75,8 +75,9 @@ it('saves every section on Add Document and keeps document owned content out of 
     $this->get(route('admin.documents.show', $document))->assertOk()->assertSee('Visit the issuing office')
         ->assertSee('Bring your documents.')->assertSee('Existing ID')->assertSee('Municipal office')
         ->assertSee('Document Researcher')->assertDontSee('Add checklist')->assertDontSee('Apply step');
-    $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Add checklist')
-        ->assertSee('Edit fees')->assertSee('Apply step')->assertSee('Edit offices');
+    $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Document editing steps');
+    $this->get(route('admin.documents.edit-wizard.show', [$document, 'guide']))->assertOk()
+        ->assertSee('App preview')->assertSee('Optional Link')->assertDontSee('Apply step');
 });
 
 it('preserves omitted sections and lets the full form explicitly clear fees and office links', function () {
@@ -181,7 +182,7 @@ it('rejects invalid drafts and restores the entered form without creating anythi
     $draft = json_encode([['client_key' => 'draft-invalid', ...$payload]]);
     $this->from('/admin/documents/create')->post('/admin/documents', ['name' => 'Retain name', 'requirements_payload' => $draft])
         ->assertSessionHasErrors('requirements_payload')->assertSessionHasInput('requirements_payload', $draft);
-    $this->get('/admin/documents/create')->assertOk()->assertSee('Retain name')->assertSee('Create Document');
+    $this->get('/admin/documents/create')->assertOk()->assertSee('Retain name')->assertSeeText('Save & Continue', false);
     expect(Document::count())->toBe(0)->and(DocumentRequirementSet::count())->toBe(0);
 });
 

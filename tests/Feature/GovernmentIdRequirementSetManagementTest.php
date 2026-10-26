@@ -12,7 +12,7 @@ beforeEach(function () {
 });
 
 it('renders the entry point and creates multiple sets for one ID', function () {
-    $this->get('/admin/government-ids/'.$this->governmentId->id.'/edit')->assertOk()->assertSee('Add checklist');
+    $this->get('/admin/government-ids/'.$this->governmentId->id.'/edit')->assertOk()->assertSee('Government ID editing steps');
     $this->get($this->setsUrl)->assertOk()->assertSee('No requirement sets yet.');
     $this->get($this->setsUrl.'/create')->assertOk()->assertSee('Application Type')->assertSee('Applicant Type');
     foreach (['adult', 'minor'] as $applicant) {

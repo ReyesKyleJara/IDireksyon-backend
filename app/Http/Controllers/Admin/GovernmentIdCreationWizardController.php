@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 class GovernmentIdCreationWizardController extends Controller
 {
     use Concerns\PreparesCatalogEntry;
+    use Concerns\EditsCatalogWizard;
 
     public const STEPS = [
         'basic' => 'Basic Info',
@@ -166,6 +167,21 @@ class GovernmentIdCreationWizardController extends Controller
         abort(404);
     }
 
+    public function edit(Request $request, GovernmentId $governmentId, string $step = 'basic')
+    {
+        abort_unless(array_key_exists($step, self::STEPS), 404);
+        $request->attributes->set('catalog_wizard_editing', true);
+
+        return $this->page($request, $governmentId, $step);
+    }
+
+    public function saveEdit(Request $request, GovernmentId $governmentId, string $step)
+    {
+        $request->attributes->set('catalog_wizard_editing', true);
+
+        return $this->save($request, $governmentId, $step);
+    }
+
     public function save(
         Request $request,
         GovernmentId $governmentId,
@@ -184,7 +200,7 @@ class GovernmentIdCreationWizardController extends Controller
             switch ($step) {
                 case 'basic':
                     $governmentId->update(
-                        $this->basicData($request)
+                        $this->editBasicData($request, $governmentId, $this->basicData($request))
                     );
                     break;
 
@@ -208,7 +224,8 @@ class GovernmentIdCreationWizardController extends Controller
                         $governmentId,
                         $this->prepareFeeRows(
                             $data['fees'] ?? []
-                        )
+                        ),
+                        true
                     );
                     break;
 
@@ -219,7 +236,9 @@ class GovernmentIdCreationWizardController extends Controller
 
                     $guide->sync(
                         $governmentId,
-                        $guide->read($request)
+                        $this->editingWizard($request)
+                            ? $this->editGuideRows($governmentId, $guide->read($request))
+                            : $guide->read($request)
                     );
                     break;
 
@@ -242,9 +261,9 @@ class GovernmentIdCreationWizardController extends Controller
         });
 
         if ($step === 'review') {
-            $request->session()->forget(
-                'id_creation_resume'
-            );
+            if (! $this->editingWizard($request)) {
+                $request->session()->forget('id_creation_resume');
+            }
 
             return redirect()
                 ->route(
@@ -253,7 +272,7 @@ class GovernmentIdCreationWizardController extends Controller
                 )
                 ->with(
                     'success',
-                    'Government ID creation finished.'
+                    $this->editingWizard($request) ? 'Government ID editing finished.' : 'Government ID creation finished.'
                 );
         }
 
@@ -276,7 +295,7 @@ class GovernmentIdCreationWizardController extends Controller
 
         return redirect()
             ->route(
-                'admin.government-ids.wizard.show',
+                $this->wizardRoutes($request, 'government-ids').'.show',
                 [$governmentId, $next]
             )
             ->with(
@@ -313,6 +332,11 @@ class GovernmentIdCreationWizardController extends Controller
         string $step,
         string $next
     ): void {
+        if ($this->editingWizard($request)) {
+            $request->session()->put("id_edit_progress.{$governmentId->id}.{$step}", true);
+            return;
+        }
+
         $request->session()->put(
             "id_creation_progress.{$governmentId->id}.{$step}",
             true
@@ -378,6 +402,7 @@ class GovernmentIdCreationWizardController extends Controller
             'admin.government_ids.wizard.page',
             [
                 'governmentId' => $governmentId,
+                'editing' => $this->editingWizard($request),
                 'step' => $step,
                 'steps' => self::STEPS,
                 'creationKey' => $creationKey,
@@ -392,7 +417,7 @@ class GovernmentIdCreationWizardController extends Controller
 
                 'completed' => $governmentId
                     ? $request->session()->get(
-                        "id_creation_progress.{$governmentId->id}",
+                        ($this->editingWizard($request) ? "id_edit_progress" : "id_creation_progress").".{$governmentId->id}",
                         []
                     )
                     : [],
@@ -416,8 +441,9 @@ class GovernmentIdCreationWizardController extends Controller
                     : collect(),
 
                 'checklists' => $sets
-                    ->filter(fn ($set) => $set->application_type === 'new' && $set->applicant_type === 'all')
-                    ->take(1)
+                    ->when(! $this->editingWizard($request), fn ($rows) => $rows
+                        ->filter(fn ($set) => $set->application_type === 'new' && $set->applicant_type === 'all')
+                        ->take(1))
                     ->map(
                         fn ($set) =>
                             GovernmentIdChecklistController::present(

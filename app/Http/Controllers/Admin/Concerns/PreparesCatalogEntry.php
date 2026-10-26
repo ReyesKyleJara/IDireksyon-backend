@@ -149,6 +149,8 @@ trait PreparesCatalogEntry
                 'array',
             ],
 
+            'fees.*.id' => ['nullable', 'integer', 'min:1', 'distinct'],
+
             'fees.*.label' => [
                 'nullable',
                 'string',
@@ -791,6 +793,7 @@ trait PreparesCatalogEntry
             }
 
             $prepared[] = [
+                'id' => $row['id'] ?? null,
                 'label' =>
                     $label,
 
@@ -835,50 +838,36 @@ trait PreparesCatalogEntry
 
     private function syncFees(
         GovernmentId|Document $governmentId,
-        array $feeRows
+        array $feeRows,
+        bool $preserveIds = false
     ): void {
         $feeFields = ['label', 'type', 'amount_min', 'amount_max', 'currency', 'is_optional', 'notes', 'sort_order'];
         $previousFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->get($feeFields)->toArray();
 
-        /*
-         * Replace current fee rows with
-         * the latest submitted list.
-         *
-         * This is simple and appropriate
-         * for the current CMS workflow.
-         */
-        $governmentId
-            ->fees()
-            ->delete();
-
-        foreach ($feeRows as $index => $fee) {
-            $governmentId
-                ->fees()
-                ->create([
-                    'label' =>
-                        $fee['label'],
-
-                    'type' =>
-                        $fee['type'],
-
-                    'amount_min' =>
-                        $fee['amount_min'],
-
-                    'amount_max' =>
-                        $fee['amount_max'],
-
-                    'currency' =>
-                        $fee['currency'],
-
-                    'is_optional' =>
-                        $fee['is_optional'],
-
-                    'notes' =>
-                        $fee['notes'],
-
-                    'sort_order' =>
-                        $index,
-                ]);
+        if ($preserveIds) {
+            $existing = $governmentId->fees()->lockForUpdate()->get()->keyBy('id');
+            $submittedIds = collect($feeRows)->pluck('id')->filter()->map(fn ($id) => (int) $id);
+            foreach ($submittedIds as $id) {
+                if (! $existing->has($id)) {
+                    throw ValidationException::withMessages(['fees' => 'A fee no longer belongs to this entry. Reload before saving.']);
+                }
+            }
+            $unclaimed = $existing->except($submittedIds->all())->values();
+            $retained = [];
+            foreach ($feeRows as $index => $fee) {
+                $saved = ! empty($fee['id']) ? $existing->get((int) $fee['id']) : $unclaimed->shift();
+                $saved ??= $governmentId->fees()->make();
+                $saved->fill([...\Illuminate\Support\Arr::except($fee, ['id']), 'sort_order' => $index]);
+                if (! $saved->exists || $saved->isDirty()) $saved->save();
+                $retained[] = $saved->id;
+            }
+            $governmentId->fees()->whereNotIn('id', $retained)->delete();
+        } else {
+            // Preserve the existing full-form/API save contract.
+            $governmentId->fees()->delete();
+            foreach ($feeRows as $index => $fee) {
+                $governmentId->fees()->create([...\Illuminate\Support\Arr::except($fee, ['id']), 'sort_order' => $index]);
+            }
         }
 
         /*

@@ -510,3 +510,16 @@ test('normal edit keeps its existing generic references and reference duplicatio
     const preview = readFileSync(new URL('../../resources/views/admin/government_ids/wizard/app-preview.blade.php', import.meta.url), 'utf8');
     assert.match(preview, /previewBlocks\(previewStep\)/);
 });
+
+test('Edit guide preview follows selected existing checklist without copying references', () => {
+    const first = scenario(1); const second = { ...scenario(2), application_type: 'renewal' };
+    const state = make([first, second], { wizard: true, requirementsByScenario: { 1: 2, 2: 5 }, previewReferences: { fees: 2 } });
+    assert.equal(state.previewReference('requirements'), '2 requirements to prepare');
+    state.selected = state.scenarios[1].key;
+    assert.equal(state.previewReference('requirements'), '5 requirements to prepare');
+    state.editStep(0); state.draft.title = 'Updated renewal'; state.applyStep();
+    const saved = JSON.parse(state.payload);
+    assert.equal(saved.length, 1); assert.equal(saved[0].id, 2);
+    assert.deepEqual(saved[0].steps[0].blocks, second.steps[0].blocks);
+    assert.equal(state.scenarios[0].steps[0].title, first.steps[0].title);
+});

@@ -40,12 +40,9 @@ beforeEach(function () {
 });
 
 it('renders editing controls on Edit and keeps View read only', function () {
-    $this->get('/admin/government-ids/'.$this->target->id.'/edit')->assertOk()
-        ->assertSee('Add checklist')->assertSee('Inline requirements editor')->assertSee('Save checklist')
-        ->assertSee('Who is applying?')->assertSee('What kind of application?')
-        ->assertSee('Requirements draft preview')->assertSee('Add OR alternative')
-        ->assertDontSee('checklist-dialog')->assertDontSee('Back to choices')
-        ->assertDontSee('Manage Requirement Sets')->assertSee('Legacy guidance');
+    $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'requirements']))->assertOk()
+        ->assertSee('Inline requirements editor')->assertSee('Requirements draft preview')->assertSee('Continue →')
+        ->assertDontSee('Save checklist')->assertDontSee('Who is applying?')->assertDontSee('checklist-dialog');
     $this->get('/admin/government-ids/'.$this->target->id)->assertOk()
         ->assertDontSee('Add checklist')->assertDontSee('checklist-dialog')->assertSee('Legacy guidance');
 });
@@ -68,9 +65,9 @@ it('creates the complete checklist atomically and preserves existing resident AP
 });
 
 it('supplies empty and saved scenarios to the editor and reloads unchanged identities', function () {
-    $editUrl = '/admin/government-ids/'.$this->target->id.'/edit';
+    $editUrl = route('admin.government-ids.edit-wizard.show', [$this->target, 'requirements']);
     $this->get($editUrl)->assertOk()->assertViewHas('checklists', [])
-        ->assertSee('No checklists yet.')->assertSee('x-show="showScenarioSelector"', false);
+        ->assertSee('No requirements added yet.')->assertSee('openEmptyWizard()', false);
     $saved = $this->postJson($this->url, modalChecklistPayload())->assertCreated()->json('checklist');
     $this->get($editUrl)->assertOk()->assertViewHas('checklists', fn ($rows) => $rows === [$saved]);
     $this->putJson($this->url.'/'.$saved['id'], modalChecklistEditable($saved))
@@ -230,13 +227,12 @@ it('shares the inline requirements editor with Documents and preserves read only
         ->assertDontSee('<option value="renewal">', false)->assertDontSee('<option value="replacement">', false);
 
     $document = Document::create(['name' => 'Example certificate']);
-    foreach ([route('admin.government-ids.edit', $wizardId), '/admin/documents/create', '/admin/documents/'.$document->id.'/edit'] as $url) {
+    foreach ([route('admin.government-ids.edit-wizard.show', [$wizardId, 'requirements']), route('admin.documents.edit-wizard.show', [$document, 'requirements'])] as $url) {
         $this->get($url)->assertOk()->assertSee('Inline requirements editor')
-            ->assertSee('Requirements draft preview')->assertSee('Who is applying?')
-            ->assertSee('What kind of application?')->assertDontSee('checklist-dialog')
-            ->assertSee('Choose an existing checklist')->assertSee('+ Add checklist')
-            ->assertSee('<option value="adult">', false)->assertSee('<option value="minor">', false)
-            ->assertSee('<option value="renewal">', false)->assertSee('<option value="replacement">', false);
+            ->assertSee('Requirements draft preview')->assertSee('Continue →')
+            ->assertDontSee('Who is applying?')->assertDontSee('+ Add checklist')->assertDontSee('checklist-dialog');
     }
+    $this->get('/admin/documents/create')->assertOk()->assertSee('Document creation steps')
+        ->assertDontSee('Inline requirements editor');
     $this->get('/admin/documents/'.$document->id)->assertOk()->assertDontSee('Inline requirements editor');
 });

@@ -69,7 +69,7 @@
             <a
                 class="admin-secondary"
                 href="{{ route(
-                    'admin.government-ids.wizard.show',
+                    $wizardRoutes.'.show',
                     [$governmentId, $key]
                 ) }}"
                 aria-label="Return to {{ $label }}"
@@ -85,5 +85,5 @@
 
 <p class="text-sm text-slate-600">
     These counts reflect saved data. Empty sections are allowed.
-    Finish opens the current Government ID details page.
+    {{ $editing ? 'Finish Editing' : 'Finish' }} opens the current {{ $wizardLabel }} details page.
 </p>

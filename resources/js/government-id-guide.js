@@ -163,7 +163,10 @@ export default function governmentIdGuide(config) {
             } catch { return null; }
         },
         previewReference(type) {
-            const refs = config.previewReferences || {};
+            const refs = { ...config.previewReferences };
+            if (config.requirementsByScenario && this.current?.id != null) {
+                refs.requirements = config.requirementsByScenario[this.current.id] || 0;
+            }
             switch (type) {
                 case 'requirements': return refs.requirements ? refs.requirements + (refs.requirements === 1 ? ' requirement to prepare' : ' requirements to prepare') : 'Requirements not added yet';
                 case 'fees': return refs.fees ? 'Processing fees available' : 'Fees not added yet';

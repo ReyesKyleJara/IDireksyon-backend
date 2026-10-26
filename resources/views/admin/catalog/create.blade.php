@@ -21,17 +21,21 @@
 
 @include('admin.government_ids.partials.editor-styles')
 
-<div class="id-editor">
+<div class="id-editor{{ $recordKind === 'document' ? ' document-editor mx-auto max-w-6xl' : '' }}">
     <header class="editor-heading">
         <a href="{{ route($recordRoutes.'.index') }}" class="text-sm text-slate-600 hover:underline">← Back to directory</a>
         <h1>{{ $addTitle }}</h1>
         <p class="mt-2 text-sm text-slate-500">Enter the details you have. You can complete the remaining information later.</p>
     </header>
 
+    @if($recordKind === 'document')
+        @include('admin.documents.partials.form-navigation')
+    @endif
+
     <form
         method="POST"
         action="{{ route($recordRoutes.'.store') }}"
-        class="editor-form"
+        class="{{ $recordKind === 'document' ? 'document-form space-y-6' : 'editor-form' }}"
     >
 
         @csrf
@@ -41,11 +45,16 @@
 
         @if ($errors->any())
 
-            <div class="rounded-xl border border-red-200 bg-red-50 p-4">
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4" @if($recordKind === 'document') role="alert" @endif>
 
                 <p class="text-sm font-semibold text-red-700">
                     Please check the highlighted fields.
                 </p>
+                @if($recordKind === 'document')
+                    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+                        @foreach($errors->all() as $message)<li>{{ $message }}</li>@endforeach
+                    </ul>
+                @endif
 
             </div>
 
@@ -53,7 +62,7 @@
 
 
         {{-- BASIC INFORMATION --}}
-        <section class="admin-panel p-6">
+        <section class="admin-panel p-6" @if($recordKind === 'document') id="document-basic" @endif>
 
             <div class="mb-6">
 
@@ -267,7 +276,7 @@
 
 
         {{-- ELIGIBILITY --}}
-        <section class="admin-panel p-6" aria-label="Eligibility">
+        <section class="admin-panel p-6" aria-label="Eligibility" @if($recordKind === 'document') id="document-eligibility" @endif>
             @include('admin.government_ids.partials.eligibility-fields', [
                 'eligibilityRecord' => null,
                 'eligibilityHeadingClass' => 'text-lg font-semibold text-slate-900',
@@ -277,11 +286,13 @@
 
         @include('admin.government_ids.partials.checklists', ['editable' => true, 'deferred' => true])
 
+        @if($recordKind === 'document')<div id="document-fees">@endif
         @include('admin.government_ids.partials.fees-modal', ['selectedFees' => [], 'saveActionLabel' => $createLabel])
+        @if($recordKind === 'document')</div>@endif
 
         <div class="editor-timing">
         {{-- VALIDITY --}}
-        <section class="admin-panel p-6" aria-label="Validity">
+        <section class="admin-panel p-6" aria-label="Validity" @if($recordKind === 'document') id="document-validity" @endif>
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-slate-900">Validity</h2>
                 <p class="mt-1 text-sm text-slate-500">How long this entry remains valid after it is issued.</p>
@@ -299,7 +310,7 @@
         </section>
 
         {{-- PROCESSING TIME --}}
-        <section class="admin-panel p-6">
+        <section class="admin-panel p-6" @if($recordKind === 'document') id="document-processing" @endif>
 
             <div class="mb-6">
 
@@ -335,15 +346,19 @@
 
         </div>
 
+        @if($recordKind === 'document')<div id="document-guide">@endif
         @include('admin.government_ids.partials.application-guide-editor', ['deferred' => true])
+        @if($recordKind === 'document')</div>@endif
 
 
 
+        @if($recordKind === 'document')<div id="document-offices">@endif
         @include('admin.government_ids.partials.office-links-field', [
             'selectedOffices' => collect(),
             'saveActionLabel' => $createLabel,
             'officeModal' => true,
         ])
+        @if($recordKind === 'document')</div>@endif
 
         {{-- ACTIONS --}}
         <div class="editor-actions">

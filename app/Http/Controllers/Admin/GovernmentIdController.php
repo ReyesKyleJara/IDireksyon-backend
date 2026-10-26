@@ -191,46 +191,7 @@ class GovernmentIdController extends Controller
 
     public function edit(GovernmentId $governmentId)
     {
-        $governmentId->load([
-            'agency',
-            'requirementSets.groups.items.governmentId',
-            'requirementSets.groups.items.document',
-            'requirementSets.groups.ways',
-            'requirementSets.applicationSteps.blocks',
-            'offices.agency',
-            'offices.schedules.intervals',
-            'fees' => fn ($query) => $query->orderBy('sort_order'),
-        ]);
-
-        $offices = Office::with('agency')->orderBy('name')->get();
-
-        $agencies = Agency::query()
-            ->orderBy('name')
-            ->get();
-
-        $checklists = $governmentId->requirementSets
-            ->map(fn ($set) => GovernmentIdChecklistController::present($set))->values()->all();
-        $requirementOptions = $this->requirementOptions();
-
-        return view(
-            'admin.government_ids.edit',
-            compact(
-                'governmentId',
-                'agencies',
-                'offices',
-                'checklists',
-                'requirementOptions'
-            )
-        );
-    }
-
-    private function requirementOptions(): array
-    {
-        return GovernmentId::orderBy('name')->get(['id', 'name'])
-            ->map(fn ($id) => ['id' => $id->id, 'name' => $id->name, 'type' => 'government_id'])
-            ->concat(Document::orderBy('name')->get(['id', 'name'])
-                ->map(fn ($document) => ['id' => $document->id, 'name' => $document->name, 'type' => 'document']))
-            ->sortBy('name')->values()->all();
+        return app(GovernmentIdCreationWizardController::class)->edit(request(), $governmentId);
     }
 
     public function update(

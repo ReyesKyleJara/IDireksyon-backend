@@ -6,6 +6,7 @@
         'oldPayload' => ($deferred ?? false) && is_string(old('requirements_payload')) ? old('requirements_payload') : null,
         'editable' => $editable ?? false,
         'wizardMode' => $wizardMode,
+        'allowWizardCreate' => $allowWizardCreate ?? false,
         'qualifications' => \App\Models\GovernmentIdRequirementWay::QUALIFICATIONS,
         'checklists' => $checklists,
         'options' => $requirementOptions,
@@ -20,7 +21,7 @@
 @endphp
 
 @if(($editable ?? false) || count($checklists))
-<section id="checklist-requirements" class="admin-panel mt-6 p-6" x-data="governmentIdChecklists(@js($checklistConfig))" @if($wizardMode) x-init="$nextTick(() => { if (checklists.length) open(checklists[0]); })" @endif @draft-guide-scenario.window="acceptGuideScenario($event.detail)">
+<section id="checklist-requirements" class="admin-panel mt-6 p-6" x-data="governmentIdChecklists(@js($checklistConfig))" @if($wizardMode) x-init="$nextTick(() => { if (checklists.length) open(checklists[0]); else if (allowWizardCreate) openEmptyWizard(); })" @endif @draft-guide-scenario.window="acceptGuideScenario($event.detail)">
     @if($deferred ?? false)
         <input type="hidden" name="requirements_payload" x-ref="pendingPayload" :value="creationPayload" :disabled="!ready" disabled>
         <p x-show="formError" x-text="formError" role="alert" class="mb-3 text-sm text-red-700"></p>
@@ -105,6 +106,13 @@
         </select>
     </label>
     @endunless
+    @if($wizardMode && ($wizardScenarioSelector ?? false) && count($checklists) > 1)
+        <label class="mt-4 block text-sm font-medium">Application checklist
+            <select class="admin-input mt-2" :value="selected" @change="selectChecklist($event.target.value); $event.target.value = selected" :disabled="saving || !!editing">
+                <template x-for="(checklist, index) in checklists" :key="checklist.id"><option :value="String(index)" x-text="checklistLabel(checklist)"></option></template>
+            </select>
+        </label>
+    @endif
     <div x-ref="errors" x-show="errors.length" tabindex="-1" role="alert" class="my-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
         <ul class="list-disc pl-4"><template x-for="(error, index) in errors" :key="index"><li x-text="error"></li></template></ul>
     </div>

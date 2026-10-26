@@ -43,7 +43,7 @@ it('renders the editor in guided creation and edit and keeps View read only', fu
     $this->get('/admin/government-ids/create')->assertOk()->assertDontSee('governmentIdGuide', false);
     $this->get(route('admin.government-ids.wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false)
         ->assertSee('Done')->assertDontSee('Apply step')->assertDontSee('save the main entry');
-    $this->get($this->url.'/edit')->assertOk()->assertSee('Application Guide')->assertSee('Apply step')->assertDontSee('Existing guide text')->assertDontSee('name="application_process"', false);
+    $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('Application Guide')->assertSee('Done')->assertDontSee('Apply step')->assertDontSee('Existing guide text')->assertDontSee('name="application_process"', false);
     $this->get($this->url)->assertOk()->assertDontSee('Apply step');
 });
 
@@ -154,8 +154,8 @@ it('uses live scenario requirements fees offices and processing time on View', f
 it('retains the guide payload after unrelated validation failure and renders malformed old data safely', function () {
     $payload = json_encode([guideScenario()]);
     $this->from($this->url.'/edit')->put($this->url, ['name' => '', 'application_guide_payload' => $payload])->assertSessionHasErrors('name')->assertSessionHasInput('application_guide_payload', $payload);
-    $this->get($this->url.'/edit')->assertOk()->assertSee('governmentIdGuide', false);
-    $this->withSession(['_old_input' => ['application_guide_payload' => ['bad']]])->get($this->url.'/edit')->assertOk();
+    $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false);
+    $this->withSession(['_old_input' => ['application_guide_payload' => ['bad']]])->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk();
 });
 
 it('records guide only changes but skips unchanged saves', function () {
@@ -236,11 +236,11 @@ it('shows structured content without legacy duplicates while preserving stored c
 
 
 it('renders draggable inline guide cards using the existing scenario contract', function () {
-    $this->get($this->url.'/edit')->assertOk()
+    $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk()
         ->assertSee('Drag a card to reorder.')
         ->assertSee('startStepDrag', false)->assertSee('cardKeydown', false)
         ->assertSee('Application step editor')->assertSee('More Content')
-        ->assertSee('Apply step')->assertSee('Add scenario')
+        ->assertSee('Done')->assertDontSee('Apply step')->assertDontSee('Add scenario')
         ->assertDontSee('Select an Applicability Profile')
         ->assertDontSee('Guide position (starts at 0)');
 });

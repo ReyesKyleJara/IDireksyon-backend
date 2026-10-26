@@ -38,19 +38,19 @@ it('creates an ID with several draft branches and displays their service details
         ->and($one->fresh()->status)->toBe('draft')
         ->and($id->offices->first()->pivot->last_verified_at)->toBeNull();
     $this->get('/admin/government-ids/'.$id->id)->assertOk()->assertSee('Branch One')->assertSee('Branch Two')->assertSee('Appointment required.');
-    $this->get('/admin/government-ids/'.$id->id.'/edit')->assertOk()->assertSee('Linked Offices')->assertSee('Branch One');
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'offices']))->assertOk()->assertSee('Linked Offices')->assertSee('Branch One');
     $this->getJson('/api/government-ids/'.$id->id)->assertOk()
         ->assertJsonPath('data.office_location', 'Legacy location')
         ->assertJsonPath('data.office_hours', 'Legacy hours')
         ->assertJsonMissingPath('data.offices');
 });
 
-it('preserves embedded office creation in edit and links existing offices in the wizard', function () {
+it('uses existing office linking and new-tab office creation in both wizard modes', function () {
     $id = GovernmentId::create(['name' => 'Empty offices']);
     $this->get(route('admin.government-ids.wizard.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
         ->assertDontSee('offices-dialog')->assertDontSee('iframe', false);
-    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('No offices yet.')
-        ->assertSee('offices-dialog')->assertSee('Add office')->assertSee('iframe', false);
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
+        ->assertDontSee('offices-dialog')->assertSee('Add Office (new tab)')->assertDontSee('iframe', false);
     $this->get(route('admin.offices.create', ['embedded' => 1]))->assertOk()
         ->assertSee('Office / Branch Name');
 });
@@ -135,7 +135,7 @@ it('preserves historical source and verification data when editing services', fu
 it('removes form verification controls and rejects forged connection metadata', function () {
     $office = Office::create(['name' => 'One']);
     $id = GovernmentId::create(['name' => 'Target']);
-    foreach ([route('admin.government-ids.wizard.show', [$id, 'offices']), '/admin/government-ids/'.$id->id.'/edit'] as $url) {
+    foreach ([route('admin.government-ids.wizard.show', [$id, 'offices']), route('admin.government-ids.edit-wizard.show', [$id, 'offices'])] as $url) {
         $this->get($url)->assertOk()->assertDontSee('Official Service Source')
             ->assertDontSee('verify_today', false)->assertDontSee('Verification Status')
             ->assertSee('value="unknown"', false)
@@ -159,7 +159,7 @@ it('shows the latest editor from office changes on View only', function () {
         $this->get('/admin/government-ids/'.$id->id)->assertOk()
             ->assertSee('Edit History')->assertSee('Last edited by')->assertSee('Second Researcher')
             ->assertSee(now()->timezone('Asia/Manila')->format('F j, Y · g:i A').' PHT');
-        $this->get('/admin/government-ids/'.$id->id.'/edit')->assertDontSee('Edit History');
+        $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'offices']))->assertDontSee('Edit History');
     } finally {
         $this->travelBack();
     }
@@ -200,15 +200,15 @@ it('does not erase removed rows intent when another field fails validation', fun
     $this->from('/admin/government-ids/'.$id->id.'/edit')->put('/admin/government-ids/'.$id->id, [
         'name' => '', 'office_links_present' => 1,
     ])->assertSessionHasErrors('name');
-    $response = $this->get('/admin/government-ids/'.$id->id.'/edit')->assertOk();
-    // Check the modal selection instead of the old inline component syntax.
+    $response = $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'offices']))->assertOk();
+    // The shared inline editor must keep the explicit empty selection after validation.
     $html = new DOMDocument();
     $previous = libxml_use_internal_errors(true);
     try {
         $html->loadHTML($response->getContent());
-        $section = (new DOMXPath($html))->query('//section[@aria-label="Linked Offices"]')->item(0);
+        $section = (new DOMXPath($html))->query('//section[.//h2[normalize-space(.)="Linked Offices"]]')->item(0);
         expect($section)->not->toBeNull();
-        expect($section->getAttribute('x-data'))->toStartWith('governmentIdOffices(')->toEndWith(', [])');
+        expect($section->getAttribute('x-data'))->toContain('links: []');
     } finally {
         libxml_clear_errors();
         libxml_use_internal_errors($previous);

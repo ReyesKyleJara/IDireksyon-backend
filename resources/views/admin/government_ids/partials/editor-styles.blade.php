@@ -27,4 +27,21 @@
         .id-editor .editor-form { padding: 20px; }
         .id-editor .editor-heading h1 { font-size: 23px; }
     }
+    /* Document forms reuse CMS controls and cards without altering Government ID forms. */
+    .document-editor .editor-heading h1 { font-size: 30px; font-weight: 600; }
+    .document-editor .document-form .admin-panel { scroll-margin-top: 24px; }
+    .document-editor .document-form > [id] { scroll-margin-top: 24px; }
+    .document-editor .editor-timing { padding: 0; border: 0; gap: 24px; }
+    .document-editor .editor-timing > section,
+    .document-editor .editor-timing > section + section { padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .document-editor .editor-actions { margin-top: 24px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 2px rgb(15 23 42 / .04); }
+    @media (max-width: 640px) {
+        .document-editor .editor-heading h1 { font-size: 26px; }
+        .document-editor .document-form > .admin-panel { padding: 20px; }
+        .document-editor .editor-timing > section,
+        .document-editor .editor-timing > section + section { padding: 20px; }
+        .document-editor .editor-actions { align-items: stretch; }
+        .document-editor .editor-buttons { width: 100%; margin-left: 0; }
+        .document-editor .editor-buttons > * { flex: 1; justify-content: center; }
+    }
 </style>

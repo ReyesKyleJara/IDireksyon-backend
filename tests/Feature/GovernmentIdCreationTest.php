@@ -59,7 +59,7 @@ it('creates requirements choices conditions and guide steps together with the ID
         ->and($groups[1]->items)->toHaveCount(2)
         ->and($groups[2]->condition_custom)->toBe('Only when requested')
         ->and($groups[2]->items->sole()->quantity)->toBe(2);
-    $this->get(route('admin.government-ids.edit', $id))->assertOk()->assertSee('Accepted proof');
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'requirements']))->assertOk()->assertSee('Accepted proof');
     $this->getJson('/api/government-ids/'.$id->id)->assertOk()->assertJsonCount(1, 'data.requirement_sets');
 });
 

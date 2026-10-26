@@ -1,7 +1,16 @@
+@php
+    $recordKind = $recordKind ?? 'government_id';
+    $recordRoutes = $recordKind === 'document' ? 'admin.documents' : 'admin.government-ids';
+    $editing = $editing ?? false;
+    $wizardRoutes = $recordRoutes.($editing ? '.edit-wizard' : '.wizard');
+    $wizardTitle = ($editing ? 'Edit ' : 'Add ').($recordKind === 'document' ? 'Document' : 'Government ID');
+    $wizardLabel = $recordKind === 'document' ? 'Document' : 'Government ID';
+    $itemLabel = $recordKind === 'document' ? 'document' : 'ID';
+@endphp
 @extends('admin.layouts.app')
 
-@section('title', 'Add Government ID | IDireksyon')
-@section('page_title', 'Add Government ID')
+@section('title', $wizardTitle.' | IDireksyon')
+@section('page_title', $wizardTitle)
 
 @section('content')
 @include('admin.government_ids.partials.editor-styles')
@@ -18,12 +27,12 @@
     };
 @endphp
 
-<div class="id-editor mx-auto max-w-6xl space-y-5">
+<div class="id-editor{{ $recordKind === 'document' ? ' document-editor' : '' }} mx-auto max-w-6xl space-y-5">
 
     {{-- TOP HEADER --}}
     <header class="space-y-4">
         <a
-            href="{{ route('admin.government-ids.index') }}"
+            href="{{ route($recordRoutes.'.index') }}"
             class="inline-flex items-center text-sm text-slate-500 transition hover:text-slate-800"
         >
             ← Back to directory
@@ -31,7 +40,7 @@
 
         <div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-900">
-                Add Government ID
+                {{ $wizardTitle }}
             </h1>
 
             @if($governmentId)
@@ -54,13 +63,13 @@
                 </p>
 
                 <p class="mt-1 text-xs text-slate-500">
-                    You have a saved Government ID creation in progress.
+                    You have a saved {{ $wizardLabel }} creation in progress.
                 </p>
             </div>
 
             <a
                 class="admin-secondary"
-                href="{{ route('admin.government-ids.wizard.show', [$resume['record'], $resume['step']]) }}"
+                href="{{ route($recordRoutes.'.wizard.show', [$resume['record'], $resume['step']]) }}"
             >
                 Resume
             </a>
@@ -70,7 +79,7 @@
 
     {{-- COMPACT WIZARD NAVIGATION --}}
     <nav
-        aria-label="Government ID creation steps"
+        aria-label="{{ $wizardLabel }} {{ $editing ? 'editing' : 'creation' }} steps"
         class="overflow-x-auto border-b border-slate-200"
     >
         <ol class="flex min-w-max gap-1">
@@ -78,7 +87,7 @@
                 <li>
                     @if($governmentId)
                         <a
-                            href="{{ route('admin.government-ids.wizard.show', [$governmentId, $key]) }}"
+                            href="{{ route($wizardRoutes.'.show', [$governmentId, $key]) }}"
                             @if($key === $step) aria-current="step" @endif
                             class="
                                 inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition
@@ -159,11 +168,11 @@
         <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
             @switch($step)
                 @case('basic')
-                    Add the main information about this ID.
+                    Add the main information about this {{ $itemLabel }}.
                     @break
 
                 @case('requirements')
-                    Add the documents and other requirements needed to apply for this ID.
+                    Add the documents and other requirements needed to apply for this {{ $itemLabel }}.
                     @break
 
                 @case('fees')
@@ -175,11 +184,11 @@
                     @break
 
                 @case('offices')
-                    Choose where applicants can process this ID.
+                    Choose where applicants can process this {{ $itemLabel }}.
                     @break
 
                 @case('review')
-                    Review the saved information before finishing.
+                    {{ $editing ? 'Review changes to the saved information before finishing.' : 'Review the saved information before finishing.' }}
                     @break
             @endswitch
         </p>
@@ -190,8 +199,8 @@
     <form
         method="POST"
         action="{{ $governmentId
-            ? route('admin.government-ids.wizard.save', [$governmentId, $step])
-            : route('admin.government-ids.wizard.store') }}"
+            ? route($wizardRoutes.'.save', [$governmentId, $step])
+            : route($wizardRoutes.'.store') }}"
         class="space-y-6"
         @if($step === 'guide')
             novalidate
@@ -226,7 +235,9 @@
                     [
                         'editable' => true,
                         'deferred' => false,
-                        'wizardMode' => true
+                        'wizardMode' => true,
+                        'allowWizardCreate' => $editing,
+                        'wizardScenarioSelector' => $editing
                     ]
                 )
 
@@ -264,16 +275,20 @@
                 @endif
 
 @php
-    $guideRows = array_values(array_filter(
-        app(\App\Services\GovernmentIdApplicationGuide::class)->present($governmentId),
-        fn ($row) => $row['application_type'] === 'new' && $row['applicant_type'] === 'all'
-    ));
-    $guideRows = array_slice($guideRows, 0, 1);
+    $guideRows = app(\App\Services\GovernmentIdApplicationGuide::class)->present($governmentId);
+    if (!$editing) {
+        $guideRows = array_slice(array_values(array_filter($guideRows,
+            fn ($row) => $row['application_type'] === 'new' && $row['applicant_type'] === 'all'
+        )), 0, 1);
+    } elseif (!$guideRows) {
+        $guideRows = [['id' => null, 'application_type' => 'new', 'applicant_type' => 'all', 'steps' => []]];
+    }
     $guideConfig = [
         'deferred' => $deferred ?? false,
         'wizard' => true,
-        'nextUrl' => route('admin.government-ids.wizard.show', [$governmentId, 'offices']),
+        'nextUrl' => route($wizardRoutes.'.show', [$governmentId, 'offices']),
         'stepTypes' => \App\Models\GovernmentIdApplicationStep::TYPES,
+        'requirementsByScenario' => $governmentId->requirementSets->mapWithKeys(fn ($set) => [$set->id => $set->groups->count()])->all(),
         'previewReferences' => [
             'requirements' => $governmentId->requirementSets->firstWhere('id', $guideRows[0]['id'] ?? null)?->groups->count() ?? 0,
             'fees' => $governmentId->fees->count(),
@@ -302,6 +317,13 @@
         @endif
     @endforeach
     <p x-ref="guideError" tabindex="-1" x-show="error" x-text="error" class="mt-3 whitespace-pre-line text-sm text-red-600" role="alert"></p>
+    @if($editing && count($guideRows) > 1)
+        <label class="mt-5 block text-sm font-medium">Application checklist
+            <select x-model="selected" class="admin-input mt-2" :disabled="!!draft || !!stepDrag || saving">
+                <template x-for="scenario in scenarios" :key="scenario.key"><option :value="scenario.key" x-text="label(scenario)"></option></template>
+            </select>
+        </label>
+    @endif
     <template x-if="current">
         <div class="mt-5 space-y-4">
             <p id="guide-reorder-help" class="text-xs text-slate-500">Drag a card to reorder. With its header focused, press Alt + ↑ or ↓. Press Escape to cancel dragging.</p>
@@ -388,7 +410,7 @@
                     @if($previous)
                         <a
                             class="admin-secondary"
-                            href="{{ route('admin.government-ids.wizard.show', [$governmentId, $previous]) }}"
+                            href="{{ route($wizardRoutes.'.show', [$governmentId, $previous]) }}"
                         >
                             ← Back
                         </a>
@@ -400,7 +422,7 @@
 
                     @if($step === 'basic' && !$governmentId)
                         <p class="hidden max-w-sm text-right text-xs leading-5 text-slate-400 md:block">
-                            Saving creates this ID immediately.
+                            Saving creates this {{ $itemLabel }} immediately.
                         </p>
                     @endif
 
@@ -412,7 +434,7 @@
                         @if($step === 'guide')
                             <span x-text="guideSaving ? 'Saving…' : 'Continue'">Continue</span>
                         @elseif($step === 'review')
-                            Finish
+                            {{ $editing ? 'Finish Editing' : 'Finish' }}
                         @elseif($step === 'requirements')
                             Continue →
                         @else

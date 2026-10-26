@@ -6,6 +6,7 @@ export default function governmentIdChecklists(config) {
         checklists: config.checklists || [],
         deferred: !!config.deferred,
         wizardMode: !!config.wizardMode,
+        allowWizardCreate: !!config.allowWizardCreate,
         ready: false,
         restoreError: false,
         formError: '',
@@ -255,9 +256,15 @@ export default function governmentIdChecklists(config) {
             this.baseline = JSON.stringify(this.payload());
             this.$nextTick(() => (checklist ? this.$refs.scenarioDetails : this.$refs.application)?.focus());
         },
+        openEmptyWizard() {
+            this.open(null);
+            this.draft.application_type = 'new';
+            this.draft.applicant_type = 'all';
+            this.baseline = JSON.stringify(this.payload());
+        },
         selectChecklist(value) {
             if (value !== '' && (!/^\d+$/.test(value) || !this.checklists[Number(value)])) return;
-            if (this.draft && !window.confirm('Discard unsaved requirements and switch checklist?')) return;
+            if ((this.wizardMode ? this.dirty() : !!this.draft) && !window.confirm('Discard unsaved requirements and switch checklist?')) return;
             this.selected = value;
             if (value === '') { this.close(true); return; }
             this.open(this.checklists[Number(value)]);
@@ -541,7 +548,7 @@ export default function governmentIdChecklists(config) {
                 this.$nextTick(() => this.$refs.errors?.focus());
                 return false;
             }
-            if (!this.draft?.id) {
+            if (!this.draft || (!this.draft.id && !this.allowWizardCreate)) {
                 this.errors = ['The saved requirements could not be loaded. Refresh this page before continuing.'];
                 this.$nextTick(() => this.$refs.errors?.focus());
                 return false;

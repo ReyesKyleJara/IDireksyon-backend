@@ -110,7 +110,7 @@ it('creates the ID form with its researched fields and opens its details', funct
         ->and($id->requirementSets()->count())->toBe(0)
         ->and($id->requirements)->toBeNull();
     $this->get(route('admin.government-ids.edit', $id))->assertOk()
-        ->assertSee('Add checklist')->assertSee('Description entered before creating');
+        ->assertSee('Government ID editing steps')->assertSee('Description entered before creating');
 });
 
 it('keeps creation errors on the form and preserves the entered details', function () {

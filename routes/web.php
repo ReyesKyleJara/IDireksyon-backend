@@ -165,6 +165,29 @@ Route::prefix('admin')
             ->name('documents.checklists.destroy');
 
 
+        // Document creation follows the same saved-step flow as Government IDs.
+        Route::controller(\App\Http\Controllers\Admin\DocumentCreationWizardController::class)
+            ->prefix('documents')->name('documents.wizard.')
+            ->group(function () {
+                Route::post('wizard', 'store')->name('store');
+                Route::get('{document}/creation/{step}', 'show')->name('show');
+                Route::post('{document}/creation/{step}', 'save')->name('save');
+            });
+
+        Route::controller(\App\Http\Controllers\Admin\GovernmentIdCreationWizardController::class)
+            ->prefix('government-ids/{governmentId}/edit')->name('government-ids.edit-wizard.')
+            ->group(function () {
+                Route::get('{step}', 'edit')->name('show');
+                Route::post('{step}', 'saveEdit')->name('save');
+            });
+
+        Route::controller(\App\Http\Controllers\Admin\DocumentCreationWizardController::class)
+            ->prefix('documents/{document}/edit')->name('documents.edit-wizard.')
+            ->group(function () {
+                Route::get('{step}', 'edit')->name('show');
+                Route::post('{step}', 'saveEdit')->name('save');
+            });
+
         // Documents
         Route::resource('documents', DocumentController::class);
 

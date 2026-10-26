@@ -36,9 +36,9 @@
                         <p x-show="!simpleReminderSupported" class="text-sm text-slate-500">This step has a formatted reminder. Use its Edit action in Additional content below to keep its formatting.</p>
                     </div>
                 </details>
-                <section aria-label="Use existing ID information" class="rounded-lg bg-blue-50 p-4">
-                    <h3 class="text-sm font-semibold text-slate-900">Use existing ID information</h3>
-                    <p class="mt-1 text-sm leading-6 text-slate-600">These blocks use the information already saved for this Government ID. You do not need to type it again.</p>
+                <section aria-label="{{ ($recordKind ?? 'government_id') === 'document' ? 'Use existing Document information' : 'Use existing ID information' }}" class="rounded-lg bg-blue-50 p-4">
+                    <h3 class="text-sm font-semibold text-slate-900">{{ ($recordKind ?? 'government_id') === 'document' ? 'Use existing Document information' : 'Use existing ID information' }}</h3>
+                    <p class="mt-1 text-sm leading-6 text-slate-600">{{ ($recordKind ?? 'government_id') === 'document' ? 'These blocks use the information already saved for this Document.' : 'These blocks use the information already saved for this Government ID.' }} You do not need to type it again.</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         @foreach(['requirements' => 'Requirements', 'fees' => 'Fees', 'offices' => 'Offices', 'processing_time' => 'Processing Time'] as $type => $label)
                             <button type="button" class="admin-secondary" @click="addBlock('{{ $type }}')"
@@ -46,7 +46,7 @@
                                 x-text="(hasReference('{{ $type }}') ? '✓ ' : '+ ') + @js($label)">+ {{ $label }}</button>
                         @endforeach
                     </div>
-                    <p class="mt-2 text-xs leading-5 text-slate-500">These use the current Government ID data and stay connected to it.</p>
+                    <p class="mt-2 text-xs leading-5 text-slate-500">These use the current {{ ($recordKind ?? 'government_id') === 'document' ? 'Document' : 'Government ID' }} data and stay connected to it.</p>
                     <p x-show="duplicateReferenceLabels.length" role="status" class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
                         x-text="'Duplicate references: ' + duplicateReferenceLabels.join(', ') + '. Saved blocks are kept. Remove extra rows below; the app preview shows each reference once.'"></p>
                     <div class="mt-4 space-y-3">
@@ -72,7 +72,7 @@
                         <div class="space-y-3">
                             <h3 class="font-semibold">Additional content</h3>
                             @if($wizardGuide ?? false)
-                                <p class="text-sm text-slate-500">Add instructions, checklists, reminders, links, or custom information here. Live ID references are managed above.</p>
+                                <p class="text-sm text-slate-500">Add instructions, checklists, reminders, links, or custom information here. Live {{ ($recordKind ?? 'government_id') === 'document' ? 'Document' : 'ID' }} references are managed above.</p>
                             @else
                                 <p class="text-sm text-slate-500">Use Linked Requirements to display the requirements already configured for this applicant/application. Procedural checklists describe actions; they do not create ID or document dependencies.</p>
                             @endif

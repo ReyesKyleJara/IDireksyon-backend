@@ -451,3 +451,31 @@ test('normal mode still blocks parent submission until its separate checklist ac
     state.request = async () => ({ checklist: saved });
     assert.equal(await state.save(), true); assert.equal(state.draft, null);
 });
+
+test('Edit wizard creates an empty records first checklist only when Continue saves', async () => {
+    const state = make([], { wizardMode: true, allowWizardCreate: true, url: '/documents/55/checklists' });
+    state.init(); state.checklists = []; state.openEmptyWizard();
+    assert.equal(state.draft.id, null);
+    assert.equal(state.draft.application_type, 'new'); assert.equal(state.draft.applicant_type, 'all');
+    assert.equal(state.checklists.length, 0);
+    const requests = []; const navigation = [];
+    state.form = { requestSubmit: button => navigation.push(button) };
+    state.request = async (url, method, body) => {
+        requests.push({ url, method }); return { checklist: { id: 80, ...body } };
+    };
+    const button = { disabled: false };
+    assert.equal(await state.continueWizard(button), true);
+    assert.deepEqual(requests, [{ url: '/documents/55/checklists', method: 'POST' }]);
+    assert.equal(state.checklists.length, 1); assert.equal(state.draft.id, 80);
+    assert.deepEqual(navigation, [button]);
+});
+
+test('Edit wizard switches clean existing checklists and protects unsaved edits', () => {
+    const state = wizardState(); state.checklists = [scenario([advanced()]), { ...scenario([]), id: 11 }];
+    state.open(state.checklists[0]);
+    window.confirm = () => { assert.fail('clean navigation needs no discard prompt'); };
+    state.selectChecklist('1'); assert.equal(state.draft.id, 11);
+    state.draft.groups.push(state.decorate(advanced()));
+    window.confirm = () => false; state.selectChecklist('0'); assert.equal(state.draft.id, 11);
+    window.confirm = () => true;
+});
