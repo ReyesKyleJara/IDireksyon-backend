@@ -37,19 +37,11 @@
                                         <p x-show="way.items.length > 1" class="font-medium text-slate-800" x-text="itemName(item)"></p>
                                         <p x-show="item.quantity || submission(item)" class="text-slate-600"
                                             x-text="[item.quantity ? item.quantity + ' required' : '', submission(item).replace(/^Original \+ Photocopy · (\d+) photocop(y|ies)$/, 'Original + $1 photocop$2')].filter(Boolean).join(' · ')"></p>
-                                        <p x-show="way.items.length <= 4 && item.instructions" class="whitespace-pre-line text-slate-600" x-text="item.instructions"></p>
+                                        <p x-show="item.instructions" class="whitespace-pre-line text-slate-600" x-text="item.instructions"></p>
                                     </li>
                                 </template>
                             </ul>
                         </details>
-                        {{-- Keep instructions visible even when a long accepted-item list is collapsed. --}}
-                        <template x-if="way.items.length > 4">
-                            <div class="space-y-2">
-                                <template x-for="item in way.items.filter(item => item.instructions)" :key="item.key">
-                                    <p class="whitespace-pre-line text-xs leading-5 text-slate-600"><span class="font-medium" x-text="itemName(item) + ': '"></span><span x-text="item.instructions"></span></p>
-                                </template>
-                            </div>
-                        </template>
                     </div>
                 </template>
             </article>

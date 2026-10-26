@@ -76,11 +76,45 @@
             </div>
 
             <div x-show="way.mode !== 'specific'" class="space-y-2">
+                <button type="button" class="text-sm font-medium text-slate-600" :aria-expanded="way.commonOpen" @click="toggleCommonDetails(way)">Set common details ▾</button>
+                <span x-show="commonDetails(way).mixed" class="ml-2 text-xs text-slate-500">Mixed values</span>
+                <template x-if="way.commonOpen && way.commonDraft">
+                    <section class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3" aria-label="Common details for accepted items">
+                        <h5 class="text-sm font-semibold">Common details for accepted items</h5>
+                        <p class="text-xs text-slate-500">Apply replaces these details for every accepted item in this alternative. Individual overrides can be edited afterward.</p>
+                        <template x-if="way.commonDraft">
+                            <div x-data="{ get item() { return way.commonDraft; } }">
+                                @include('admin.government_ids.partials.requirement-item-details')
+                            </div>
+                        </template>
+                        <button type="button" class="admin-secondary" :disabled="!way.items.length" @click="applyCommonDetails(way)">Apply to all accepted items</button>
+                    </section>
+                </template>
+            </div>
+
+            <div x-show="way.mode !== 'specific'" class="space-y-2">
                 <template x-for="(item, itemIndex) in way.items" :key="item.key">
-                    <div class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
-                        <input x-show="item.type === 'custom'" x-model="item.custom_name" maxlength="255" aria-label="Custom accepted item" placeholder="Custom item name" class="admin-input min-w-0 flex-1 py-1 text-sm">
-                        <span x-show="item.type !== 'custom'" class="min-w-0 flex-1 break-words text-sm" x-text="itemName(item)"></span>
-                        <button type="button" class="shrink-0 px-2 text-lg text-slate-500 hover:text-red-700" @click="removeItem(way, itemIndex)" :aria-label="'Remove ' + itemName(item)">×</button>
+                    <div class="rounded-lg border border-slate-200 px-3 py-2">
+                        <div class="flex items-start gap-2">
+                            <div class="min-w-0 flex-1">
+                                <input x-show="item.type === 'custom'" x-model="item.custom_name" maxlength="255" aria-label="Custom accepted item" placeholder="Custom item name" class="admin-input min-w-0 w-full py-1 text-sm">
+                                <span x-show="item.type !== 'custom'" class="break-words text-sm" x-text="itemName(item)"></span>
+                                <p x-show="!item.details && itemDetailsSummary(item)" x-text="itemDetailsSummary(item)" class="truncate text-xs text-slate-500"></p>
+                            </div>
+                            <div class="relative shrink-0" @click.outside="if (way.itemMenu === item.key) way.itemMenu = null" @keydown.escape.stop="way.itemMenu = null">
+                                <button type="button" class="min-h-9 min-w-9 rounded text-xl hover:bg-slate-100" :aria-label="'Actions for ' + itemName(item)" :aria-expanded="way.itemMenu === item.key" @click="way.itemMenu = way.itemMenu === item.key ? null : item.key">⋮</button>
+                                <div x-cloak x-show="way.itemMenu === item.key" class="absolute right-0 z-20 w-36 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                                    <button type="button" class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-slate-50" @click="editItemDetails(way, item)">Edit details</button>
+                                    <button type="button" class="block w-full rounded px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50" @click="removeItem(way, itemIndex)" :aria-label="'Remove ' + itemName(item)">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        <template x-if="item.details">
+                            <div class="mt-3 space-y-3 border-t border-slate-100 pt-3" :aria-label="'Details for ' + itemName(item)">
+                                @include('admin.government_ids.partials.requirement-item-details')
+                                <button type="button" class="text-sm font-medium text-slate-600" @click="item.details = false">Close details</button>
+                            </div>
+                        </template>
                     </div>
                 </template>
                 <button type="button" class="text-sm font-medium text-[#012877]" @click="addItem(way)" :disabled="way.items.length >= 50">+ Add accepted item</button>
@@ -95,33 +129,12 @@
                     <input x-model="editing.title" maxlength="255" class="admin-input mt-1">
                 </label>
                 <p x-show="editing.legacy" class="text-xs text-slate-500">Legacy storage is preserved. Advanced alternatives require explicit conversion.</p>
-                <h5 class="text-sm font-semibold">Optional details</h5>
+                <h5 x-show="way.mode === 'specific'" class="text-sm font-semibold">Optional details</h5>
                 <p x-show="!way.items.length" class="text-xs text-slate-500">Enter an item above to add its details.</p>
-                <template x-for="item in way.items" :key="item.key">
-                    <div class="space-y-2">
+                <template x-for="item in (way.mode === 'specific' ? way.items : [])" :key="item.key">
+                    <div x-show="way.mode === 'specific'" class="space-y-2">
                         <p x-show="way.mode !== 'specific'" class="text-sm font-medium" x-text="itemName(item)"></p>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                            <label x-show="item.type === 'custom'" class="block text-sm font-medium">Quantity (optional)
-                                <input type="number" min="1" max="65535" step="1" x-model="item.quantity" class="admin-input mt-1">
-                            </label>
-                        <label class="block text-sm font-medium">Submission format
-                            <select x-model="item.submission_format" class="admin-input mt-1">
-                                @foreach(\App\Models\GovernmentIdRequirementItem::FORMATS as $key => $label)
-                                    <option value="{{ $key }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <label x-show="item.submission_format === 'custom'" class="block text-sm font-medium">Describe the format
-                            <input x-model="item.submission_format_custom" maxlength="255" class="admin-input mt-1">
-                        </label>
-                        <label x-show="['original', 'photocopy', 'original_photocopy', 'certified_true_copy', 'custom'].includes(item.submission_format)" class="block text-sm font-medium">
-                            <span x-text="item.submission_format === 'original_photocopy' ? 'Number of photocopies (optional)' : 'Number of copies (optional)'"></span>
-                            <input type="number" min="1" max="65535" step="1" x-model="item.copies" class="admin-input mt-1">
-                        </label>
-                        <label class="block text-sm font-medium sm:col-span-2">Instructions
-                            <textarea x-model="item.instructions" rows="2" maxlength="10000" class="admin-input mt-1"></textarea>
-                        </label>
-                    </div>
+                        @include('admin.government_ids.partials.requirement-item-details')
                     </div>
                 </template>
             <div x-show="way.items.length > 0">

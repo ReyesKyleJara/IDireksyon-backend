@@ -479,3 +479,100 @@ test('Edit wizard switches clean existing checklists and protects unsaved edits'
     window.confirm = () => false; state.selectChecklist('0'); assert.equal(state.draft.id, 11);
     window.confirm = () => true;
 });
+
+test('accepted item details start collapsed and opening one closes the other editors', () => {
+    const state = make([advanced()]); state.editRequirement(0);
+    const [way, other] = state.editing.ways;
+    assert.ok(state.editing.ways.every(row => row.items.every(item => !item.details)));
+    way.itemMenu = way.items[0].key;
+    state.editItemDetails(way, way.items[0]);
+    assert.equal(way.itemMenu, null); assert.equal(way.items[0].details, true);
+    state.editItemDetails(other, other.items[0]);
+    assert.equal(way.items[0].details, false); assert.equal(other.items[0].details, true);
+    state.finishRequirement(); state.editRequirement(0);
+    assert.ok(state.editing.ways.every(row => row.items.every(item => !item.details)));
+});
+
+test('common details infer without mutation and bulk apply supports individual overrides and live preview', () => {
+    const state = make([advanced()]); state.editRequirement(0);
+    const way = state.editing.ways[0]; const original = clone(state.payload());
+    assert.equal(state.commonDetails(way).mixed, false);
+    state.toggleCommonDetails(way);
+    assert.equal(way.commonDraft.quantity, 2);
+    Object.assign(way.commonDraft, { quantity: 4, submission_format: 'original_photocopy',
+        submission_format_custom: '', copies: 1, instructions: 'Bring original and one photocopy.' });
+    assert.equal(way.items[0].quantity, 2, 'editing common form does not apply it');
+    const identities = way.items.map(({ id, type, government_id_id, document_id }) => ({ id, type, government_id_id, document_id }));
+    state.applyCommonDetails(way);
+    assert.ok(way.items.every(item => item.quantity === 4 && item.copies === 1
+        && item.submission_format === 'original_photocopy' && item.instructions === 'Bring original and one photocopy.'));
+    state.editItemDetails(way, way.items[1]);
+    Object.assign(way.items[1], { submission_format: 'custom', submission_format_custom: 'Printed copy', copies: '', instructions: 'Print the digital ID.' });
+    assert.equal(way.items[0].submission_format, 'original_photocopy');
+    assert.equal(state.commonDetails(way).mixed, true);
+    assert.equal(state.previewGroups[0].ways[0].items[1].submission_format_custom, 'Printed copy');
+    assert.deepEqual(state.payload(), original, 'unfinished requirement stays local');
+    assert.equal(state.finishRequirement(), true);
+    const saved = state.payload().groups[0].ways[0];
+    assert.deepEqual(saved.items.map(({ id, type, government_id_id, document_id }) => ({ id, type, government_id_id, document_id })), identities);
+    assert.equal(saved.items[1].submission_format_custom, 'Printed copy');
+    assert.equal(saved.items[0].quantity, 4);
+    assert.equal(saved.commonDraft, undefined);
+});
+
+test('mixed saved details survive opening common editor and newly added items receive no arbitrary defaults', () => {
+    const group = advanced(); group.ways[0].items[1].instructions = 'Different instruction';
+    const state = make([group]); const before = clone(state.payload()); state.editRequirement(0);
+    const way = state.editing.ways[0];
+    assert.equal(state.commonDetails(way).mixed, true);
+    state.toggleCommonDetails(way); assert.equal(way.commonDraft.instructions, '');
+    state.toggleCommonDetails(way); state.finishRequirement();
+    assert.deepEqual(state.payload(), before);
+    state.editRequirement(0); const editingWay = state.editing.ways[0];
+    state.addItem(editingWay, { type: 'government_id', id: 55, name: 'Passport' });
+    assert.equal(editingWay.items.at(-1).submission_format, 'not_specified');
+    assert.equal(editingWay.items.at(-1).instructions, '');
+    state.removeItem(editingWay, editingWay.items.length - 1);
+    assert.equal(state.finishRequirement(), true); assert.deepEqual(state.payload(), before);
+});
+
+for (const mode of ['accepted', 'all']) {
+    test(`${mode} additions inherit shared details and retain Government ID / Document references`, () => {
+        const state = make(); state.addRequirement(); const way = state.editing.ways[0]; state.selection(way, mode);
+        state.addItem(way, { type: 'government_id', id: 55 });
+        Object.assign(way.items[0], { quantity: 2, submission_format: 'original_photocopy', copies: 1, instructions: 'Bring both.' });
+        state.addItem(way, { type: 'document', id: 28 });
+        state.addItem(way); way.items.at(-1).custom_name = 'Custom accepted proof';
+        assert.ok(way.items.every(item => item.quantity === 2 && item.copies === 1 && item.instructions === 'Bring both.'));
+        assert.equal(way.items[0].government_id_id, 55); assert.equal(way.items[1].document_id, 28);
+        assert.equal(way.required_count, mode === 'all' ? 3 : 1);
+        state.removeItem(way, 2); assert.equal(way.required_count, mode === 'all' ? 2 : 1);
+        assert.equal(state.finishRequirement(), true);
+        assert.equal(state.payload().groups[0].ways[0].items[1].document_id, 28);
+    });
+}
+
+test('accepted rows have accessible kebab actions, lazy detail fields and explicit bulk apply', () => {
+    const view = readFileSync(new URL('../../resources/views/admin/government_ids/partials/requirement-editor.blade.php', import.meta.url), 'utf8');
+    assert.match(view, /Actions for /); assert.match(view, />⋮<\/button>/);
+    assert.match(view, /x-show="way.itemMenu === item.key"/);
+    assert.match(view, /@click="editItemDetails\(way, item\)">Edit details/);
+    assert.match(view, /<template x-if="item.details">/);
+    assert.match(view, /Set common details/); assert.match(view, /Mixed values/);
+    assert.match(view, /@click="applyCommonDetails\(way\)">Apply to all accepted items/);
+    const preview = readFileSync(new URL('../../resources/views/admin/government_ids/partials/requirements-preview.blade.php', import.meta.url), 'utf8');
+    assert.doesNotMatch(preview, /way.items.filter\(item => item.instructions\)/);
+    assert.match(preview, /x-show="item.instructions"/);
+});
+
+test('common inference compares nullable and numeric inputs without changing original values', () => {
+    const state = make([], { formats: { original_photocopy: 'Original + Photocopy' }, countableFormats: ['original_photocopy'] }); const way = { items: [
+        item(1, { quantity: 2, copies: null, instructions: null, submission_format_custom: null }),
+        item(2, { quantity: '2', copies: '', instructions: '', submission_format_custom: '' }),
+    ] };
+    const before = clone(way.items);
+    assert.equal(state.commonDetails(way).mixed, false);
+    assert.deepEqual(way.items, before);
+    assert.equal(state.commonDetails({ items: [] }).mixed, false);
+    assert.equal(state.itemDetailsSummary({ submission_format: 'original_photocopy', copies: 1 }), 'Original + 1 photocopy');
+});

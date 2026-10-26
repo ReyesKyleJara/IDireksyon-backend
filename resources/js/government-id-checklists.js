@@ -236,7 +236,7 @@ export default function governmentIdChecklists(config) {
             result.ways = this.ways(result).map(way => ({
                 ...way, key: ++this.sequence, search: '', type: way.items[0]?.type || 'document',
                 mode: result.legacy && result.rule === 'all' ? 'all' : way.items.length <= 1 && Number(way.required_count) === 1 ? 'specific' : Number(way.required_count) === way.items.length ? 'all' : 'accepted',
-                qualificationOpen: false, optionsOpen: false,
+                qualificationOpen: false, optionsOpen: false, commonOpen: false, commonDraft: null, itemMenu: null,
                 items: way.items.map(item => ({ ...item, key: ++this.sequence, details: false })),
             }));
             delete result.items;
@@ -286,7 +286,7 @@ export default function governmentIdChecklists(config) {
             return {
                 id: null, key: ++this.sequence, required_count: 1,
                 qualification_type: 'none', qualification_scope: 'every', qualification_custom: '',
-                mode: 'specific', search: '', qualificationOpen: false, optionsOpen: false, items: [],
+                mode: 'specific', search: '', qualificationOpen: false, optionsOpen: false, commonOpen: false, commonDraft: null, itemMenu: null, items: [],
             };
         },
         addRequirement() {
@@ -304,7 +304,10 @@ export default function governmentIdChecklists(config) {
             this.editingIndex = index;
             this.editing = copy(this.draft.groups[index]);
             this.editing.advancedOpen = false;
-            this.editing.ways.forEach(way => { way.optionsOpen = false; });
+            this.editing.ways.forEach(way => {
+                way.optionsOpen = false; way.commonOpen = false; way.commonDraft = null; way.itemMenu = null;
+                way.items.forEach(item => { item.details = false; });
+            });
             this.editing.choosing = false;
             this.editing.visited = true;
             this.errors = [];
@@ -401,6 +404,43 @@ export default function governmentIdChecklists(config) {
             });
             way.required_count = 1;
         },
+        itemDetails(item) {
+            return {
+                quantity: item?.quantity ?? '', submission_format: item?.submission_format ?? 'not_specified',
+                submission_format_custom: item?.submission_format_custom ?? '',
+                copies: item?.copies ?? '', instructions: item?.instructions ?? '',
+            };
+        },
+        commonDetails(way) {
+            const first = this.itemDetails(way.items[0]);
+            // Normalize empty/null and numeric input representations only for comparison.
+            const signature = item => JSON.stringify(Object.values(this.itemDetails(item)).map(String));
+            return { values: first, mixed: way.items.some(item => signature(item) !== signature(first)) };
+        },
+        toggleCommonDetails(way) {
+            if (!way.commonOpen) {
+                const common = this.commonDetails(way);
+                way.commonDraft = common.mixed ? this.itemDetails(null) : common.values;
+            }
+            way.commonOpen = !way.commonOpen;
+        },
+        applyCommonDetails(way) {
+            if (!way.commonDraft || !way.items.length) return;
+            const values = this.itemDetails(way.commonDraft);
+            for (const item of way.items) Object.assign(item, values);
+            way.commonOpen = false;
+        },
+        editItemDetails(way, item) {
+            for (const row of this.editing.ways) {
+                row.itemMenu = null;
+                for (const accepted of row.items) accepted.details = false;
+            }
+            item.details = true;
+        },
+        itemDetailsSummary(item) {
+            const summary = [item.quantity ? 'Quantity: ' + item.quantity : '', this.submission(item).replace(/^Original \+ Photocopy · (\d+) photocop(y|ies)$/, 'Original + $1 photocop$2')].filter(Boolean).join(' · ');
+            return summary || (item.instructions ? 'Instructions added' : '');
+        },
         addItem(way, option = null, event = null) {
             if (way.items.length >= 50 || (option && this.isSelected(way, option))) return;
             if (way.mode === 'specific' && way.items.length && !option) return;
@@ -420,12 +460,15 @@ export default function governmentIdChecklists(config) {
                 way.required_count = 1;
                 way.search = '';
             } else {
+                const common = this.commonDetails(way);
+                if (way.items.length && !common.mixed) Object.assign(item, common.values);
                 way.items.push(item);
                 if (way.mode === 'all') way.required_count = way.items.length;
                 if (option) this.$nextTick(() => searchInput?.focus({ preventScroll: true }));
             }
         },
         removeItem(way, index) {
+            way.itemMenu = null;
             way.items.splice(index, 1);
             if (way.mode === 'all') way.required_count = way.items.length;
             if (way.mode === 'specific') way.search = '';
