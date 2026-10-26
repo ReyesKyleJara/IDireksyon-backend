@@ -179,6 +179,10 @@
                     >
 
                         @foreach($governmentId->fees as $fee)
+                            @if($fee->type === 'options')
+                                @include('admin.government_ids.partials.fee-display')
+                                @continue
+                            @endif
 
                             <div
                                 class="flex flex-col gap-3 border-b

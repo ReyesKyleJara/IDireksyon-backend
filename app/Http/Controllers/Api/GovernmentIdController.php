@@ -14,7 +14,8 @@ class GovernmentIdController extends Controller
         $governmentIds = GovernmentId::query()
             ->with([
                 'agency',
-                'fees' => fn ($query) => $query
+                'fees.options',
+            'fees' => fn ($query) => $query
                     ->orderBy('sort_order')
                     ->orderBy('id'),
             ])
@@ -129,6 +130,7 @@ class GovernmentIdController extends Controller
             'requirementSets.groups.items.document',
             'requirementSets.groups.ways.items.governmentId',
             'requirementSets.groups.ways.items.document',
+            'fees.options',
             'fees' => fn ($query) => $query
                 ->orderBy('sort_order')
                 ->orderBy('id'),
@@ -335,6 +337,13 @@ class GovernmentIdController extends Controller
             ->fees
             ->map(function ($fee) {
                 return [
+                    ...($fee->type === 'options' ? [
+                        'selection_rule' => 'choose_one',
+                        'options' => $fee->options->map(fn ($option) => [
+                            ...$option->only(['id', 'label', 'type', 'amount_min', 'amount_max', 'currency', 'description', 'notes', 'sort_order']),
+                            'display_amount' => $option->display_amount,
+                        ])->values()->all(),
+                    ] : []),
                     'id' =>
                         $fee->id,
 
@@ -385,6 +394,7 @@ class GovernmentIdController extends Controller
     private function formatFeeAmount(
         $fee
     ): string {
+        if ($fee->type === 'options') return 'Choose one';
         return match ($fee->type) {
             'fixed' =>
                 '₱'

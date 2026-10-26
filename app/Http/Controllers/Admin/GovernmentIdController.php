@@ -209,6 +209,8 @@ class GovernmentIdController extends Controller
          * them from the main GovernmentId data.
          */
         $officeRows = $this->prepareOfficeLinks($request);
+        $syncFees = $request->has('fees') || $request->boolean('fees_present')
+            || !$governmentId->fees()->whereHas('options')->exists();
 
         $feeRows = $this->prepareFeeRows(
             $validated['fees'] ?? []
@@ -244,6 +246,7 @@ class GovernmentIdController extends Controller
             $governmentId,
             $validated,
             $feeRows,
+            $syncFees,
             $officeRows,
             $guideRows
         ) {
@@ -257,10 +260,7 @@ class GovernmentIdController extends Controller
             /*
              * Save all multiple fee items.
              */
-            $this->syncFees(
-                $governmentId,
-                $feeRows
-            );
+            if ($syncFees) $this->syncFees($governmentId, $feeRows);
 
             if ($officeRows !== null) {
                 $this->syncOfficeLinks($governmentId, $officeRows);

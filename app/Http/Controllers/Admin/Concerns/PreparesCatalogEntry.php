@@ -149,6 +149,16 @@ trait PreparesCatalogEntry
                 'array',
             ],
 
+            'fees.*.options' => ['sometimes', 'array', 'max:50'],
+            'fees.*.options.*.id' => ['nullable', 'integer', 'min:1', 'distinct'],
+            'fees.*.options.*.label' => ['required', 'string', 'max:255'],
+            'fees.*.options.*.type' => ['required', 'in:fixed,range,free,varies'],
+            'fees.*.options.*.amount_min' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'fees.*.options.*.amount_max' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'fees.*.options.*.currency' => ['nullable', 'in:PHP'],
+            'fees.*.options.*.description' => ['nullable', 'string', 'max:10000'],
+            'fees.*.options.*.notes' => ['nullable', 'string', 'max:10000'],
+
             'fees.*.id' => ['nullable', 'integer', 'min:1', 'distinct'],
 
             'fees.*.label' => [
@@ -160,7 +170,7 @@ trait PreparesCatalogEntry
             'fees.*.type' => [
                 'nullable',
                 'string',
-                'in:fixed,range,free,varies',
+                'in:fixed,range,free,varies,options',
             ],
 
             'fees.*.amount_min' => [
@@ -792,8 +802,31 @@ trait PreparesCatalogEntry
                 $amountMax = null;
             }
 
+            $options = null;
+            if ($type === 'options') {
+                if (count($row['options'] ?? []) < 2) {
+                    throw ValidationException::withMessages(["fees.$index.options" => 'Add at least two fee options, or use a simple fee.']);
+                }
+                $options = [];
+                foreach ($row['options'] as $optionIndex => $option) {
+                    try {
+                        $preparedOption = $this->prepareFeeRows([$option])[0];
+                    } catch (ValidationException $error) {
+                        $messages = [];
+                        foreach ($error->errors() as $key => $value) {
+                            $messages[str_replace('fees.0.', "fees.$index.options.$optionIndex.", $key)] = $value;
+                        }
+                        throw ValidationException::withMessages($messages);
+                    }
+                    $options[] = [...\Illuminate\Support\Arr::except($preparedOption, ['is_optional', 'options']),
+                        'description' => filled($option['description'] ?? null) ? trim($option['description']) : null];
+                }
+                $amountMin = $amountMax = null;
+            }
+
             $prepared[] = [
                 'id' => $row['id'] ?? null,
+                'options' => $options,
                 'label' =>
                     $label,
 
@@ -842,8 +875,9 @@ trait PreparesCatalogEntry
         bool $preserveIds = false
     ): void {
         $feeFields = ['label', 'type', 'amount_min', 'amount_max', 'currency', 'is_optional', 'notes', 'sort_order'];
-        $previousFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->get($feeFields)->toArray();
+        $previousFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->with('options')->get()->map(fn ($fee) => [...$fee->only($feeFields), 'options' => $fee->options->toArray()])->all();
 
+        $preserveIds = $preserveIds || collect($feeRows)->contains('type', 'options') || $governmentId->fees()->whereHas('options')->exists();
         if ($preserveIds) {
             $existing = $governmentId->fees()->lockForUpdate()->get()->keyBy('id');
             $submittedIds = collect($feeRows)->pluck('id')->filter()->map(fn ($id) => (int) $id);
@@ -857,8 +891,9 @@ trait PreparesCatalogEntry
             foreach ($feeRows as $index => $fee) {
                 $saved = ! empty($fee['id']) ? $existing->get((int) $fee['id']) : $unclaimed->shift();
                 $saved ??= $governmentId->fees()->make();
-                $saved->fill([...\Illuminate\Support\Arr::except($fee, ['id']), 'sort_order' => $index]);
+                $saved->fill([...\Illuminate\Support\Arr::except($fee, ['id', 'options']), 'sort_order' => $index]);
                 if (! $saved->exists || $saved->isDirty()) $saved->save();
+                $this->syncFeeOptions($saved, $fee);
                 $retained[] = $saved->id;
             }
             $governmentId->fees()->whereNotIn('id', $retained)->delete();
@@ -866,7 +901,8 @@ trait PreparesCatalogEntry
             // Preserve the existing full-form/API save contract.
             $governmentId->fees()->delete();
             foreach ($feeRows as $index => $fee) {
-                $governmentId->fees()->create([...\Illuminate\Support\Arr::except($fee, ['id']), 'sort_order' => $index]);
+                $saved = $governmentId->fees()->create([...\Illuminate\Support\Arr::except($fee, ['id', 'options']), 'sort_order' => $index]);
+                $this->syncFeeOptions($saved, $fee);
             }
         }
 
@@ -912,6 +948,8 @@ trait PreparesCatalogEntry
                     'varies' =>
                         'Varies',
 
+                    'options' => 'Choose one: '.collect($fee['options'])->map(fn ($option) => $option['label'].' ('.\App\Models\GovernmentIdFee::amountLabel((object) $option).')')->implode(' OR '),
+
                     default =>
                         '',
                 };
@@ -943,9 +981,29 @@ trait PreparesCatalogEntry
 
         $governmentId->save();
 
-        $currentFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->get($feeFields)->toArray();
+        $currentFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->with('options')->get()->map(fn ($fee) => [...$fee->only($feeFields), 'options' => $fee->options->toArray()])->all();
         if ($previousFees !== $currentFees) {
             ContentChangeLog::record($governmentId, 'updated', ['fees']);
         }
     }
+    private function syncFeeOptions($parent, array $fee): void
+    {
+        if ($fee['type'] !== 'options') {
+            $parent->options()->delete();
+            return;
+        }
+        $existing = $parent->options()->lockForUpdate()->get()->keyBy('id');
+        $retained = [];
+        foreach ($fee['options'] as $index => $row) {
+            if (!empty($row['id']) && !$existing->has((int) $row['id'])) {
+                throw ValidationException::withMessages(['fees' => 'A fee option does not belong to this fee. Reload before saving.']);
+            }
+            $option = !empty($row['id']) ? $existing->get((int) $row['id']) : $parent->options()->make();
+            $option->fill([...\Illuminate\Support\Arr::except($row, ['id']), 'sort_order' => $index]);
+            if (!$option->exists || $option->isDirty()) $option->save();
+            $retained[] = $option->id;
+        }
+        $parent->options()->whereNotIn('id', $retained)->delete();
+    }
+
 }

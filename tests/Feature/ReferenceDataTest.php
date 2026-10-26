@@ -54,6 +54,10 @@ class ReferenceDataTest extends TestCase
         DB::table('document_application_steps')->insert(['id' => 140, 'requirement_set_id' => 100, 'title' => 'Apply', 'sort_order' => 6]);
         DB::table('document_application_step_blocks')->insert(['id' => 150, 'application_step_id' => 140, 'type' => 'text', 'content' => json_encode(['body' => 'Public guidance', 'intro' => ['z' => 'last', 'a' => 'first']]), 'sort_order' => 7]);
         DB::table('document_fees')->insert(['id' => 160, 'document_id' => 50, 'label' => 'Fee', 'amount_min' => '12.30', 'sort_order' => 8]);
+        DB::table('government_id_fees')->where('id', 70)->update(['type' => 'options', 'amount_min' => null]);
+        DB::table('government_id_fee_options')->insert(['id' => 170, 'government_id_fee_id' => 70, 'label' => 'Regular', 'type' => 'fixed', 'amount_min' => '950.00', 'description' => '10–15 working days']);
+        DB::table('document_fees')->where('id', 160)->update(['type' => 'options', 'amount_min' => null]);
+        DB::table('document_fee_options')->insert(['id' => 180, 'document_fee_id' => 160, 'label' => 'Express', 'type' => 'fixed', 'amount_min' => '1200.00', 'description' => '5–7 working days']);
         $data = app(ReferenceData::class)->capture();
         $data['snapshot_state'] = 'exported';
 
@@ -84,6 +88,24 @@ class ReferenceDataTest extends TestCase
         $this->assertSame('Teammate', DB::table('users')->value('name'));
         $this->assertSame(1, DB::table('users')->count());
         $this->assertSame(0, DB::table('content_change_logs')->count());
+    }
+
+    public function test_older_snapshots_without_option_tables_still_import(): void
+    {
+        $data = $this->fixture();
+        unset($data['tables']['government_id_fee_options'], $data['tables']['document_fee_options']);
+        $this->newIsolatedDatabase();
+        $result = app(ReferenceData::class)->import($data);
+        $this->assertGreaterThan(0, $result['inserted']);
+        $this->assertSame(0, DB::table('government_id_fee_options')->count());
+    }
+
+    public function test_options_require_their_parent_fee_in_the_snapshot(): void
+    {
+        $data = $this->fixture();
+        $data['tables']['government_id_fee_options'][0]['government_id_fee_id'] = 99999;
+        $this->expectExceptionMessage('Missing dataset dependency');
+        app(ReferenceData::class)->validate($data);
     }
 
     public function test_mysql_json_key_reordering_does_not_create_a_false_conflict(): void

@@ -1,3 +1,4 @@
+import feeEditor from './fee-editor';
 import './bootstrap';
 
 import Alpine from 'alpinejs';
@@ -54,5 +55,7 @@ Alpine.data('adminNotifications', (initial = []) => {
         destroy() { timers.forEach(timer => clearTimeout(timer)); timers.clear(); },
     };
 });
+
+Alpine.data('governmentIdFeeEditor', feeEditor);
 
 Alpine.start();

@@ -87,3 +87,11 @@
     These counts reflect saved data. Empty sections are allowed.
     {{ $editing ? 'Finish Editing' : 'Finish' }} opens the current {{ $wizardLabel }} details page.
 </p>
+@if($governmentId->fees->isNotEmpty())
+<section class="space-y-3" aria-label="Fee review">
+    <h3 class="font-semibold">Saved fees</h3>
+    @foreach($governmentId->fees->sortBy('sort_order') as $fee)
+        @include('admin.government_ids.partials.fee-display')
+    @endforeach
+</section>
+@endif

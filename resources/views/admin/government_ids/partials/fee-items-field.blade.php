@@ -1,342 +1,90 @@
 @php
-    $existingFees = old('fees');
-
-    if ($existingFees === null) {
-        $existingFees = collect(
-            $selectedFees ?? []
-        )->map(function ($fee) {
-            return [
-                'id' => $fee->id,
-                'label' => $fee->label,
-                'type' => $fee->type,
-                'amount_min' => $fee->amount_min,
-                'amount_max' => $fee->amount_max,
-                'is_optional' => $fee->is_optional,
-                'notes' => $fee->notes,
-            ];
-        })->values()->all();
-    }
+    $existingFees = old('fees', collect($selectedFees ?? [])->map(fn ($fee) => [
+        ...$fee->only(['id', 'label', 'type', 'amount_min', 'amount_max', 'currency', 'is_optional', 'notes']),
+        'options' => $fee->options->toArray(),
+    ])->values()->all());
 @endphp
-
-
-<div
-    x-data="governmentIdFeeEditor(
-        @js($existingFees)
-    )"
-    class="sm:col-span-2"
->
-
-    <div class="mb-4 flex items-center justify-between gap-4">
-
-        <div>
-
-            <label class="block text-sm font-medium">
-                Application Fees / Costs
-            </label>
-
-            <p class="mt-1 text-xs text-slate-500">
-                Add each fee or charge separately.
-            </p>
-
-        </div>
-
-
-        <button
-            type="button"
-            x-show="fees.length > 0"
-            x-cloak
-            class="admin-secondary whitespace-nowrap"
-            @click="addFee()"
-        >
-            + Add Fee
-        </button>
-
+<input type="hidden" name="fees_present" value="1">
+<div x-data="governmentIdFeeEditor(@js($existingFees))" class="space-y-4" aria-label="Fee editor">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div><h3 class="font-semibold">Application Fees / Costs</h3><p class="text-xs text-slate-500">Add each fee or charge separately. Options within a fee mean choose one.</p></div>
+        <button type="button" class="admin-secondary" @click="addFee()">+ Add Fee</button>
     </div>
-
-
-    <div class="space-y-4">
-
-        <template
-            x-for="(fee, index) in fees"
-            :key="fee.key"
-        >
-
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-
-                <div class="mb-4 flex items-center justify-between">
-
-                    <p class="text-sm font-semibold text-slate-900">
-                        Fee
-                        <span x-text="index + 1"></span>
-                    </p>
-
-
-                    <button
-                        type="button"
-                        class="text-sm font-medium text-red-600 hover:underline"
-                        @click="removeFee(index)"
-                    >
-                        Remove
-                    </button>
-
-                </div>
-
-
-                <div class="grid gap-4 sm:grid-cols-2">
-
-                    <input type="hidden" :name="`fees[${index}][id]`" :value="fee.id || ''">
-                    {{-- LABEL --}}
-                    <div>
-
-                        <label
-                            class="mb-2 block text-sm font-medium"
-                        >
-                            Fee Name *
-                        </label>
-
-                        <input
-                            type="text"
-                            :name="`fees[${index}][label]`"
-                            x-model="fee.label"
-                            class="admin-input"
-                            placeholder="e.g. Service Fee"
-                        >
-
-                    </div>
-
-
-                    {{-- TYPE --}}
-                    <div>
-
-                        <label
-                            class="mb-2 block text-sm font-medium"
-                        >
-                            Fee Type *
-                        </label>
-
-                        <select
-                            :name="`fees[${index}][type]`"
-                            x-model="fee.type"
-                            class="admin-input"
-                        >
-
-                            <option value="">
-                                Select fee type
-                            </option>
-
-                            <option value="fixed">
-                                Fixed Amount
-                            </option>
-
-                            <option value="range">
-                                Amount Range
-                            </option>
-
-                            <option value="free">
-                                Free
-                            </option>
-
-                            <option value="varies">
-                                Varies
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    {{-- FIXED / RANGE MIN --}}
-                    <div
-                        x-show="
-                            fee.type === 'fixed'
-                            || fee.type === 'range'
-                        "
-                        x-cloak
-                    >
-
-                        <label
-                            class="mb-2 block text-sm font-medium"
-                        >
-                            <span
-                                x-text="
-                                    fee.type === 'range'
-                                        ? 'Minimum Amount'
-                                        : 'Amount'
-                                "
-                            ></span>
-                        </label>
-
-
-                        <div class="relative">
-
-                            <span
-                                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm text-slate-500"
-                            >
-                                ₱
-                            </span>
-
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                :name="`fees[${index}][amount_min]`"
-                                x-model="fee.amount_min"
-                                class="admin-input pl-8"
-                                placeholder="0.00"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- RANGE MAX --}}
-                    <div
-                        x-show="fee.type === 'range'"
-                        x-cloak
-                    >
-
-                        <label
-                            class="mb-2 block text-sm font-medium"
-                        >
-                            Maximum Amount
-                        </label>
-
-
-                        <div class="relative">
-
-                            <span
-                                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm text-slate-500"
-                            >
-                                ₱
-                            </span>
-
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                :name="`fees[${index}][amount_max]`"
-                                x-model="fee.amount_max"
-                                class="admin-input pl-8"
-                                placeholder="0.00"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- NOTES --}}
-                    <div class="sm:col-span-2">
-
-                        <label
-                            class="mb-2 block text-sm font-medium"
-                        >
-                            Notes
-                        </label>
-
-                        <textarea
-                            :name="`fees[${index}][notes]`"
-                            x-model="fee.notes"
-                            rows="2"
-                            class="admin-input"
-                            placeholder="Optional conditions or details about this fee."
-                        ></textarea>
-
-                    </div>
-
-
-                    {{-- OPTIONAL --}}
-                    <div class="sm:col-span-2">
-
-                        <label class="flex items-center gap-3">
-
-                            <input
-                                type="checkbox"
-                                value="1"
-                                :name="`fees[${index}][is_optional]`"
-                                x-model="fee.is_optional"
-                                class="rounded border-slate-300"
-                            >
-
-                            <span class="text-sm text-slate-700">
-                                This fee is optional
-                            </span>
-
-                        </label>
-
-                    </div>
-
-                </div>
-
+    <p x-show="!fees.length" class="text-sm text-slate-500">No fees added yet.</p>
+    <template x-for="(fee, index) in fees" :key="fee.key">
+        <section class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" :aria-label="'Fee ' + (index + 1)">
+            <div class="flex items-center justify-between gap-3">
+                <h4 class="font-semibold" x-text="'Fee ' + (index + 1)"></h4>
+                <button type="button" class="text-sm text-red-700" @click="removeFee(index)">Remove fee</button>
             </div>
-
-        </template>
-
-
-        <div
-            x-show="fees.length === 0"
-            x-cloak
-            class="rounded-xl border border-dashed border-slate-300 p-6 text-center"
-        >
-
-            <p class="text-sm text-slate-500">
-                No fees added yet.
-            </p>
-
-            <button
-                type="button"
-                class="admin-secondary mt-3"
-                @click="addFee()"
-            >
-                + Add Fee
-            </button>
-
-        </div>
-
-    </div>
-
+            <input type="hidden" :name="`fees[${index}][id]`" :value="fee.id || ''">
+            <input type="hidden" :name="`fees[${index}][currency]`" :value="fee.currency">
+            <label class="block text-sm font-medium">Fee Name
+                <input :name="`fees[${index}][label]`" x-model="fee.label" maxlength="255" class="admin-input mt-1" placeholder="e.g. Service Fee">
+            </label>
+            <label class="block text-sm font-medium">Fee Type
+                <select :name="`fees[${index}][type]`" x-model="fee.type" class="admin-input mt-1">
+                    <option value="fixed">Fixed Amount</option><option value="range">Amount Range</option><option value="free">Free</option><option value="varies">Varies</option>
+                    <option value="options" :disabled="fee.type !== 'options'">Multiple options — choose one</option>
+                </select>
+            </label>
+            <div x-show="fee.type !== 'options'" class="grid gap-3 sm:grid-cols-2">
+                <label x-show="fee.type === 'fixed' || fee.type === 'range'" class="text-sm">Amount / minimum (₱)
+                    <input type="number" min="0" step="0.01" :name="`fees[${index}][amount_min]`" x-model="fee.amount_min" class="admin-input mt-1">
+                </label>
+                <label x-show="fee.type === 'range'" class="text-sm">Maximum amount (₱)
+                    <input type="number" min="0" step="0.01" :name="`fees[${index}][amount_max]`" x-model="fee.amount_max" class="admin-input mt-1">
+                </label>
+            </div>
+            <button x-show="fee.type !== 'options'" type="button" class="admin-secondary" @click="enableOptions(fee)">Add fee options</button>
+            <template x-if="fee.type === 'options'">
+                <div class="space-y-4">
+                    <p class="font-medium">Choose one option — these amounts are not added together.</p>
+                    <p x-show="fee.options.length < 2" class="text-sm text-amber-800">Add at least two options, or change Fee Type back to a simple fee.</p>
+                    <template x-for="(option, optionIndex) in fee.options" :key="option.key">
+                        <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-4" :aria-label="'Option ' + (optionIndex + 1)">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <h5 class="font-medium" x-text="'Option ' + (optionIndex + 1)"></h5>
+                                <div class="flex flex-wrap gap-3 text-sm">
+                                    <button type="button" :disabled="optionIndex === 0" @click="moveOption(fee, optionIndex, -1)" class="disabled:opacity-30">Move up</button>
+                                    <button type="button" :disabled="optionIndex === fee.options.length - 1" @click="moveOption(fee, optionIndex, 1)" class="disabled:opacity-30">Move down</button>
+                                    <button type="button" class="text-red-700" @click="removeOption(fee, optionIndex)">Remove option</button>
+                                </div>
+                            </div>
+                            <input type="hidden" :name="`fees[${index}][options][${optionIndex}][id]`" :value="option.id || ''">
+                            <input type="hidden" :name="`fees[${index}][options][${optionIndex}][currency]`" :value="option.currency">
+                            <label class="block text-sm">Option Name
+                                <input :name="`fees[${index}][options][${optionIndex}][label]`" x-model="option.label" maxlength="255" class="admin-input mt-1">
+                            </label>
+                            <label class="block text-sm">Fee Type
+                                <select :name="`fees[${index}][options][${optionIndex}][type]`" x-model="option.type" class="admin-input mt-1">
+                                    <option value="fixed">Fixed Amount</option><option value="range">Amount Range</option><option value="free">Free</option><option value="varies">Varies</option>
+                                </select>
+                            </label>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label x-show="option.type === 'fixed' || option.type === 'range'" class="text-sm">Amount / minimum (₱)
+                                    <input type="number" min="0" step="0.01" :name="`fees[${index}][options][${optionIndex}][amount_min]`" x-model="option.amount_min" class="admin-input mt-1">
+                                </label>
+                                <label x-show="option.type === 'range'" class="text-sm">Maximum amount (₱)
+                                    <input type="number" min="0" step="0.01" :name="`fees[${index}][options][${optionIndex}][amount_max]`" x-model="option.amount_max" class="admin-input mt-1">
+                                </label>
+                            </div>
+                            <label class="block text-sm">Description
+                                <textarea :name="`fees[${index}][options][${optionIndex}][description]`" x-model="option.description" maxlength="10000" rows="2" class="admin-input mt-1"></textarea>
+                            </label>
+                            <label class="block text-sm">Notes
+                                <textarea :name="`fees[${index}][options][${optionIndex}][notes]`" x-model="option.notes" maxlength="10000" rows="2" class="admin-input mt-1"></textarea>
+                            </label>
+                        </section>
+                    </template>
+                    <button type="button" class="admin-secondary" :disabled="fee.options.length >= 50" @click="addOption(fee)">+ Add another option</button>
+                </div>
+            </template>
+            <label class="block text-sm">Notes
+                <textarea :name="`fees[${index}][notes]`" x-model="fee.notes" rows="2" class="admin-input mt-1" placeholder="Optional conditions or details about this fee."></textarea>
+            </label>
+            <input type="hidden" :name="`fees[${index}][is_optional]`" value="0">
+            <label class="flex items-center gap-2 text-sm"><input type="checkbox" value="1" :name="`fees[${index}][is_optional]`" x-model="fee.is_optional">This fee is optional</label>
+        </section>
+    </template>
 </div>
-
-
-<script>
-    function governmentIdFeeEditor(initialFees) {
-        const normalize = (fee = {}) => ({
-            key:
-                Date.now().toString()
-                + Math.random().toString(36),
-
-            id: fee.id ?? null,
-            label: fee.label ?? '',
-            type: fee.type ?? 'fixed',
-
-            amount_min:
-                fee.amount_min ?? '',
-
-            amount_max:
-                fee.amount_max ?? '',
-
-            is_optional:
-                Boolean(fee.is_optional),
-
-            notes:
-                fee.notes ?? '',
-        });
-
-        return {
-            fees: Array.isArray(initialFees)
-                ? initialFees.map(normalize)
-                : [],
-
-            addFee() {
-                this.fees.push(
-                    normalize()
-                );
-            },
-
-            removeFee(index) {
-                this.fees.splice(index, 1);
-            },
-        };
-    }
-</script>

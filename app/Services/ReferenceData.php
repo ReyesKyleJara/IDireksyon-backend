@@ -46,6 +46,8 @@ class ReferenceData
         'document_application_step_blocks' => 'id application_step_id type section_title content sort_order',
         'document_fees' => 'id document_id label type amount_min amount_max currency is_optional notes sort_order',
         'document_office' => 'id document_id office_id new_application_status renewal_status replacement_status service_notes source_url last_verified_at last_verified_by',
+        'government_id_fee_options' => 'id government_id_fee_id label type amount_min amount_max currency description notes sort_order',
+        'document_fee_options' => 'id document_fee_id label type amount_min amount_max currency description notes sort_order',
     ];
 
     public function capture(): array
@@ -84,12 +86,14 @@ class ReferenceData
             || ($data['metadata'] ?? null) !== self::DEVELOPMENT_METADATA
             || ! in_array($data['snapshot_state'] ?? null, ['pending_export', 'exported'], true)
             || ! is_array($data['tables'] ?? null)
-            || array_keys($data['tables']) !== array_keys(self::COLUMNS)) {
+            || array_keys($data['tables']) !== array_values(array_diff(array_keys(self::COLUMNS), array_diff(['government_id_fee_options', 'document_fee_options'], array_keys($data['tables']))))) {
             throw new RuntimeException('Invalid reference dataset format or table allowlist.');
         }
         $ids = [];
         $names = [];
         foreach (self::COLUMNS as $table => $columns) {
+            // Older snapshots predate child options; their missing optional tables are empty.
+            if (!array_key_exists($table, $data['tables']) && in_array($table, ['government_id_fee_options', 'document_fee_options'], true)) continue;
             if (! is_array($data['tables'][$table]) || ! array_is_list($data['tables'][$table])) {
                 throw new RuntimeException("Invalid rows: $table");
             }
@@ -147,6 +151,7 @@ class ReferenceData
         foreach (explode(' ', self::COLUMNS[$table]) as $field) {
             $target = match ($field) {
                 'agency_id' => 'agencies', 'government_id_id' => 'government_ids', 'document_id' => 'documents',
+                'government_id_fee_id' => 'government_id_fees', 'document_fee_id' => 'document_fees',
                 'office_id' => 'offices', 'office_schedule_id' => 'office_schedules',
                 'requirement_set_id' => (str_starts_with($table, 'document_') ? 'document' : 'government_id').'_requirement_sets',
                 'requirement_group_id' => str_replace('_requirement_items', '_requirement_groups', str_replace('_requirement_ways', '_requirement_groups', $table)),

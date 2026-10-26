@@ -17,4 +17,8 @@ class DocumentFee extends GovernmentIdFee
     {
         return $this->belongsTo(Document::class);
     }
+    public function options(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DocumentFeeOption::class)->orderBy('sort_order')->orderBy('id');
+    }
 }
