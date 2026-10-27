@@ -225,6 +225,11 @@ class DocumentController extends Controller
             return redirect()->route('admin.documents.show', $document)
                 ->with('error', 'This document has Application Guide steps. Remove those steps before deleting it.');
         }
+        $isPrerequisiteReferenced = fn () => \App\Models\GovernmentIdPrerequisite::where('document_id', $document->id)->exists()
+            || \App\Models\DocumentPrerequisite::where('document_id', $document->id)->exists();
+        if ($isPrerequisiteReferenced()) {
+            return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
+        }
         $isReferenced = fn () => GovernmentIdRequirementItem::where('document_id', $document->id)->exists()
             || \App\Models\DocumentRequirementItem::where('document_id', $document->id)->exists();
         if ($isReferenced()) {
@@ -233,6 +238,9 @@ class DocumentController extends Controller
         try {
             DB::transaction(fn () => $document->delete());
         } catch (QueryException $exception) {
+            if ($isPrerequisiteReferenced()) {
+                return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
+            }
             if ($hasGuide()) {
                 return redirect()->route('admin.documents.show', $document)
                     ->with('error', 'This document has Application Guide steps. Remove those steps before deleting it.');

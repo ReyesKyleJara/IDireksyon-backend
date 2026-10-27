@@ -107,10 +107,31 @@
             @endif
         </header>
 
-        @if(filled($governmentId->purpose) || filled($governmentId->description) || ($governmentId->validity_type !== 'not_applicable' && filled($governmentId->validity)) || filled($governmentId->processing_time))
             <section class="admin-panel">
                 <h2>Basic information</h2>
                 <dl class="record-facts">
+                    <div class="record-fact">
+                        <dt>Application Availability</dt>
+                        <dd>{{ \App\Support\ApplicationAvailability::label($governmentId->application_availability) }}</dd>
+                    </div>
+                    <div class="record-fact">
+                        <dt>Acquisition Type</dt>
+                        <dd>{{ \App\Support\AcquisitionType::label($governmentId->acquisition_type) }}</dd>
+                    </div>
+                    @if(filled($governmentId->target_group))
+                        <div class="record-fact">
+                            <dt>Target Group / Qualification</dt>
+                            <dd>{{ $governmentId->target_group }}</dd>
+                        </div>
+                    @endif
+                    <div class="record-fact">
+                        <dt>Guidance Mode</dt>
+                        <dd>{{ \App\Support\GuidanceMode::label($governmentId->guidance_mode) }}</dd>
+                    </div>
+                    <div class="record-fact">
+                        <dt>Include in Smart Sequencing</dt>
+                        <dd>{{ $governmentId->include_in_smart_sequencing ? 'Yes' : 'No' }}</dd>
+                    </div>
                     @foreach(['description' => 'Description', 'purpose' => 'Purpose / Use', 'validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
                         @if(filled($governmentId->$field) && ! ($field === 'validity' && $governmentId->validity_type === 'not_applicable'))
                             <div class="record-fact">
@@ -121,7 +142,6 @@
                     @endforeach
                 </dl>
             </section>
-        @endif
 
     @if(filled($governmentId->eligibility))
         <section class="admin-panel mt-6 p-6">
@@ -129,6 +149,8 @@
             <p class="whitespace-pre-line break-words text-sm leading-7 text-slate-600">{{ $governmentId->eligibility }}</p>
         </section>
     @endif
+
+    @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
 
     @include('admin.government_ids.partials.checklists', ['editable' => false])
 

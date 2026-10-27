@@ -9,7 +9,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GovernmentId extends Model
 {
+    protected $attributes = [
+        'application_availability' => 'available',
+        'acquisition_type' => 'general_public',
+        'guidance_mode' => 'guided',
+        'include_in_smart_sequencing' => true,
+    ];
+
     protected $fillable = [
+        'application_availability',
+        'acquisition_type',
+        'target_group',
+        'guidance_mode',
+        'include_in_smart_sequencing',
         'name',
         'level',
         'category',
@@ -62,6 +74,7 @@ class GovernmentId extends Model
     protected function casts(): array
     {
         return [
+            'include_in_smart_sequencing' => 'boolean',
             'last_verified_at' => 'datetime',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',
@@ -71,6 +84,11 @@ class GovernmentId extends Model
             'fee_min' => 'decimal:2',
             'fee_max' => 'decimal:2',
         ];
+    }
+
+    public function prerequisites(): HasMany
+    {
+        return $this->hasMany(GovernmentIdPrerequisite::class, 'owner_id')->orderBy('sort_order')->orderBy('id');
     }
 
     public function agency(): BelongsTo

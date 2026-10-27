@@ -13,6 +13,8 @@ class GovernmentIdController extends Controller
     {
         $governmentIds = GovernmentId::query()
             ->with([
+                'prerequisites.governmentId',
+                'prerequisites.document',
                 'agency',
                 'fees.options',
             'fees' => fn ($query) => $query
@@ -28,6 +30,12 @@ class GovernmentIdController extends Controller
 
                     'level' => $governmentId->level,
                     'category' => $governmentId->category,
+                'application_availability' => $governmentId->application_availability,
+                'acquisition_type' => $governmentId->acquisition_type,
+                'target_group' => $governmentId->target_group,
+                'guidance_mode' => $governmentId->guidance_mode,
+                'include_in_smart_sequencing' => $governmentId->include_in_smart_sequencing,
+                'prerequisites' => \App\Services\CatalogPrerequisites::present($governmentId),
 
                     'agency' => $governmentId->agency
                         ? [
@@ -127,6 +135,8 @@ class GovernmentIdController extends Controller
         $governmentId->load([
             'agency',
             'requirementSets.groups.items.governmentId',
+            'prerequisites.governmentId',
+            'prerequisites.document',
             'requirementSets.groups.items.document',
             'requirementSets.groups.ways.items.governmentId',
             'requirementSets.groups.ways.items.document',
@@ -143,6 +153,12 @@ class GovernmentIdController extends Controller
 
                 'level' => $governmentId->level,
                 'category' => $governmentId->category,
+                'application_availability' => $governmentId->application_availability,
+                'acquisition_type' => $governmentId->acquisition_type,
+                'target_group' => $governmentId->target_group,
+                'guidance_mode' => $governmentId->guidance_mode,
+                'include_in_smart_sequencing' => $governmentId->include_in_smart_sequencing,
+                'prerequisites' => \App\Services\CatalogPrerequisites::present($governmentId),
 
                 /*
                  * Issuing agency.

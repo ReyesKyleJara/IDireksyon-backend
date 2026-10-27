@@ -27,6 +27,11 @@ class GovernmentIdCreationWizardController extends Controller
     ];
 
     private const BASIC_FIELDS = [
+        'application_availability',
+        'acquisition_type',
+        'target_group',
+        'guidance_mode',
+        'include_in_smart_sequencing',
         'name',
         'level',
         'category',
@@ -204,6 +209,13 @@ class GovernmentIdCreationWizardController extends Controller
                     );
                     break;
 
+                case 'requirements':
+                    if ($request->has('prerequisites_present')) {
+                        $input = $request->validate(['prerequisites' => ['sometimes', 'array'], 'prerequisites_present' => ['in:1']]);
+                        app(\App\Services\CatalogPrerequisites::class)->save($governmentId, $input['prerequisites'] ?? []);
+                    }
+                    break;
+
                 case 'fees':
                     // Reuse catalog validation,
                     // scoped to this section only.
@@ -358,6 +370,8 @@ class GovernmentIdCreationWizardController extends Controller
         ?string $creationKey = null
     ) {
         $governmentId?->load([
+            'prerequisites.governmentId',
+            'prerequisites.document',
             'agency',
             'requirementSets.groups.items.governmentId',
             'requirementSets.groups.items.document',

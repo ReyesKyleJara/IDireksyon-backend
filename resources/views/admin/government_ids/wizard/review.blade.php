@@ -63,6 +63,15 @@
 
                 <p class="mt-1 text-sm text-slate-600">
                     {{ $status }}
+                    @if($key === 'basic')
+                        <span class="mt-1 block">Application Availability: {{ \App\Support\ApplicationAvailability::label($governmentId->application_availability) }}</span>
+                        <span class="mt-1 block">Acquisition Type: {{ \App\Support\AcquisitionType::label($governmentId->acquisition_type) }}</span>
+                        @if(filled($governmentId->target_group))
+                            <span class="mt-1 block whitespace-pre-line break-words">Target Group / Qualification: {{ $governmentId->target_group }}</span>
+                        @endif
+                        <span class="mt-1 block">Guidance Mode: {{ \App\Support\GuidanceMode::label($governmentId->guidance_mode) }}</span>
+                        <span class="mt-1 block">Include in Smart Sequencing: {{ $governmentId->include_in_smart_sequencing ? 'Yes' : 'No' }}</span>
+                    @endif
                 </p>
             </div>
 
@@ -95,3 +104,5 @@
     @endforeach
 </section>
 @endif
+
+@include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])

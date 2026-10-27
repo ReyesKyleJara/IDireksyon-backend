@@ -9,7 +9,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Document extends Model
 {
+    protected $attributes = [
+        'application_availability' => 'available',
+        'acquisition_type' => 'general_public',
+        'guidance_mode' => 'guided',
+        'include_in_smart_sequencing' => true,
+    ];
+
     protected $fillable = [
+        'application_availability',
+        'acquisition_type',
+        'target_group',
+        'guidance_mode',
+        'include_in_smart_sequencing',
         'name',
         'level',
         'category',
@@ -61,6 +73,7 @@ class Document extends Model
     protected function casts(): array
     {
         return [
+            'include_in_smart_sequencing' => 'boolean',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',
             'validity_value' => 'integer',
@@ -71,6 +84,11 @@ class Document extends Model
         ];
     }
 
+
+    public function prerequisites(): HasMany
+    {
+        return $this->hasMany(DocumentPrerequisite::class, 'owner_id')->orderBy('sort_order')->orderBy('id');
+    }
 
     public function agency(): BelongsTo
     {

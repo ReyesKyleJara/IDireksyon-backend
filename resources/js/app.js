@@ -10,7 +10,10 @@ import governmentIdOffices from './government-id-offices';
 import governmentIdGuide from './government-id-guide';
 import guideRichText from './guide-rich-text';
 
+import catalogPrerequisites from './catalog-prerequisites';
+
 window.Alpine = Alpine;
+Alpine.data('catalogPrerequisites', catalogPrerequisites);
 Alpine.data('governmentIdGuide', governmentIdGuide);
 Alpine.data('guideRichText', guideRichText);
 

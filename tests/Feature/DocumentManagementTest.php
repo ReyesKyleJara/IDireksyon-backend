@@ -75,3 +75,37 @@ it('displays and searches the agency selected in the shared document form', func
     Document::create(['name' => 'Other document']);
     $this->get('/admin/documents?q=ECR')->assertOk()->assertSee('Issued certificate')->assertSee('Example Civil Registry')->assertDontSee('Other document');
 });
+
+
+it('groups existing basic fields into three shared cards in Government ID and Document Add and Edit', function () {
+    foreach ([['documents', Document::class], ['government-ids', \App\Models\GovernmentId::class]] as [$resource, $model]) {
+        $record = $model::create(['name' => 'Saved layout', 'application_availability' => 'limited_conditional',
+            'acquisition_type' => 'profession_based', 'target_group' => 'Maritime professionals',
+            'guidance_mode' => 'informational_only', 'include_in_smart_sequencing' => false]);
+        foreach ([route('admin.'.$resource.'.create'), route('admin.'.$resource.'.edit', $record)] as $url) {
+            $page = $this->get($url)->assertOk()->assertSeeInOrder(['General Information', 'Availability &amp; Audience', 'IDireksyon Behavior'], false);
+            $document = new \DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            $document->loadHTML($page->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+            $xpath = new \DOMXPath($document);
+            $sections = [
+                'wizard-basic-heading' => ['name', 'level', 'category', 'agency_id', 'description', 'validity_type', 'processing_time_type', 'eligibility_age_type'],
+                'wizard-audience-heading' => ['application_availability', 'acquisition_type', 'target_group'],
+                'wizard-behavior-heading' => ['guidance_mode', 'include_in_smart_sequencing'],
+            ];
+            foreach ($sections as $heading => $fields) {
+                $card = $xpath->query('//section[@aria-labelledby="'.$heading.'"]');
+                expect($card->length)->toBe(1);
+                foreach ($fields as $field) {
+                    expect($xpath->query('.//*[@name="'.$field.'"]', $card->item(0))->length)->toBeGreaterThan(0);
+                    foreach (array_diff(array_keys($sections), [$heading]) as $other) {
+                        expect($xpath->query('//section[@aria-labelledby="'.$other.'"]//*[@name="'.$field.'"]')->length)->toBe(0);
+                    }
+                }
+            }
+            expect($xpath->query('//*[@name="prerequisites_present"]')->length)->toBe(0);
+        }
+    }
+});

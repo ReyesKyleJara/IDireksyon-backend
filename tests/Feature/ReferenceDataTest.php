@@ -58,6 +58,11 @@ class ReferenceDataTest extends TestCase
         DB::table('government_id_fee_options')->insert(['id' => 170, 'government_id_fee_id' => 70, 'label' => 'Regular', 'type' => 'fixed', 'amount_min' => '950.00', 'description' => '10–15 working days']);
         DB::table('document_fees')->where('id', 160)->update(['type' => 'options', 'amount_min' => null]);
         DB::table('document_fee_options')->insert(['id' => 180, 'document_fee_id' => 160, 'label' => 'Express', 'type' => 'fixed', 'amount_min' => '1200.00', 'description' => '5–7 working days']);
+        DB::table('catalog_government_id_prerequisites')->insert([
+            ['id' => 190, 'owner_id' => $id, 'type' => 'document', 'government_id_id' => null, 'document_id' => 50, 'custom_name' => null, 'condition' => 'If required', 'sort_order' => 1],
+            ['id' => 191, 'owner_id' => $id, 'type' => 'custom', 'government_id_id' => null, 'document_id' => null, 'custom_name' => 'Complete training', 'condition' => null, 'sort_order' => 0],
+        ]);
+        DB::table('catalog_document_prerequisites')->insert(['id' => 192, 'owner_id' => 50, 'type' => 'government_id', 'government_id_id' => $id, 'sort_order' => 0]);
         $data = app(ReferenceData::class)->capture();
         $data['snapshot_state'] = 'exported';
 
@@ -98,6 +103,35 @@ class ReferenceDataTest extends TestCase
         $result = app(ReferenceData::class)->import($data);
         $this->assertGreaterThan(0, $result['inserted']);
         $this->assertSame(0, DB::table('government_id_fee_options')->count());
+    }
+
+    public function test_older_snapshots_without_prerequisites_still_import(): void
+    {
+        $data = $this->fixture();
+        unset($data['tables']['catalog_government_id_prerequisites'], $data['tables']['catalog_document_prerequisites']);
+        $this->newIsolatedDatabase();
+        $this->assertGreaterThan(0, app(ReferenceData::class)->import($data)['inserted']);
+        $this->assertSame(0, DB::table('catalog_government_id_prerequisites')->count());
+    }
+
+    public function test_prerequisite_sources_self_links_duplicates_and_missing_targets_are_rejected(): void
+    {
+        $original = $this->fixture();
+        foreach (['mixed', 'self', 'missing', 'duplicate'] as $case) {
+            $data = $original;
+            $row = &$data['tables']['catalog_government_id_prerequisites'][0];
+            if ($case === 'mixed') $row['custom_name'] = 'Ambiguous';
+            if ($case === 'self') { $row['type'] = 'government_id'; $row['government_id_id'] = $row['owner_id']; $row['document_id'] = null; }
+            if ($case === 'missing') $row['document_id'] = 999999;
+            if ($case === 'duplicate') $data['tables']['catalog_government_id_prerequisites'][] = [...$row, 'id' => 99999];
+            unset($row);
+            try {
+                app(ReferenceData::class)->validate($data);
+                $this->fail('Expected invalid prerequisite: '.$case);
+            } catch (\RuntimeException $exception) {
+                $this->assertMatchesRegularExpression('/Invalid prerequisite|Missing dataset dependency/', $exception->getMessage());
+            }
+        }
     }
 
     public function test_options_require_their_parent_fee_in_the_snapshot(): void

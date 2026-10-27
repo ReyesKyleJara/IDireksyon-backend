@@ -31,11 +31,18 @@ class ResidentInventoryController extends Controller
         return response()->json([
             'data' => [
                 'government_ids' => GovernmentId::query()
+                    ->with(['prerequisites.governmentId', 'prerequisites.document'])
                     ->orderBy('name')
-                    ->get(['id', 'name'])
+                    ->get(['id', 'name', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
                     ->map(fn (GovernmentId $governmentId) => [
                         'id' => $governmentId->id,
                         'name' => $governmentId->name,
+                        'application_availability' => $governmentId->application_availability,
+                        'acquisition_type' => $governmentId->acquisition_type,
+                        'target_group' => $governmentId->target_group,
+                        'guidance_mode' => $governmentId->guidance_mode,
+                        'include_in_smart_sequencing' => $governmentId->include_in_smart_sequencing,
+                        'prerequisites' => \App\Services\CatalogPrerequisites::present($governmentId),
                         'owned' => in_array(
                             $governmentId->id,
                             $ownedGovernmentIdIds,
@@ -45,11 +52,18 @@ class ResidentInventoryController extends Controller
                     ->values(),
 
                 'documents' => Document::query()
+                    ->with(['prerequisites.governmentId', 'prerequisites.document'])
                     ->orderBy('name')
-                    ->get(['id', 'name'])
+                    ->get(['id', 'name', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
                     ->map(fn (Document $document) => [
                         'id' => $document->id,
                         'name' => $document->name,
+                        'application_availability' => $document->application_availability,
+                        'acquisition_type' => $document->acquisition_type,
+                        'target_group' => $document->target_group,
+                        'guidance_mode' => $document->guidance_mode,
+                        'include_in_smart_sequencing' => $document->include_in_smart_sequencing,
+                        'prerequisites' => \App\Services\CatalogPrerequisites::present($document),
                         'owned' => in_array(
                             $document->id,
                             $ownedDocumentIds,

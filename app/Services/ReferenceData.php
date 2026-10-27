@@ -48,6 +48,8 @@ class ReferenceData
         'document_office' => 'id document_id office_id new_application_status renewal_status replacement_status service_notes source_url last_verified_at last_verified_by',
         'government_id_fee_options' => 'id government_id_fee_id label type amount_min amount_max currency description notes sort_order',
         'document_fee_options' => 'id document_fee_id label type amount_min amount_max currency description notes sort_order',
+        'catalog_government_id_prerequisites' => 'id owner_id type government_id_id document_id custom_name condition sort_order',
+        'catalog_document_prerequisites' => 'id owner_id type government_id_id document_id custom_name condition sort_order',
     ];
 
     public function capture(): array
@@ -86,14 +88,14 @@ class ReferenceData
             || ($data['metadata'] ?? null) !== self::DEVELOPMENT_METADATA
             || ! in_array($data['snapshot_state'] ?? null, ['pending_export', 'exported'], true)
             || ! is_array($data['tables'] ?? null)
-            || array_keys($data['tables']) !== array_values(array_diff(array_keys(self::COLUMNS), array_diff(['government_id_fee_options', 'document_fee_options'], array_keys($data['tables']))))) {
+            || array_keys($data['tables']) !== array_values(array_diff(array_keys(self::COLUMNS), array_diff(['government_id_fee_options', 'document_fee_options', 'catalog_government_id_prerequisites', 'catalog_document_prerequisites'], array_keys($data['tables']))))) {
             throw new RuntimeException('Invalid reference dataset format or table allowlist.');
         }
         $ids = [];
         $names = [];
         foreach (self::COLUMNS as $table => $columns) {
             // Older snapshots predate child options; their missing optional tables are empty.
-            if (!array_key_exists($table, $data['tables']) && in_array($table, ['government_id_fee_options', 'document_fee_options'], true)) continue;
+            if (!array_key_exists($table, $data['tables']) && in_array($table, ['government_id_fee_options', 'document_fee_options', 'catalog_government_id_prerequisites', 'catalog_document_prerequisites'], true)) continue;
             if (! is_array($data['tables'][$table]) || ! array_is_list($data['tables'][$table])) {
                 throw new RuntimeException("Invalid rows: $table");
             }
@@ -128,6 +130,22 @@ class ReferenceData
             }
         }
         foreach ($data['tables'] as $table => $rows) {
+            if (str_ends_with($table, '_prerequisites')) {
+                foreach (collect($rows)->groupBy('owner_id') as $ownerId => $ownedRows) {
+                    if (!isset($ids[str_starts_with($table, 'catalog_document_') ? 'documents' : 'government_ids'][$ownerId])) {
+                        throw new RuntimeException('Missing dataset dependency: prerequisite owner');
+                    }
+                    foreach ($ownedRows as $row) {
+                        if (!is_int($row['sort_order']) || $row['sort_order'] < 0) throw new RuntimeException('Invalid prerequisite order.');
+                    }
+                    try {
+                        CatalogPrerequisites::validateRows($ownedRows->map(fn ($row) => \Illuminate\Support\Arr::except($row, ['owner_id', 'sort_order']))->values()->all(),
+                            str_starts_with($table, 'catalog_document_') ? 'document' : 'government_id', (int) $ownerId, false);
+                    } catch (\Illuminate\Validation\ValidationException $exception) {
+                        throw new RuntimeException('Invalid prerequisite sources: '.implode(' ', $exception->validator->errors()->all()), previous: $exception);
+                    }
+                }
+            }
             foreach ($rows as $row) {
                 foreach ($this->foreignKeys($table) as $field => $target) {
                     $value = $row[$field];
@@ -150,6 +168,7 @@ class ReferenceData
         $keys = [];
         foreach (explode(' ', self::COLUMNS[$table]) as $field) {
             $target = match ($field) {
+                'owner_id' => str_starts_with($table, 'catalog_document_') ? 'documents' : 'government_ids',
                 'agency_id' => 'agencies', 'government_id_id' => 'government_ids', 'document_id' => 'documents',
                 'government_id_fee_id' => 'government_id_fees', 'document_fee_id' => 'document_fees',
                 'office_id' => 'offices', 'office_schedule_id' => 'office_schedules',

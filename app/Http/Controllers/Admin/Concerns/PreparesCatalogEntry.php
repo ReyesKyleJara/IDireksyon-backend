@@ -69,6 +69,11 @@ trait PreparesCatalogEntry
         Request $request
     ): array {
         return $request->validate([
+            'application_availability' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\ApplicationAvailability::LABELS))],
+            'acquisition_type' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\AcquisitionType::LABELS))],
+            'target_group' => ['nullable', 'string', 'max:1000'],
+            'guidance_mode' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\GuidanceMode::LABELS))],
+            'include_in_smart_sequencing' => ['sometimes', 'required', 'boolean'],
             'issued_by' => ['nullable', 'string', 'max:255'],
             'name' => [
                 'required',

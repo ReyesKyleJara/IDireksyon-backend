@@ -230,6 +230,8 @@
             {{-- REQUIREMENTS --}}
             @case('requirements')
 
+                @include('admin.catalog.partials.prerequisites-editor')
+                <h2 class="text-lg font-semibold text-slate-900">Application Requirements</h2>
                 @include(
                     'admin.government_ids.partials.checklists',
                     [

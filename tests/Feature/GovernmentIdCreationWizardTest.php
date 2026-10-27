@@ -89,7 +89,7 @@ it('uses six wizard steps and retires wizard case actions', function () {
     expect($id->requirementSets()->count())->toBe(1);
 });
 
-it('shows four visible basic cards and preserves hidden legacy fields when saving About this ID', function () {
+it('shows general information subsections and preserves hidden legacy fields when saving About this ID', function () {
     $this->get(route('admin.government-ids.create'))->assertOk()
         ->assertSee('wizard-basic-heading')->assertSee('wizard-validity-heading')->assertSee('wizard-processing-heading')
         ->assertSee('aria-label="Eligibility"', false)->assertSee('About this ID')

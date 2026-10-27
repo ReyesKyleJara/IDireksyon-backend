@@ -294,6 +294,11 @@ class GovernmentIdController extends Controller
             return redirect()->route('admin.government-ids.show', $governmentId)
                 ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
         }
+        $isPrerequisiteReferenced = fn () => \App\Models\GovernmentIdPrerequisite::where('government_id_id', $governmentId->id)->exists()
+            || \App\Models\DocumentPrerequisite::where('government_id_id', $governmentId->id)->exists();
+        if ($isPrerequisiteReferenced()) {
+            return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
+        }
         $isReferenced = fn () => GovernmentIdRequirementItem::where('government_id_id', $governmentId->id)->exists()
             || \App\Models\DocumentRequirementItem::where('government_id_id', $governmentId->id)->exists();
         if ($isReferenced()) {
@@ -302,6 +307,9 @@ class GovernmentIdController extends Controller
         try {
             DB::transaction(fn () => $governmentId->delete());
         } catch (QueryException $exception) {
+            if ($isPrerequisiteReferenced()) {
+                return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
+            }
             if ($hasGuide()) {
                 return redirect()->route('admin.government-ids.show', $governmentId)
                     ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
