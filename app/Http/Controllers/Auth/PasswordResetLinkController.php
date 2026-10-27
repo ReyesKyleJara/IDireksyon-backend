@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -11,6 +12,22 @@ use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
 {
+    public function sendApi(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:255']]);
+        $email = strtolower(trim($data['email']));
+
+        try {
+            Password::sendResetLink(['email' => $email, 'is_active' => true]);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json(['message' => 'Unable to send the reset email. Please try again later.'], 503);
+        }
+
+        return response()->json(['message' => 'If an active account uses this email, a password reset link will be sent. Check your inbox and spam folder.']);
+    }
+
     /**
      * Display the password reset link request view.
      */

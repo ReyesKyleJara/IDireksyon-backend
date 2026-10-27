@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
 use App\Http\Controllers\Api\SignupEmailVerificationController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('maps')->middleware('throttle:30,1')->group(function () {
@@ -47,6 +48,8 @@ Route::get('/government-ids/{governmentId}', [
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'sendApi'])
+        ->middleware('throttle:5,1');
     Route::post('email-verification/send', [SignupEmailVerificationController::class, 'send'])
         ->middleware('throttle:5,1');
     Route::post('email-verification/verify', [SignupEmailVerificationController::class, 'verify'])
