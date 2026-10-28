@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\BarangayController;
 use App\Http\Controllers\Api\GovernmentIdController;
 use App\Http\Controllers\Api\ResidentAuthController;
 use App\Http\Controllers\Api\ResidentInventoryController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,6 +41,9 @@ Route::get('/government-ids/{governmentId}', [
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'sendApi'])
+        ->middleware('throttle:5,1');
+
     Route::post('email-verification/send', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'send'])
         ->middleware('throttle:5,1');
     Route::post('email-verification/verify', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'verify'])

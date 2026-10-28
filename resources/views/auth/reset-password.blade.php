@@ -1,4 +1,8 @@
 <x-guest-layout>
+    <x-slot name="title">IDireksyon | Reset password</x-slot>
+    <h1 class="text-xl font-semibold mb-4">Reset your password</h1>
+    <p class="mb-4 text-sm text-slate-600">Use a password between 8 and 128 characters.</p>
+
     <form method="POST" action="{{ route('password.store') }}">
         @csrf
 
