@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\ContentChangeLog;
 use App\Models\Document;
+use App\Models\DocumentPrerequisite;
 use App\Models\GovernmentId;
+use App\Models\GovernmentIdPrerequisite;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -50,12 +52,47 @@ class CatalogPrerequisites
                 $seen[$identity] = true;
             }
         });
-        return $validator->validate()['prerequisites'];
+        $validated = $validator->validate()['prerequisites'];
+        if ($checkDatabase) self::validateCycles($validated, $ownerType, $ownerId);
+        return $validated;
+    }
+
+    private static function validateCycles(array $rows, string $ownerType, int $ownerId): void
+    {
+        $graph = [];
+        foreach (['government_id' => GovernmentIdPrerequisite::class, 'document' => DocumentPrerequisite::class] as $type => $model) {
+            // Locking reads see the latest committed edges after the catalog locks.
+            foreach ($model::query()->orderBy('id')->lockForUpdate()->get() as $edge) {
+                if ($edge->type === 'custom') continue;
+                $graph[$type.':'.$edge->owner_id][] = $edge->type.':'.$edge->{$edge->type.'_id'};
+            }
+        }
+        $owner = $ownerType.':'.$ownerId;
+        foreach ($rows as $index => $row) {
+            if ($row['type'] === 'custom') continue;
+            $pending = [$row['type'].':'.$row[$row['type'].'_id']];
+            $visited = [];
+            while ($pending) {
+                $node = array_pop($pending);
+                if ($node === $owner) {
+                    throw ValidationException::withMessages([
+                        "prerequisites.$index.type" => 'This prerequisite would create a circular dependency.',
+                    ]);
+                }
+                if (isset($visited[$node])) continue;
+                $visited[$node] = true;
+                foreach ($graph[$node] ?? [] as $target) $pending[] = $target;
+            }
+        }
     }
 
     public function save(GovernmentId|Document $owner, array $rows): void
     {
         DB::transaction(function () use ($owner, $rows) {
+            // Serialize graph edits across both catalog types, in a fixed order.
+            // Owner-only locks would let simultaneous A -> B and B -> A both pass.
+            GovernmentId::query()->orderBy('id')->lockForUpdate()->get(['id']);
+            Document::query()->orderBy('id')->lockForUpdate()->get(['id']);
             $owner->newQuery()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
             $rows = self::validateRows($rows, $owner instanceof Document ? 'document' : 'government_id', $owner->id);
             $existing = $owner->prerequisites()->lockForUpdate()->get()->keyBy('id');

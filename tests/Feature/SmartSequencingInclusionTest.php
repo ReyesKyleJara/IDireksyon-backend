@@ -153,9 +153,9 @@ it('toggles inclusion without modifying metadata or structured acquisition conte
     }
 })->with('inclusion catalogs');
 
-it('keeps excluded records linkable as requirements prerequisites and inventory items', function () {
-    $id = GovernmentId::create(['name' => 'Reference ID', 'guidance_mode' => 'informational_only', 'include_in_smart_sequencing' => false]);
-    $document = Document::create(['name' => 'Reference document', 'guidance_mode' => 'informational_only', 'include_in_smart_sequencing' => false]);
+it('keeps records linkable as requirements prerequisites and inventory items regardless of candidacy metadata', function (string $availability, bool $include) {
+    $id = GovernmentId::create(['name' => 'Reference ID', 'guidance_mode' => 'informational_only', 'include_in_smart_sequencing' => $include, 'application_availability' => $availability]);
+    $document = Document::create(['name' => 'Reference document', 'guidance_mode' => 'informational_only', 'include_in_smart_sequencing' => $include, 'application_availability' => $availability]);
     $owner = GovernmentId::create(['name' => 'Guided owner']);
     $this->get(route('admin.government-ids.edit-wizard.show', [$owner, 'requirements']))->assertOk()
         ->assertSee('Reference ID')->assertSee('Reference document');
@@ -177,6 +177,7 @@ it('keeps excluded records linkable as requirements prerequisites and inventory 
     expect($resident->ownedGovernmentIds()->sole()->id)->toBe($id->id)->and($resident->ownedDocuments()->sole()->id)->toBe($document->id);
     $response = $this->getJson('/api/auth/inventory')->assertOk();
     $rows = collect($response->json('data.government_ids'))->keyBy('id');
-    expect($rows[$id->id]['owned'])->toBeTrue()->and($rows[$id->id]['include_in_smart_sequencing'])->toBeFalse();
+    expect($rows[$id->id]['owned'])->toBeTrue()->and($rows[$id->id]['include_in_smart_sequencing'])->toBe($include)
+        ->and($rows[$id->id]['application_availability'])->toBe($availability);
     $this->getJson('/api/government-ids')->assertOk()->assertJsonCount(2, 'data');
-});
+})->with(['available', 'limited_conditional', 'temporarily_unavailable', 'discontinued'])->with([false, true]);
