@@ -59,6 +59,8 @@ Route::prefix('auth')->group(function () {
     ])->middleware('throttle:5,1');
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('roadmap-plan', [\App\Http\Controllers\Api\ResidentRoadmapController::class, 'plan']);
+
         Route::get('me', [
             ResidentAuthController::class,
             'me',

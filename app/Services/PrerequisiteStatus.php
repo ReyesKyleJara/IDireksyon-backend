@@ -12,10 +12,17 @@ class PrerequisiteStatus
     public function forResident(GovernmentId|Document $owner, User $resident): array
     {
         // Query relationships each time instead of using a stale loaded Inventory.
-        $ids = array_fill_keys($resident->ownedGovernmentIds()->pluck('government_ids.id')->all(), true);
-        $documents = array_fill_keys($resident->ownedDocuments()->pluck('documents.id')->all(), true);
+        $ids = $resident->ownedGovernmentIds()->pluck('government_ids.id')->all();
+        $documents = $resident->ownedDocuments()->pluck('documents.id')->all();
         $owner->load(['prerequisites.governmentId', 'prerequisites.document']);
 
+        return $this->evaluate(CatalogPrerequisites::present($owner), $ids, $documents);
+    }
+
+    public function evaluate(array $rows, array $governmentIds, array $documentIds): array
+    {
+        $ids = array_fill_keys($governmentIds, true);
+        $documents = array_fill_keys($documentIds, true);
         return array_map(fn (array $row) => [
             ...$row,
             'status' => match ($row['type']) {
@@ -23,6 +30,18 @@ class PrerequisiteStatus
                 'document' => isset($documents[$row['id']]) ? 'satisfied' : 'missing',
                 default => 'manual',
             },
-        ], CatalogPrerequisites::present($owner));
+        ], $rows);
+    }
+
+    public function readiness(array $rows): array
+    {
+        $automatic = array_filter($rows, fn ($row) => $row['status'] !== 'manual');
+        $satisfied = count(array_filter($automatic, fn ($row) => $row['status'] === 'satisfied'));
+        return [
+            'satisfied' => $satisfied,
+            'total' => count($automatic),
+            'percentage' => $automatic ? (int) round(100 * $satisfied / count($automatic)) : null,
+            'manual' => count($rows) - count($automatic),
+        ];
     }
 }
