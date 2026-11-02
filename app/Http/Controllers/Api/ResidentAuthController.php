@@ -397,4 +397,62 @@ class ResidentAuthController extends Controller
             'message' => 'Password updated.',
         ]);
     }
+
+    public function destroyAccount(
+        Request $request
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless(
+            $user->is_active &&
+            $user->role === 'resident',
+            403
+        );
+
+        $data = $request->validate([
+            'password' => [
+                'required',
+                'string',
+                'max:128',
+            ],
+        ]);
+
+        if (
+            ! Hash::check(
+                $data['password'],
+                $user->password
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'password' =>
+                    'Your password is incorrect.',
+            ]);
+        }
+
+        // Saved IDs and documents cascade with the user row; tokens,
+        // sessions and email-keyed records have no foreign key to users.
+        DB::transaction(function () use ($user) {
+            $user->tokens()->delete();
+
+            DB::table('sessions')
+                ->where('user_id', $user->id)
+                ->delete();
+
+            if ($user->email !== null) {
+                DB::table('password_reset_tokens')
+                    ->where('email', $user->email)
+                    ->delete();
+
+                DB::table('signup_email_verifications')
+                    ->where('email', $user->email)
+                    ->delete();
+            }
+
+            $user->delete();
+        });
+
+        return response()->json([
+            'message' => 'Account deleted.',
+        ]);
+    }
 }
