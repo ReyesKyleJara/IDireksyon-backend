@@ -39,10 +39,11 @@
     <div>
         <label for="eligibility_age_type" class="mb-2 block text-sm font-medium">Age Requirement</label>
         <select id="eligibility_age_type" name="eligibility_age_type" x-model="ageType" class="admin-input">
-            <option value="">Select requirement</option>
-            <option value="none">No age requirement</option>
-            <option value="minimum">Minimum age only</option>
-            <option value="range">Age range</option>
+            <option value="" @selected($eligibilityValue('eligibility_age_type', $record?->eligibility_age_type) === '')>Select requirement</option>
+            <option value="none" @selected($eligibilityValue('eligibility_age_type', $record?->eligibility_age_type) === 'none')>No age requirement</option>
+            <option value="minimum" @selected($eligibilityValue('eligibility_age_type', $record?->eligibility_age_type) === 'minimum')>Minimum age only</option>
+            <option value="range" @selected($eligibilityValue('eligibility_age_type', $record?->eligibility_age_type) === 'range')>Age range</option>
+            <option value="not_applicable" @selected($eligibilityValue('eligibility_age_type', $record?->eligibility_age_type) === 'not_applicable')>Not Applicable</option>
         </select>
         @error('eligibility_age_type')
             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -75,7 +76,7 @@
     <div>
         <label for="eligibility_citizenship" class="mb-2 block text-sm font-medium">Citizenship Requirement</label>
         <select id="eligibility_citizenship" name="eligibility_citizenship" class="admin-input">
-            @foreach(['' => 'Select requirement', 'none' => 'No specific citizenship requirement', 'filipino' => 'Filipino citizen required'] as $value => $label)
+            @foreach(['' => 'Select requirement', 'none' => 'No specific citizenship requirement', 'filipino' => 'Filipino citizen required', 'not_applicable' => 'Not Applicable'] as $value => $label)
                 <option value="{{ $value }}" @selected($eligibilityValue('eligibility_citizenship', $record?->eligibility_citizenship) === $value)>{{ $label }}</option>
             @endforeach
         </select>
@@ -87,11 +88,12 @@
     <div>
         <label for="eligibility_residency" class="mb-2 block text-sm font-medium">Residency Requirement</label>
         <select id="eligibility_residency" name="eligibility_residency" x-model="residency" class="admin-input">
-            <option value="">Select requirement</option>
-            <option value="none">No specific residency requirement</option>
-            <option value="philippines">Philippine resident required</option>
-            <option value="santa_maria">Santa Maria, Bulacan resident required</option>
-            <option value="custom">Other / Custom</option>
+            <option value="" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === '')>Select requirement</option>
+            <option value="none" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === 'none')>No specific residency requirement</option>
+            <option value="philippines" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === 'philippines')>Philippine resident required</option>
+            <option value="santa_maria" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === 'santa_maria')>Santa Maria, Bulacan resident required</option>
+            <option value="custom" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === 'custom')>Other / Custom</option>
+            <option value="not_applicable" @selected($eligibilityValue('eligibility_residency', $record?->eligibility_residency) === 'not_applicable')>Not Applicable</option>
         </select>
         @error('eligibility_residency')
             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>

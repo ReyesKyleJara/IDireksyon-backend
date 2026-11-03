@@ -27,9 +27,9 @@ function startDocumentWizard($test): Document
     return Document::where('name', 'Guided certificate')->sole();
 }
 
-it('opens six document steps and creates one resumable document from each start', function () {
+it('opens seven document steps and creates one resumable document from each start', function () {
     $page = $this->get(route('admin.documents.create'))->assertOk()
-        ->assertSeeInOrder(['Basic Info', 'Requirements', 'Fees', 'Application Guide', 'Offices', 'Review'])
+        ->assertSeeInOrder(['Basic Information', 'Request Methods', 'Requirements', 'Fees', 'Application Guide', 'Offices', 'Review'])
         ->assertSee('Document Name')->assertSee('About this Document')->assertSee('Civil Registry')
         ->assertSee('Issuing office / department')->assertDontSee('Travel Document')
         ->assertDontSee('Add checklist')->assertDontSee('Document form sections');
@@ -38,12 +38,12 @@ it('opens six document steps and creates one resumable document from each start'
     $this->post(route('admin.documents.wizard.store'), $data)->assertSessionHasNoErrors();
     $document = Document::sole();
     $this->post(route('admin.documents.wizard.store'), $data)
-        ->assertRedirect(documentWizardUrl($document, 'requirements'));
+        ->assertRedirect(documentWizardUrl($document, 'channels'));
     expect(Document::count())->toBe(1)->and($document->requirementSets()->count())->toBe(1)
         ->and($document->requirementSets()->sole()->applicant_type)->toBe('all')
         ->and(GovernmentId::count())->toBe(0);
     $this->get(route('admin.documents.create'))->assertSee('Resume')->assertSee('Once only')
-        ->assertSee(documentWizardUrl($document, 'requirements'), false);
+        ->assertSee(documentWizardUrl($document, 'channels'), false);
     $this->post(route('admin.documents.wizard.store'), ['creation_key' => fake()->uuid(), 'name' => 'Invalid start'])
         ->assertStatus(419);
 });
@@ -79,10 +79,10 @@ it('saves each document section independently and finishes at document details',
     ]]])->assertSessionHasNoErrors()->assertRedirect(documentWizardUrl($document, 'review'));
     $page = $this->get(documentWizardUrl($document, 'review'))->assertOk()->assertSee('Finish')
         ->assertSee('1 group / 1 item')->assertSee('1 fee')->assertSee('1 step')->assertSee('1 linked office')
-        ->assertSee(documentWizardUrl($document, 'offices'), false);
+        ->assertSee(route('admin.documents.wizard.show', [$document, 'offices', 'path' => $set->id]), false);
     expect($page->viewData('counts'))->toBe(['groups' => 1, 'items' => 1, 'fees' => 1, 'guide' => 1, 'offices' => 1]);
     $this->post(documentWizardUrl($document, 'basic', 'save'), ['name' => 'Updated certificate', 'description' => 'Saved separately'])
-        ->assertSessionHasNoErrors()->assertRedirect(documentWizardUrl($document, 'requirements'));
+        ->assertSessionHasNoErrors()->assertRedirect(documentWizardUrl($document, 'channels'));
     expect($document->fresh()->issued_by)->toBe('Civil Registry')->and($document->fees()->count())->toBe(1)
         ->and($document->offices()->count())->toBe(1)->and($set->applicationSteps()->count())->toBe(1)
         ->and($set->groups()->count())->toBe(1);
@@ -123,7 +123,7 @@ it('allows empty optional sections and scopes resume state away from Government 
         $this->post(documentWizardUrl($document, $step, 'save'))->assertSessionHasNoErrors()
             ->assertRedirect(documentWizardUrl($document, $next));
     }
-    $this->get(documentWizardUrl($document, 'guide'))->assertSee('Requirements are not complete yet');
+    $this->get(documentWizardUrl($document, 'guide'))->assertDontSee('Requirements are not complete yet');
     $this->post(documentWizardUrl($document, 'review', 'save'))->assertRedirect(route('admin.documents.show', $document));
     expect(session('id_creation_resume'))->toBe(['id' => 123, 'step' => 'fees']);
     $this->get(documentWizardUrl($document, 'unknown'))->assertNotFound();

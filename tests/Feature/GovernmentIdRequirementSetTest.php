@@ -12,7 +12,7 @@ it('keeps sets separate by ID and preserves existing API fields', function () {
     ]);
     $other = GovernmentId::create(['name' => 'Other ID']);
     $beforeList = $this->getJson('/api/government-ids')->assertOk()->json();
-    $beforeDetail = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$id->id)->assertOk()->json('data'), ['requirement_sets']);
+    $beforeDetail = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$id->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     expect($id->requirementSets()->count())->toBe(0);
 
     $adult = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'adult']);
@@ -23,7 +23,7 @@ it('keeps sets separate by ID and preserves existing API fields', function () {
         ->and($adult->governmentId->is($id))->toBeTrue()
         ->and($adult->display_label)->toBe('Adult • First-Time Application');
     expect($this->getJson('/api/government-ids')->assertOk()->json())->toBe($beforeList)
-        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$id->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($beforeDetail);
+        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$id->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($beforeDetail);
 });
 
 it('normalizes preset ages and clears stale custom labels on updates', function () {

@@ -61,7 +61,7 @@ it('stores alternative ways as one requirement and preserves ID and document ref
         ['required_count' => 2, 'qualification_type' => 'photo_signature', 'qualification_scope' => 'at_least_one',
             'items' => [waysItem(['type' => 'document', 'document_id' => $doc->id]), waysItem(['custom_name' => 'Legacy secondary item'])]],
     ];
-    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']);
+    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     $saved = $this->postJson($this->url, waysPayload($ways))->assertCreated()
         ->assertJsonCount(1, 'checklist.groups')->assertJsonCount(2, 'checklist.groups.0.ways')
         ->assertJsonPath('checklist.groups.0.ways.1.required_count', 2)
@@ -73,7 +73,7 @@ it('stores alternative ways as one requirement and preserves ID and document ref
     $logs = ContentChangeLog::count();
     $this->putJson($this->url.'/'.$saved['id'], editableWays($saved))->assertOk()->assertJsonPath('checklist', $saved);
     expect(ContentChangeLog::count())->toBe($logs);
-    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($before);
+    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($before);
     $this->get('/admin/government-ids/'.$this->target->id)->assertOk()
         ->assertSee('Proof of Identity')->assertDontSee('Edit checklist')->assertDontSee('checklist-dialog');
 });

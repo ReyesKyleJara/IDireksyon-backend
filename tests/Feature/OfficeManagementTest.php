@@ -88,7 +88,7 @@ it('logs schedule-only edits without marking research verified', function () {
         ->and($office->fresh()->last_verified_at)->toBeNull();
 });
 
-it('rejects publication and ignores unapproved verification and coordinate input', function () {
+it('rejects invalid status and ignores verification input while saving coordinates', function () {
     $this->post('/admin/offices', ['name' => 'Branch', 'status' => 'published'])->assertSessionHasErrors('status');
     expect(Office::count())->toBe(0);
     $this->post('/admin/offices', [
@@ -96,7 +96,7 @@ it('rejects publication and ignores unapproved verification and coordinate input
         'last_verified_at' => '2026-10-01', 'last_verified_by' => auth()->id(),
     ])->assertSessionHasNoErrors();
     $office = Office::firstOrFail();
-    expect($office->latitude)->toBeNull()->and($office->longitude)->toBeNull()
+    expect((float) $office->latitude)->toBe(14.8)->and((float) $office->longitude)->toBe(120.9)
         ->and($office->last_verified_at)->toBeNull()->and($office->last_verified_by)->toBeNull();
 });
 

@@ -28,6 +28,9 @@ Route::get('/health', function () {
 
 Route::get('/barangays', [BarangayController::class, 'index']);
 
+Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class, 'index']);
+Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'show']);
+
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);
 Route::get('/government-ids/{governmentId}', [
     GovernmentIdController::class,
@@ -85,6 +88,13 @@ Route::prefix('auth')->group(function () {
             ResidentAuthController::class,
             'logout',
         ]);
+
+        Route::get('requirement-preparation/{recordType}/{recordId}', [
+            \App\Http\Controllers\Api\ResidentRequirementPreparationController::class, 'show',
+        ])->whereNumber('recordId');
+        Route::put('requirement-preparation/{recordType}/{recordId}', [
+            \App\Http\Controllers\Api\ResidentRequirementPreparationController::class, 'update',
+        ])->whereNumber('recordId');
 
         Route::get('inventory', [
             ResidentInventoryController::class,

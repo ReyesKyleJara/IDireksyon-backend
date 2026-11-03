@@ -17,10 +17,12 @@ class OfficeRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'address' => ['nullable', 'string', 'max:5000'],
             'municipality' => ['nullable', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],
-            'status' => ['sometimes', 'required', 'in:draft,inactive'],
+            'status' => ['sometimes', 'required', 'in:draft,active,inactive'],
             'source_url' => ['nullable', 'url:http,https', 'max:2048'],
             'notes' => ['nullable', 'string', 'max:10000'],
             'schedules' => ['sometimes', 'array:0,1,2,3,4,5,6', 'max:7'],
@@ -38,6 +40,14 @@ class OfficeRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
+            }
+
+            $office = $this->route('office');
+            $before = $office?->status ?? 'draft';
+            $after = $this->input('status', $before);
+            if ($before !== $after && ($before === 'active' || $after === 'active')
+                && ! $this->user()->canPublishOffices()) {
+                $validator->errors()->add('status', 'Only a Super Admin can publish or unpublish an office.');
             }
 
             foreach ($this->input('schedules', []) as $day => $schedule) {

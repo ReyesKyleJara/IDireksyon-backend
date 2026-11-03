@@ -13,7 +13,7 @@ beforeEach(function () {
 });
 
 it('stores ordered steps and information blocks under their scenario without changing legacy API fields', function () {
-    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->idRecord->id)->assertOk()->json('data'), ['requirement_sets']);
+    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->idRecord->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     $later = $this->scenario->applicationSteps()->create(['title' => 'Visit office', 'type' => 'office_visit', 'sort_order' => 1]);
     $first = $this->scenario->applicationSteps()->create(['title' => 'Prepare requirements', 'sort_order' => 0]);
     $first->blocks()->create(['type' => 'requirements', 'section_title' => 'Your requirements', 'content' => [], 'sort_order' => 1]);
@@ -23,7 +23,7 @@ it('stores ordered steps and information blocks under their scenario without cha
         ->and($first->blocks->last()->content)->toBe([]);
     $other = $this->idRecord->requirementSets()->create(['application_type' => 'renewal', 'applicant_type' => 'adult']);
     expect($other->applicationSteps()->count())->toBe(0);
-    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->idRecord->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($before);
+    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->idRecord->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($before);
 });
 
 it('protects guides through both scenario deletion endpoints and parent ID deletion', function () {

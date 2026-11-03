@@ -14,13 +14,13 @@ class GovernmentIdChecklistController extends Controller
 {
     public function store(GovernmentIdChecklistRequest $request, GovernmentId $governmentId)
     {
-        $set = app(GovernmentIdChecklists::class)->save($governmentId, $request->validated());
+        $set = app(GovernmentIdChecklists::class)->saveRequest($governmentId, $request);
         return response()->json(['checklist' => self::present($set), 'history' => $this->history($governmentId)], 201);
     }
 
     public function update(GovernmentIdChecklistRequest $request, GovernmentId $governmentId, string $checklist)
     {
-        $set = app(GovernmentIdChecklists::class)->save($governmentId, $request->validated(), $checklist);
+        $set = app(GovernmentIdChecklists::class)->saveRequest($governmentId, $request, $checklist);
         return response()->json(['checklist' => self::present($set), 'history' => $this->history($governmentId)]);
     }
 

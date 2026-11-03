@@ -37,16 +37,16 @@
                     </div>
                 </details>
                 <section aria-label="{{ ($recordKind ?? 'government_id') === 'document' ? 'Use existing Document information' : 'Use existing ID information' }}" class="rounded-lg bg-blue-50 p-4">
-                    <h3 class="text-sm font-semibold text-slate-900">{{ ($recordKind ?? 'government_id') === 'document' ? 'Use existing Document information' : 'Use existing ID information' }}</h3>
-                    <p class="mt-1 text-sm leading-6 text-slate-600">{{ ($recordKind ?? 'government_id') === 'document' ? 'These blocks use the information already saved for this Document.' : 'These blocks use the information already saved for this Government ID.' }} You do not need to type it again.</p>
+                    <h3 class="text-sm font-semibold text-slate-900">{{ ($embeddedGuide ?? false) ? 'Use this special case’s information' : (($recordKind ?? 'government_id') === 'document' ? 'Use existing Document information' : 'Use existing ID information') }}</h3>
+                    <p class="mt-1 text-sm leading-6 text-slate-600">{{ ($embeddedGuide ?? false) ? 'These blocks point to this special case’s own Requirements, Fees, and Where to Apply sections.' : (($recordKind ?? 'government_id') === 'document' ? 'These blocks use the information already saved for this Document.' : 'These blocks use the information already saved for this Government ID.') }} You do not need to type it again.</p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        @foreach(['requirements' => 'Requirements', 'fees' => 'Fees', 'offices' => 'Offices', 'processing_time' => 'Processing Time'] as $type => $label)
+                        @foreach(($embeddedGuide ?? false) ? ['requirements' => 'Requirements', 'fees' => 'Fees', 'offices' => 'Where to Apply'] : ['requirements' => 'Requirements', 'fees' => 'Fees', 'offices' => 'Offices', 'processing_time' => 'Processing Time'] as $type => $label)
                             <button type="button" class="admin-secondary" @click="addBlock('{{ $type }}')"
                                 :aria-pressed="hasReference('{{ $type }}')" :disabled="hasReference('{{ $type }}') || draft.blocks.length >= 50"
                                 x-text="(hasReference('{{ $type }}') ? '✓ ' : '+ ') + @js($label)">+ {{ $label }}</button>
                         @endforeach
                     </div>
-                    <p class="mt-2 text-xs leading-5 text-slate-500">These use the current {{ ($recordKind ?? 'government_id') === 'document' ? 'Document' : 'Government ID' }} data and stay connected to it.</p>
+                    <p class="mt-2 text-xs leading-5 text-slate-500">{{ ($embeddedGuide ?? false) ? 'Normal channel content is not included in these references.' : 'These use the current '.(($recordKind ?? 'government_id') === 'document' ? 'Document' : 'Government ID').' data and stay connected to it.' }}</p>
                     <p x-show="duplicateReferenceLabels.length" role="status" class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
                         x-text="'Duplicate references: ' + duplicateReferenceLabels.join(', ') + '. Saved blocks are kept. Remove extra rows below; the app preview shows each reference once.'"></p>
                     <div class="mt-4 space-y-3">
@@ -115,7 +115,7 @@
                         </div>
         </div>
     </details>
-    <p class="text-xs text-slate-500">{{ ($wizardGuide ?? false) ? 'Changes are saved when you continue.' : 'Apply step keeps your changes in this form. Save the main entry to store them.' }}</p>
+    <p class="text-xs text-slate-500">{{ ($embeddedGuide ?? false) ? 'Done keeps the step in this draft. Save special case guide stores all sections.' : (($wizardGuide ?? false) ? 'Changes are saved when you continue.' : 'Apply step keeps your changes in this form. Save the main entry to store them.') }}</p>
     <div class="flex flex-wrap justify-end gap-3">
         <button type="button" class="admin-secondary" @click="close()">{{ ($wizardGuide ?? false) ? 'Cancel' : 'Cancel step changes' }}</button>
         <button type="button" class="admin-primary" @click="applyStep()">{{ ($wizardGuide ?? false) ? 'Done' : 'Apply step' }}</button>

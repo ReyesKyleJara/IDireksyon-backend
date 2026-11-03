@@ -72,9 +72,9 @@ it('reads current saved requirements for guide references without duplicating gu
         ->and($reference->fresh()->content)->toBe($originalContent);
 });
 
-it('uses six wizard steps and retires wizard case actions', function () {
+it('uses seven wizard steps and retires wizard case actions', function () {
     $steps = [
-        'basic' => 'Basic Info', 'requirements' => 'Requirements', 'fees' => 'Fees',
+        'basic' => 'Basic Information', 'channels' => 'Request Methods', 'requirements' => 'Requirements', 'fees' => 'Fees',
         'guide' => 'Application Guide', 'offices' => 'Offices', 'review' => 'Review',
     ];
     $page = $this->get(route('admin.government-ids.create'))->assertOk()
@@ -110,7 +110,7 @@ it('shows general information subsections and preserves hidden legacy fields whe
         'eligibility_age_type' => 'minimum', 'eligibility_min_age' => 18,
         'eligibility_citizenship' => 'filipino', 'eligibility_residency' => 'custom',
         'eligibility_residency_custom' => 'Example municipality', 'eligibility_other_conditions' => 'General eligibility note',
-    ])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'requirements'));
+    ])->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, 'channels'));
     $id->refresh();
     expect($id->description)->toBe('An ID used to prove identity.')
         ->and($id->purpose)->toBe('Keep existing purpose')
@@ -138,18 +138,18 @@ it('creates one ID from basics and reuses it on repeated submission and resume',
         'validity_type' => 'fixed', 'validity_value' => 5, 'validity_unit' => 'year',
         'processing_time_type' => 'same_day', 'description' => 'Saved basic description'];
     $this->post(route('admin.government-ids.wizard.store'), $data)->assertSessionHasNoErrors()
-        ->assertRedirect(wizardUrl(GovernmentId::sole(), 'requirements'));
+        ->assertRedirect(wizardUrl(GovernmentId::sole(), 'channels'));
     $id = GovernmentId::sole();
     expect($id->validity)->toBe('5 years')->and($id->processing_time)->toBe('Same day')
         ->and($id->fees()->count())->toBe(0)->and($id->requirementSets()->count())->toBe(1);
-    $this->post(route('admin.government-ids.wizard.store'), $data)->assertRedirect(wizardUrl($id, 'requirements'));
+    $this->post(route('admin.government-ids.wizard.store'), $data)->assertRedirect(wizardUrl($id, 'channels'));
     expect(GovernmentId::count())->toBe(1)
         ->and($id->requirementSets()->count())->toBe(1);
     $set = $id->requirementSets()->sole();
     expect($set->application_type)->toBe('new')->and($set->applicant_type)->toBe('all')
         ->and($set->application_type_custom)->toBeNull()->and($set->applicant_type_custom)->toBeNull()
         ->and($set->min_age)->toBeNull()->and($set->max_age)->toBeNull();
-    expect(session('id_creation_resume'))->toBe(['id' => $id->id, 'step' => 'requirements']);
+    expect(session('id_creation_resume'))->toBe(['id' => $id->id, 'step' => 'channels']);
     $this->get(route('admin.government-ids.create'))->assertSee('Resume')->assertSee('Guided ID');
     $this->get(wizardUrl($id, 'basic'))->assertSee('Saved basic description');
 });
@@ -164,7 +164,7 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
         ->assertDontSee('Save Requirements')->assertSee('Requirements draft preview')->assertSee('Requirement cards')->assertSee('xl:grid-cols-2')
         ->assertDontSee('Edit Requirements')->assertSee('Continue →')->assertSee('if (checklists.length) open(checklists[0])', false)
         ->assertDontSee('Who is applying?')->assertDontSee('What kind of application?')
-        ->assertDontSee('Applicant label')->assertDontSee('Minimum age')->assertDontSee('Maximum age')
+        ->assertSee('Manage Request Methods')->assertDontSee('Edit channel:')
         ->assertDontSee('+ Add checklist')->assertDontSee('Choose an existing checklist')
         ->assertDontSee('deleteChecklist(checklist)', false)->assertDontSee('Edit applicant and application details');
 
@@ -191,7 +191,7 @@ it('saves requirements fees guide and offices to the same ID and reviews actual 
     $this->get(wizardUrl($id, 'guide'))->assertOk()->assertSee('governmentIdGuide', false)
         ->assertSee('Optional Link')->assertSee('Link Label')->assertSee('Reminder / Note')->assertSee('Done')
         ->assertSee('Use existing ID information')->assertSee('These blocks use the information already saved for this Government ID.')
-        ->assertSee('App preview')->assertSee('Intended resident presentation. The mobile app does not read this guide yet.')
+        ->assertSee('App preview')->assertSee('Preview the saved guide content. The resident app displays the selected request channel.')
         ->assertSee('Resident guide preview')->assertSee('Your application steps will appear here as you add them.')
         ->assertDontSee('Apply step')->assertDontSee('Save &amp; Continue', false)->assertDontSee('save the main entry')
         ->assertDontSee('+ Add scenario')->assertDontSee('Application type')->assertDontSee('Applicant type');
@@ -240,7 +240,7 @@ it('allows every optional section to be empty and guide creation without require
         $this->post(wizardSaveUrl($id, $step))->assertSessionHasNoErrors()->assertRedirect(wizardUrl($id, $next));
     }
     $this->get(wizardUrl($id, 'review'))->assertSee('Not added yet');
-    $this->get(wizardUrl($id, 'guide'))->assertSee('Requirements are not complete yet');
+    $this->get(wizardUrl($id, 'guide'))->assertDontSee('Requirements are not complete yet');
     $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode([[
         'id' => $set->id, 'application_type' => 'new', 'applicant_type' => 'all',
         'steps' => [['title' => 'Start here', 'type' => 'general', 'blocks' => []]],
@@ -250,7 +250,7 @@ it('allows every optional section to be empty and guide creation without require
     $this->post(wizardSaveUrl($id, 'review'))->assertRedirect(route('admin.government-ids.show', $id));
 });
 
-it('keeps legacy sets intact while showing only the neutral set in wizard editors', function () {
+it('keeps legacy sets intact and makes all scenarios selectable in wizard editors', function () {
     $key = $this->get(route('admin.government-ids.create'))->viewData('creationKey');
     $this->post(route('admin.government-ids.wizard.store'), ['creation_key' => $key, 'name' => 'Legacy compatible ID']);
     $id = GovernmentId::sole();
@@ -260,13 +260,15 @@ it('keeps legacy sets intact while showing only the neutral set in wizard editor
     $page = $this->get(wizardUrl($id, 'requirements'))->assertOk();
     expect(array_column($page->viewData('checklists'), 'id'))->toBe([$default->id]);
     $this->get(wizardUrl($id, 'guide'))->assertOk()->assertDontSee('Legacy renewal step');
+    $this->get(route('admin.government-ids.wizard.show', [$id, 'guide', 'path' => $legacy->id]))
+        ->assertOk()->assertSee('Legacy renewal step');
     $this->post(wizardSaveUrl($id, 'guide'), ['application_guide_payload' => json_encode([[
         'id' => $default->id, 'application_type' => 'new', 'applicant_type' => 'all', 'steps' => [],
     ]])])->assertSessionHasNoErrors();
     expect($id->requirementSets()->count())->toBe(2)
         ->and($legacy->fresh()->max_age)->toBe(17)
         ->and($legacy->applicationSteps()->sole()->title)->toBe('Legacy renewal step');
-    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'guide']))->assertOk()->assertSee('Legacy renewal step');
+    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'guide', 'path' => $legacy->id]))->assertOk()->assertSee('Legacy renewal step');
 });
 
 it('maps an old cases resume to requirements without exposing the removed step', function () {

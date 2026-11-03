@@ -25,31 +25,31 @@
         class="admin-input"
     >
 
-        <option value="">
+        <option value="" @selected(old('validity_type', $selectedValidityType ?? '') === '')>
             Select validity type
         </option>
 
-        <option value="fixed">
+        <option value="fixed" @selected(old('validity_type', $selectedValidityType ?? '') === 'fixed')>
             Fixed Period
         </option>
 
-        <option value="lifetime">
+        <option value="lifetime" @selected(old('validity_type', $selectedValidityType ?? '') === 'lifetime')>
             Lifetime
         </option>
 
-        <option value="no_expiration">
+        <option value="no_expiration" @selected(old('validity_type', $selectedValidityType ?? '') === 'no_expiration')>
             No Expiration
         </option>
 
-        <option value="until_age">
+        <option value="until_age" @selected(old('validity_type', $selectedValidityType ?? '') === 'until_age')>
             Until Specific Age
         </option>
 
-        <option value="varies">
+        <option value="varies" @selected(old('validity_type', $selectedValidityType ?? '') === 'varies')>
             Varies
         </option>
 
-        <option value="not_applicable">
+        <option value="not_applicable" @selected(old('validity_type', $selectedValidityType ?? '') === 'not_applicable')>
             Not Applicable
         </option>
 

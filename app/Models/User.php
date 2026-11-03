@@ -30,6 +30,11 @@ class User extends Authenticatable
         );
     }
 
+    public function canPublishOffices(): bool
+    {
+        return $this->canAccessCms() && $this->role === 'super_admin';
+    }
+
     public function canManageAdmins(): bool
     {
         return $this->canAccessCms()

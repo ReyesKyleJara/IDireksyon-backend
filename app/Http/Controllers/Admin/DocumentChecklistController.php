@@ -14,13 +14,13 @@ class DocumentChecklistController extends Controller
 {
     public function store(GovernmentIdChecklistRequest $request, Document $document)
     {
-        $set = app(GovernmentIdChecklists::class)->save($document, $request->validated());
+        $set = app(GovernmentIdChecklists::class)->saveRequest($document, $request);
         return response()->json(['checklist' => self::present($set), 'history' => $this->history($document)], 201);
     }
 
     public function update(GovernmentIdChecklistRequest $request, Document $document, string $checklist)
     {
-        $set = app(GovernmentIdChecklists::class)->save($document, $request->validated(), $checklist);
+        $set = app(GovernmentIdChecklists::class)->saveRequest($document, $request, $checklist);
         return response()->json(['checklist' => self::present($set), 'history' => $this->history($document)]);
     }
 

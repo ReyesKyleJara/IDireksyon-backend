@@ -15,7 +15,7 @@
     <div class="mb-7 mt-5">
         <p class="admin-eyebrow mb-2">Office Research</p>
         <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $office->exists ? 'Edit Office' : 'Add Office' }}</h1>
-        <p class="mt-2 text-sm text-slate-500">Only the branch name is required to begin. Draft and inactive offices are hidden from residents.</p>
+        <p class="mt-2 text-sm text-slate-500">Only the branch name is required to begin. Offices appear for residents when linked to an ID or document. Saved edits appear when residents reload the record.</p>
     </div>
     @if($errors->any())
         <div role="alert" class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -40,14 +40,6 @@
                     </select>
                     @error('agency_id')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
                 </div>
-                <div>
-                    <label for="status" class="mb-2 block text-sm font-medium">Status</label>
-                    <select id="status" name="status" class="admin-input">
-                        <option value="draft" @selected($value('status') === 'draft')>Draft — research in progress</option>
-                        <option value="inactive" @selected($value('status') === 'inactive')>Inactive — no longer in use</option>
-                    </select>
-                    @error('status')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
-                </div>
             </div>
         </section>
         <section class="admin-panel p-6">
@@ -57,6 +49,8 @@
                 <x-admin.field name="address" label="Street / Building Address" type="textarea" :value="$value('address')" maxlength="5000" class="sm:col-span-2" />
                 <x-admin.field name="municipality" label="City / Municipality" :value="$value('municipality')" maxlength="255" />
                 <x-admin.field name="province" label="Province" :value="$value('province')" maxlength="255" />
+                <x-admin.field name="latitude" label="Latitude" type="number" :value="$value('latitude')" min="-90" max="90" step="any" />
+                <x-admin.field name="longitude" label="Longitude" type="number" :value="$value('longitude')" min="-180" max="180" step="any" />
             </div>
         </section>
         @include('admin.offices.partials.schedule-fields')
@@ -71,7 +65,7 @@
             @unless($embedded ?? false)
             <a href="{{ route('admin.offices.index') }}" class="admin-secondary">Cancel</a>
             @endunless
-            <button type="submit" class="admin-primary">{{ $office->exists ? 'Save Changes' : 'Save Draft' }}</button>
+            <button type="submit" class="admin-primary">{{ $office->exists ? 'Save Changes' : 'Save Office' }}</button>
         </div>
     </form>
 </div>

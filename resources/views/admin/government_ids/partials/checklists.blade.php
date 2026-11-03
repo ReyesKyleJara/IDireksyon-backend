@@ -3,6 +3,7 @@
     $checklistConfig = [
         'createLabel' => $createLabel ?? 'Create ID',
         'deferred' => $deferred ?? false,
+        'embedded' => $embeddedChecklist ?? false,
         'oldPayload' => ($deferred ?? false) && is_string(old('requirements_payload')) ? old('requirements_payload') : null,
         'editable' => $editable ?? false,
         'wizardMode' => $wizardMode,
@@ -12,6 +13,7 @@
         'options' => $requirementOptions,
         'url' => ($deferred ?? false) ? null : route(($recordRoutes ?? 'admin.government-ids').'.checklists.store', $governmentId),
         'csrf' => csrf_token(),
+        'catalogRevision' => isset($governmentId) && $governmentId ? \App\Services\CatalogRevision::token($governmentId) : null,
         'applications' => \App\Models\GovernmentIdRequirementSet::APPLICATION_TYPES,
         'applicants' => \App\Models\GovernmentIdRequirementSet::APPLICANT_TYPES,
         'conditions' => \App\Models\GovernmentIdRequirementGroup::CONDITIONS,

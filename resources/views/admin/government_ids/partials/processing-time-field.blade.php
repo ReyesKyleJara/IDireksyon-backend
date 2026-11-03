@@ -22,27 +22,27 @@
         x-model="processingType"
         class="admin-input"
     >
-        <option value="">
+        <option value="" @selected(old('processing_time_type', $selectedProcessingType ?? '') === '')>
             Select processing type
         </option>
 
-        <option value="fixed">
+        <option value="fixed" @selected(old('processing_time_type', $selectedProcessingType ?? '') === 'fixed')>
             Fixed Duration
         </option>
 
-        <option value="range">
+        <option value="range" @selected(old('processing_time_type', $selectedProcessingType ?? '') === 'range')>
             Range
         </option>
 
-        <option value="same_day">
+        <option value="same_day" @selected(old('processing_time_type', $selectedProcessingType ?? '') === 'same_day')>
             Same Day
         </option>
 
-        <option value="varies">
+        <option value="varies" @selected(old('processing_time_type', $selectedProcessingType ?? '') === 'varies')>
             Varies
         </option>
 
-        <option value="not_applicable">
+        <option value="not_applicable" @selected(old('processing_time_type', $selectedProcessingType ?? '') === 'not_applicable')>
             Not Applicable
         </option>
     </select>
@@ -142,9 +142,8 @@
             class="admin-input"
         >
 
-            <option value="">
-                Select unit
-            </option>
+            <option value="">Select unit</option>
+            @foreach(['minute' => 'Minutes', 'hour' => 'Hours'] as $code => $label)<option value="{{ $code }}" @selected(old('processing_time_unit', $selectedProcessingUnit ?? '') === $code)>{{ $label }}</option>@endforeach
 
             <option
                 value="calendar_day"
@@ -198,6 +197,17 @@
 
     </div>
 
+
+    <div class="mt-4">
+        <label for="processing_time_note" class="mb-2 block text-sm font-medium">Processing Time Note</label>
+        <textarea id="processing_time_note" name="processing_time_note" rows="3" class="admin-input"
+            placeholder="Add additional information about processing times, delays, or special conditions."
+            aria-describedby="processing-time-note-help">{{ old('processing_time_note', $selectedProcessingNote ?? '') }}</textarea>
+        <p id="processing-time-note-help" class="mt-1 text-sm text-slate-500">Optional. Explain conditions that may affect the estimated processing time.</p>
+        @error('processing_time_note')
+            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+        @enderror
+    </div>
 
     @error('processing_time_type')
         <p class="mt-2 text-sm text-red-600">

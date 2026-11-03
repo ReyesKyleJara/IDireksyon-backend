@@ -19,6 +19,7 @@
     $stepKeys = array_keys($steps);
     $position = array_search($step, $stepKeys, true);
     $previous = $position > 0 ? $stepKeys[$position - 1] : null;
+    $activePath = $governmentId?->requirementSets->firstWhere('id', $selectedPath ?? null);
 
     $value = function ($field, $default = '') use ($governmentId) {
         $input = old($field, $governmentId?->$field ?? $default);
@@ -87,7 +88,7 @@
                 <li>
                     @if($governmentId)
                         <a
-                            href="{{ route($wizardRoutes.'.show', [$governmentId, $key]) }}"
+                            href="{{ route($wizardRoutes.'.show', [$governmentId, $key, 'path' => $selectedPath ?? null]) }}"
                             @if($key === $step) aria-current="step" @endif
                             class="
                                 inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition
@@ -159,6 +160,7 @@
     @endif
 
 
+    @if($step !== 'channels')
     {{-- CURRENT SECTION --}}
     <div class="pb-1 pt-2">
         <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
@@ -166,9 +168,17 @@
         </h2>
 
         <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            @switch($step)
+            @if($governmentId && in_array($step, ['requirements', 'fees', 'guide', 'offices']))
+            @include('admin.catalog.partials.section-visibility', ['visibilitySection' => $step, 'visibilityLabel' => $steps[$step]])
+        @endif
+
+        @switch($step)
                 @case('basic')
                     Add the main information about this {{ $itemLabel }}.
+                    @break
+
+                @case('channels')
+                    Set up the ways residents can request this {{ $itemLabel }}.
                     @break
 
                 @case('requirements')
@@ -195,8 +205,16 @@
     </div>
 
 
+    @endif
+
+    @if($governmentId && $step === 'channels')
+        @include('admin.catalog.partials.channels')
+    @elseif($governmentId && in_array($step, ['requirements', 'fees', 'guide']))
+        @include('admin.catalog.partials.channel-context')
+    @endif
     {{-- MAIN STEP FORM --}}
     <form
+        id="catalog-step-form"
         method="POST"
         action="{{ $governmentId
             ? route($wizardRoutes.'.save', [$governmentId, $step])
@@ -206,9 +224,14 @@
             novalidate
             x-data="{ guideSaving: false }"
             @guide-saving.window="guideSaving = $event.detail"
+        @elseif(in_array($step, ['fees', 'offices']))
+            x-data="catalogStepChanges"
         @endif
     >
         @csrf
+        @if($step === 'fees')<input type="hidden" name="option_content" value="1">@endif
+        @if($step !== 'offices' && ($selectedPath ?? null))<input type="hidden" name="path" value="{{ $selectedPath }}">@endif
+        @if($governmentId)<input type="hidden" name="_catalog_revision" value="{{ old('_catalog_revision', \App\Services\CatalogRevision::token($governmentId)) }}">@endif
 
         @if(!$governmentId)
             <input
@@ -231,15 +254,14 @@
             @case('requirements')
 
                 @include('admin.catalog.partials.prerequisites-editor')
-                <h2 class="text-lg font-semibold text-slate-900">Application Requirements</h2>
                 @include(
                     'admin.government_ids.partials.checklists',
                     [
                         'editable' => true,
                         'deferred' => false,
                         'wizardMode' => true,
-                        'allowWizardCreate' => $editing,
-                        'wizardScenarioSelector' => $editing
+                        'allowWizardCreate' => false,
+                        'wizardScenarioSelector' => false
                     ]
                 )
 
@@ -253,9 +275,7 @@
                     @include(
                         'admin.government_ids.partials.fee-items-field',
                         [
-                            'selectedFees' => $governmentId
-                                ->fees
-                                ->sortBy('sort_order')
+                            'selectedFees' => $governmentId->fees->filter(fn ($fee) => !isset($activePath->request_channel['fee_ids']) || in_array($fee->id, $activePath->request_channel['fee_ids'], true))->sortBy('sort_order')
                         ]
                     )
                 </section>
@@ -266,36 +286,23 @@
             {{-- APPLICATION GUIDE --}}
             @case('guide')
 
-                @if($requirementsIncomplete)
-                    <div
-                        role="status"
-                        class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900"
-                    >
-                        Requirements are not complete yet, but you can still
-                        continue building the application guide.
-                    </div>
-                @endif
-
 @php
     $guideRows = app(\App\Services\GovernmentIdApplicationGuide::class)->present($governmentId);
-    if (!$editing) {
-        $guideRows = array_slice(array_values(array_filter($guideRows,
-            fn ($row) => $row['application_type'] === 'new' && $row['applicant_type'] === 'all'
-        )), 0, 1);
-    } elseif (!$guideRows) {
+    if ($selectedPath ?? null) $guideRows = array_values(array_filter($guideRows, fn ($row) => $row['id'] === $selectedPath));
+    if (!$guideRows) {
         $guideRows = [['id' => null, 'application_type' => 'new', 'applicant_type' => 'all', 'steps' => []]];
     }
     $guideConfig = [
         'deferred' => $deferred ?? false,
         'wizard' => true,
-        'nextUrl' => route($wizardRoutes.'.show', [$governmentId, 'offices']),
+        'nextUrl' => route($wizardRoutes.'.show', [$governmentId, 'offices', 'path' => $selectedPath ?? null]),
         'stepTypes' => \App\Models\GovernmentIdApplicationStep::TYPES,
         'requirementsByScenario' => $governmentId->requirementSets->mapWithKeys(fn ($set) => [$set->id => $set->groups->count()])->all(),
         'previewReferences' => [
             'requirements' => $governmentId->requirementSets->firstWhere('id', $guideRows[0]['id'] ?? null)?->groups->count() ?? 0,
-            'fees' => $governmentId->fees->count(),
-            'offices' => $governmentId->offices->count(),
-            'processingTime' => $governmentId->processing_time,
+            'fees' => $governmentId->fees->filter(fn ($fee) => !isset($activePath->request_channel['fee_ids']) || in_array($fee->id, $activePath->request_channel['fee_ids'], true))->count(),
+            'offices' => $governmentId->offices->filter(fn ($office) => !isset($activePath->request_channel['office_ids']) || in_array($office->id, $activePath->request_channel['office_ids'], true))->count(),
+            'processingTime' => $activePath?->request_channel['processing'] ?? $governmentId->processing_time,
             'officeAction' => $governmentId->agency?->acronym
                 ? 'Find a '.$governmentId->agency->acronym.' office →'
                 : 'Find an office →',
@@ -304,75 +311,9 @@
         'oldPayload' => is_string(old('application_guide_payload')) ? old('application_guide_payload') : null,
     ];
 @endphp
-<section class="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]" aria-label="Application Guide" x-data="governmentIdGuide(@js($guideConfig))" @guide-scenario-changed.window="scenarioChanged($event.detail)">
-    <div class="admin-panel min-w-0 p-6">
-    <input type="hidden" x-ref="guidePayload" name="application_guide_payload" :disabled="!ready" :value="payload" disabled>
-    <fieldset :disabled="saving" class="min-w-0">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 class="text-lg font-semibold text-slate-900">Application Guide</h2><p class="mt-1 text-sm text-slate-500">Explain what the applicant should do, one step at a time.</p></div>
-        <span class="text-xs text-slate-500">Changes are saved when you continue.</span>
-    </div>
-    <noscript><p class="mt-3 text-sm text-amber-700">Enable JavaScript to edit the Application Guide. Existing steps will be preserved.</p></noscript>
-    @foreach($errors->getMessages() as $field => $messages)
-        @if(str_starts_with($field, 'application_guide'))
-            @foreach($messages as $message)<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@endforeach
-        @endif
-    @endforeach
-    <p x-ref="guideError" tabindex="-1" x-show="error" x-text="error" class="mt-3 whitespace-pre-line text-sm text-red-600" role="alert"></p>
-    @if($editing && count($guideRows) > 1)
-        <label class="mt-5 block text-sm font-medium">Application checklist
-            <select x-model="selected" class="admin-input mt-2" :disabled="!!draft || !!stepDrag || saving">
-                <template x-for="scenario in scenarios" :key="scenario.key"><option :value="scenario.key" x-text="label(scenario)"></option></template>
-            </select>
-        </label>
-    @endif
-    <template x-if="current">
-        <div class="mt-5 space-y-4">
-            <p id="guide-reorder-help" class="text-xs text-slate-500">Drag a card to reorder. With its header focused, press Alt + ↑ or ↓. Press Escape to cancel dragging.</p>
-            <p x-show="!current.steps.length && !draft" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Start with the first thing this applicant needs to do.</p>
-            <template x-for="(step, index) in current.steps" :key="step.key">
-                <article :data-guide-card="step.key" class="relative min-w-0 rounded-xl border border-slate-200 bg-white"
-                    :class="{ 'opacity-50 ring-2 ring-blue-400': stepDrag?.active && stepDrag.key === step.key, 'border-t-4 border-t-blue-600': stepDrag?.active && stepDrag.target === step.key && stepDrag.key !== step.key && !stepDrag.after, 'border-b-4 border-b-blue-600': stepDrag?.active && stepDrag.target === step.key && stepDrag.key !== step.key && stepDrag.after }">
-                    <div tabindex="0" role="group" :aria-label="'Step ' + (index + 1) + ': ' + step.title" aria-roledescription="reorderable step" aria-describedby="guide-reorder-help"
-                        :data-guide-header="step.key" class="flex select-none items-center gap-3 rounded-xl p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" style="touch-action: none;"
-                        :class="stepDrag?.key === step.key ? 'cursor-grabbing' : 'cursor-grab'"
-                        @pointerdown="startStepDrag($event, step.key)" @pointermove="moveStepDrag($event)" @pointerup="endStepDrag($event)"
-                        @pointercancel="cancelStepDrag()" @lostpointercapture="cancelStepDrag()" @keydown="cardKeydown($event, index)" @click="finishCardClick($event)">
-                        <span aria-hidden="true" class="shrink-0 text-lg text-slate-400">⋮⋮</span>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-xs font-medium text-slate-500" x-text="'Step ' + (index + 1)"></p>
-                            <h3 class="mt-1 break-words text-sm font-semibold text-slate-900" x-text="step.title"></h3>
-                            <p class="mt-2 whitespace-pre-line text-sm text-slate-600" x-text="summary(step)"></p>
-                            <p x-show="officialLinkHost(step)" class="mt-2 break-words text-xs text-blue-800" x-text="officialLinkHost(step)"></p>
-                        </div>
-                        <button type="button" class="guide-tool flex min-h-10 min-w-10 shrink-0 items-center justify-center" @click.stop="draft && stepIndex === index ? applyStep() : editStep(index)"
-                            :disabled="!!stepDrag || (!!draft && stepIndex !== index)" :aria-label="(draft && stepIndex === index ? 'Finish step ' : 'Edit step ') + (index + 1)" :aria-expanded="!!draft && stepIndex === index"
-                            :aria-controls="'guide-step-' + step.key" :data-guide-step="step.key"><span x-text="draft && stepIndex === index ? 'Done' : 'Edit'"></span></button>
-                        <button type="button" class="guide-tool shrink-0 text-sm text-red-700" :disabled="!!draft || !!stepDrag"
-                            @click.stop="removeStep(index)" :aria-label="'Delete step ' + (index + 1)">Delete</button>
-                    </div>
-                    <div :id="'guide-step-' + step.key" class="px-4" :class="draft && stepIndex === index ? 'pb-4' : ''">
-                        <template x-if="draft && stepIndex === index"><div>@include('admin.government_ids.partials.application-guide-step-editor', ['wizardGuide' => true])</div></template>
-                    </div>
-                </article>
-            </template>
-            <template x-if="draft && stepIndex === -1">
-                <article class="min-w-0 rounded-xl border border-blue-400 p-4">
-                    <h3 class="mb-4 font-semibold" x-text="'Step ' + (current.steps.length + 1) + '. New application step'"></h3>
-                    @include('admin.government_ids.partials.application-guide-step-editor', ['wizardGuide' => true])
-                </article>
-            </template>
-            <button type="button" x-ref="addStepButton" class="admin-secondary" @click="editStep()" :disabled="!!draft || !!stepDrag || addingScenario || current.steps.length >= 100">+ Add Application Step</button>
-            <p class="sr-only" role="status" aria-live="polite" x-text="dragStatus"></p>
-            <p x-show="stepDrag?.active" class="text-sm font-medium text-blue-800">Dragging — release at the highlighted edge. Press Escape to cancel.</p>
-            <p x-show="current.dirty || draft" class="text-sm text-amber-700" role="status">Unsaved guide changes — continue to save them.</p>
-            <p class="text-xs text-slate-500">Continue saves your steps, content, and order, then opens Offices.</p>
-        </div>
-    </template>
-    </fieldset>
-    </div>
-    @include('admin.government_ids.wizard.app-preview')
-</section>
+@if($activePath)
+@include('admin.catalog.partials.guide-editor')
+@endif
 
 
                 @break
@@ -385,7 +326,7 @@
                     'admin.government_ids.partials.office-links-field',
                     [
                         'selectedOffices' => $governmentId->offices,
-                        'officeModal' => false
+                        'officeModal' => true
                     ]
                 )
 
@@ -412,7 +353,7 @@
                     @if($previous)
                         <a
                             class="admin-secondary"
-                            href="{{ route($wizardRoutes.'.show', [$governmentId, $previous]) }}"
+                            href="{{ route($wizardRoutes.'.show', [$governmentId, $previous, 'path' => $selectedPath ?? null]) }}"
                         >
                             ← Back
                         </a>
@@ -449,6 +390,9 @@
         </footer>
 
     </form>
+    @if($governmentId && $step === 'guide')
+        @include('admin.catalog.partials.special-cases')
+    @endif
 
 </div>
 

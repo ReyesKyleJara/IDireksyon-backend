@@ -49,7 +49,7 @@ it('renders editing controls on Edit and keeps View read only', function () {
 
 it('creates the complete checklist atomically and preserves existing resident API fields', function () {
     $doc = Document::create(['name' => 'Selected Document']);
-    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']);
+    $before = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     $list = $this->getJson('/api/government-ids')->assertOk()->json();
     $payload = modalChecklistPayload();
     $payload['groups'][0]['items'][] = ['type' => 'document', 'document_id' => $doc->id, 'submission_format' => 'original_photocopy', 'copies' => 2, 'instructions' => 'Bring both.'];
@@ -59,7 +59,7 @@ it('creates the complete checklist atomically and preserves existing resident AP
         ->assertJsonPath('history.editor', 'Modal Editor');
     $set = $this->target->requirementSets()->sole();
     expect($set->groups->sole()->items)->toHaveCount(2);
-    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($before)
+    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($before)
         ->and($this->getJson('/api/government-ids')->assertOk()->json())->toBe($list);
     $this->get('/admin/government-ids/'.$this->target->id)->assertOk()->assertSee('Selected Document');
 });

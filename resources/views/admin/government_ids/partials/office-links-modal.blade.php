@@ -2,7 +2,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
-            <p class="mt-1 text-sm text-slate-500">Branches that handle applications for this entry.</p>
+            <p class="mt-1 text-sm text-slate-500">Offices linked directly to this entry. No Request Method is required.</p>
         </div>
         <div class="flex gap-2">
             <button type="button" class="admin-secondary" @click="open($event)">Edit offices</button>
@@ -21,6 +21,7 @@
             <article class="rounded-lg border border-slate-200 p-4">
                 <h3 class="text-sm font-medium text-slate-900" x-text="officeFor(link.office_id)?.name ?? 'Office no longer available'"></h3>
                 <p x-show="officeFor(link.office_id)?.location !== 'Location not yet researched'" class="mt-1 text-xs text-slate-500" x-text="officeFor(link.office_id)?.location"></p>
+                <a :href="@js(url('/admin/offices')) + '/' + link.office_id + '/edit'" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs text-blue-700 underline">Edit office details</a>
                 <p x-show="services(link)" class="mt-2 text-xs text-slate-600" x-text="services(link)"></p>
                 <p x-show="link.service_notes" class="mt-1 whitespace-pre-line text-xs text-slate-500" x-text="link.service_notes"></p>
                 <input type="hidden" :name="'office_links[' + index + '][office_id]'" :value="link.office_id">
@@ -47,7 +48,7 @@
                 <div x-show="!creatingOffice" class="min-h-0 space-y-4 overflow-y-auto px-6 py-5">
                     <p x-ref="error" x-show="error" x-text="error" tabindex="-1" role="alert" class="rounded-lg bg-red-50 p-3 text-sm text-red-700"></p>
                     @if($offices->isEmpty())
-                        <p class="text-sm text-slate-600">No offices yet. Create a branch draft first, then return here to link it.</p>
+                        <p class="text-sm text-slate-600">No offices yet. Create a branch first, then return here to link it.</p>
                         <button type="button" class="admin-secondary" @click="createOffice(@js(route('admin.offices.create', ['embedded' => 1])))">Add office</button>
                         <p class="text-xs text-slate-500">The saved office will appear here automatically.</p>
                     @else
@@ -67,7 +68,6 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <h3 class="text-sm font-semibold" x-text="officeFor(link.office_id)?.name ?? 'Office no longer available'"></h3>
-                                    <p class="mt-1 text-xs text-slate-500" x-text="officeFor(link.office_id)?.status"></p>
                                 </div>
                                 <button type="button" class="text-xs text-red-700" @click="draft.splice(index, 1)">Remove</button>
                             </div>
@@ -87,11 +87,11 @@
                             </label>
                         </div>
                     </template>
-                    <p class="text-xs text-slate-500">Removing a branch only unlinks it from this entry. Draft and inactive offices remain hidden from residents.</p>
+                    <p class="text-xs text-slate-500">Removing a branch only unlinks it from this entry. Linked offices appear for residents automatically.</p>
                 </div>
                 <template x-if="creatingOffice">
                     <div class="min-h-0 overflow-y-auto">
-                        <p class="px-6 py-3 text-xs text-slate-500">Save Draft creates the office in the directory. Its link to this entry is saved separately.</p>
+                        <p class="px-6 py-3 text-xs text-slate-500">Saving creates the office in the directory. Its link to this entry is saved separately.</p>
                         <iframe x-ref="createFrame" :src="creationUrl" title="Create office" class="w-full border-0" style="height: min(65vh, 650px);"></iframe>
                         <div class="px-6 py-3"><button type="button" @click="backToLinks()" class="admin-secondary">Back to linked offices</button></div>
                     </div>
