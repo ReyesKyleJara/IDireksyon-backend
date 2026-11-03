@@ -84,6 +84,11 @@ Route::prefix('auth')->group(function () {
             'updatePassword',
         ])->middleware('throttle:5,1');
 
+        Route::post('account/delete', [
+            ResidentAuthController::class,
+            'destroyAccount',
+        ])->middleware('throttle:5,1');
+
         Route::post('logout', [
             ResidentAuthController::class,
             'logout',
