@@ -58,12 +58,17 @@ class SignupEmailVerification
             if (! $row || Carbon::parse($row->expires_at)->isPast() || $row->attempts >= 5 || $row->token_hash) {
                 return null;
             }
-            DB::table('signup_email_verifications')->where('id', $id)->increment('attempts');
+            // Preserve the deadline on databases with implicit ON UPDATE timestamps.
+            DB::table('signup_email_verifications')->where('id', $id)
+                ->increment('attempts', 1, ['expires_at' => $row->expires_at]);
             if (! Hash::check($code, $row->code_hash)) {
                 return null;
             }
             $token = Str::random(64);
-            DB::table('signup_email_verifications')->where('id', $id)->update(['token_hash' => hash('sha256', $token)]);
+            DB::table('signup_email_verifications')->where('id', $id)->update([
+                'token_hash' => hash('sha256', $token),
+                'expires_at' => $row->expires_at,
+            ]);
 
             return $token;
         });

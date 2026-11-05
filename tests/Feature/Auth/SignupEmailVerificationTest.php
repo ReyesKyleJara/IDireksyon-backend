@@ -132,3 +132,97 @@ test('public auth endpoint throttles have independent counters and retain their 
     }
     Mail::assertNothingSent();
 });
+
+
+test('real sent code persists a database proof across cache changes and normalized registration', function (string $sendEmail, string $registerEmail) {
+    Mail::fake();
+    $id = $this->postJson('/api/auth/email-verification/send', ['email' => $sendEmail])
+        ->assertOk()->assertJsonPath('expires_in', 600)->json('challenge_id');
+    $code = null;
+    Mail::assertSent(SignupVerificationCode::class, function ($mail) use (&$code) {
+        $code = $mail->code;
+        return $mail->hasTo('verify@example.com');
+    });
+    $before = DB::table('signup_email_verifications')->where('id', $id)->first();
+    expect($before->email)->toBe('verify@example.com');
+    expect($before->token_hash)->toBeNull();
+
+    $proof = $this->postJson('/api/auth/email-verification/verify', ['challenge_id' => $id, 'code' => $code])
+        ->assertOk()->assertJsonStructure(['email_verification_token'])->json('email_verification_token');
+    expect(strlen($proof))->toBe(64);
+    $verified = DB::table('signup_email_verifications')->where('id', $id)->first();
+    expect($verified->token_hash)->toBe(hash('sha256', $proof));
+    expect($verified->expires_at)->toBe($before->expires_at);
+    expect($verified->attempts)->toBe(1);
+    $this->assertDatabaseCount('users', 0);
+
+    // Only rate limits use cache; losing cache must not lose the verified proof.
+    \Illuminate\Support\Facades\Cache::flush();
+    $this->postJson('/api/auth/register', emailSignupPayload($proof, $registerEmail))
+        ->assertCreated()->assertJsonPath('user.email', 'verify@example.com');
+    expect(User::where('email', 'verify@example.com')->first()->email_verified_at)->not->toBeNull();
+    $this->assertDatabaseMissing('signup_email_verifications', ['id' => $id]);
+    $this->postJson('/api/auth/register', emailSignupPayload($proof, 'other@example.com'))
+        ->assertUnprocessable()->assertJsonValidationErrors('email_verification_token');
+    // Even if the original email becomes available again, the consumed proof is gone.
+    User::where('email', 'verify@example.com')->delete();
+    $this->postJson('/api/auth/register', emailSignupPayload($proof, $registerEmail))
+        ->assertUnprocessable()->assertJsonValidationErrors('email_verification_token');
+    $this->assertDatabaseCount('users', 0);
+})->with([
+    [' VERIFY@example.com ', 'verify@example.com'],
+    ['verify@example.com', ' VeRiFy@EXAMPLE.COM '],
+]);
+
+test('wrong or expired sent code never authorizes registration', function (bool $expired) {
+    Mail::fake();
+    $id = $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])
+        ->assertOk()->json('challenge_id');
+    $code = null;
+    Mail::assertSent(SignupVerificationCode::class, function ($mail) use (&$code) {
+        $code = $mail->code;
+        return true;
+    });
+    if ($expired) {
+        $this->travel(601)->seconds();
+    } else {
+        $code = $code === '000000' ? '111111' : '000000';
+    }
+    $this->postJson('/api/auth/email-verification/verify', ['challenge_id' => $id, 'code' => $code])
+        ->assertUnprocessable()->assertJsonValidationErrors('code')->assertJsonMissingPath('email_verification_token');
+    expect(DB::table('signup_email_verifications')->where('id', $id)->value('token_hash'))->toBeNull();
+    $this->postJson('/api/auth/register', emailSignupPayload(str_repeat('x', 64)))
+        ->assertUnprocessable()->assertJsonPath('errors.email_verification_token.0', 'Please verify this email address before creating your account.');
+    $this->assertDatabaseCount('users', 0);
+})->with([false, true]);
+
+test('registration validation failure preserves a verified proof for a corrected retry', function () {
+    $id = signupEmailChallenge();
+    $proof = $this->postJson('/api/auth/email-verification/verify', ['challenge_id' => $id, 'code' => '123456'])
+        ->assertOk()->json('email_verification_token');
+    $this->postJson('/api/auth/register', array_replace(emailSignupPayload($proof), ['password_confirmation' => 'wrong']))
+        ->assertUnprocessable()->assertJsonValidationErrors('password');
+    $this->assertDatabaseHas('signup_email_verifications', ['id' => $id, 'token_hash' => hash('sha256', $proof)]);
+    $this->postJson('/api/auth/register', emailSignupPayload($proof))->assertCreated();
+    $this->assertDatabaseMissing('signup_email_verifications', ['id' => $id]);
+});
+
+
+test('failed and successful code checks preserve the original deadline through registration', function () {
+    $id = signupEmailChallenge();
+    $deadline = DB::table('signup_email_verifications')->where('id', $id)->value('expires_at');
+    $this->travel(30)->seconds();
+    $this->postJson('/api/auth/email-verification/verify', ['challenge_id' => $id, 'code' => '000000'])
+        ->assertUnprocessable()->assertJsonValidationErrors('code');
+    $this->assertDatabaseHas('signup_email_verifications', [
+        'id' => $id, 'expires_at' => $deadline, 'attempts' => 1, 'token_hash' => null,
+    ]);
+    $proof = $this->postJson('/api/auth/email-verification/verify', ['challenge_id' => $id, 'code' => '123456'])
+        ->assertOk()->json('email_verification_token');
+    $this->assertDatabaseHas('signup_email_verifications', [
+        'id' => $id, 'expires_at' => $deadline, 'attempts' => 2, 'token_hash' => hash('sha256', $proof),
+    ]);
+    $this->travel(30)->seconds();
+    $this->postJson('/api/auth/register', emailSignupPayload($proof))->assertCreated();
+    $this->assertDatabaseMissing('signup_email_verifications', ['id' => $id]);
+});
