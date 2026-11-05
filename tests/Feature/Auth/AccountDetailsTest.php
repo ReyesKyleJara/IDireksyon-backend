@@ -44,3 +44,26 @@ test('account endpoints require an active resident session', function () {
     $this->postJson('/api/auth/account', [])->assertForbidden();
     $this->postJson('/api/auth/password', [])->assertForbidden();
 });
+
+test('profile returns onboarding barangay and account edits validate and preserve it', function () {
+    $first = \App\Models\Barangay::create(['name' => 'Poblacion']);
+    $second = \App\Models\Barangay::create(['name' => 'San Vicente']);
+    $user = User::factory()->create(['barangay_id' => $first->id]);
+    $other = User::factory()->create(['barangay_id' => $first->id]);
+    $this->withToken($user->createToken('test')->plainTextToken)
+        ->getJson('/api/auth/me')->assertOk()
+        ->assertJsonPath('user.barangay_id', $first->id)
+        ->assertJsonPath('user.barangay_name', 'Poblacion');
+    $body = ['name' => $user->name, 'email' => $user->email];
+    $this->postJson('/api/auth/account', [...$body, 'barangay_id' => $second->id, 'user_id' => $other->id])
+        ->assertOk()->assertJsonPath('user.barangay_name', 'San Vicente');
+    expect($user->fresh()->barangay_id)->toBe($second->id)
+        ->and($other->fresh()->barangay_id)->toBe($first->id);
+    foreach ([999999, null, 'invalid'] as $invalid) {
+        $this->postJson('/api/auth/account', [...$body, 'barangay_id' => $invalid])
+            ->assertUnprocessable()->assertJsonValidationErrors('barangay_id');
+    }
+    $this->postJson('/api/auth/account', $body)->assertOk()
+        ->assertJsonPath('user.barangay_id', $second->id);
+    $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('user.barangay_name', 'San Vicente');
+});

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Barangay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,7 +158,7 @@ class ResidentAuthController extends Controller
 
     private function profile(User $user): array
     {
-        return $user->only([
+        $profile = $user->only([
             'id',
             'name',
             'email',
@@ -168,6 +169,10 @@ class ResidentAuthController extends Controller
             'owned_documents',
             'profile_setup_completed_at',
         ]);
+        $profile['barangay_name'] = $user->barangay_id === null
+            ? null : Barangay::whereKey($user->barangay_id)->value('name');
+
+        return $profile;
     }
 
     public function setup(Request $request): JsonResponse
@@ -314,6 +319,7 @@ class ResidentAuthController extends Controller
         ]);
 
         $data = $request->validate([
+            'barangay_id' => ['sometimes', 'required', 'integer', 'exists:barangays,id'],
             'name' => [
                 'required',
                 'string',
