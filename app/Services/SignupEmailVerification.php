@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\SignupVerificationCode;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +19,11 @@ class SignupEmailVerification
     {
         $key = 'signup-email:'.hash('sha256', $email);
         if (RateLimiter::tooManyAttempts($key, 1)) {
-            abort(429, 'Please wait a minute before requesting another code.');
+            $seconds = RateLimiter::availableIn($key);
+            throw new HttpResponseException(response()->json([
+                'message' => "A code was already requested. You can resend in {$seconds}s.",
+                'remaining_seconds' => $seconds,
+            ], 429, ['Retry-After' => $seconds]));
         }
         RateLimiter::hit($key, 60);
         $id = (string) Str::uuid();
@@ -35,6 +40,7 @@ class SignupEmailVerification
             Mail::to($email)->send(new SignupVerificationCode($code));
         } catch (\Throwable $error) {
             DB::table('signup_email_verifications')->where('id', $id)->delete();
+            RateLimiter::clear($key);
             // Do not log provider exceptions: they may contain the code or credentials.
             Log::error('Signup verification email could not be sent.');
             abort(503, 'Unable to send the verification email. Please try again later.');

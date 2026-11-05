@@ -83,9 +83,16 @@ test('proof is bound to the email address and cannot be replayed or used after e
 test('resending has a normalized destination cooldown', function () {
     Mail::fake();
     $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])->assertOk();
-    $this->postJson('/api/auth/email-verification/send', ['email' => 'VERIFY@example.com'])->assertStatus(429);
+    $this->travel(18)->seconds();
+    $this->postJson('/api/auth/email-verification/send', ['email' => 'VERIFY@example.com'])
+        ->assertStatus(429)->assertHeader('Retry-After', '42')
+        ->assertJsonPath('remaining_seconds', 42)
+        ->assertJsonPath('message', 'A code was already requested. You can resend in 42s.');
     Mail::assertSentCount(1);
-    $this->travel(61)->seconds();
+    $this->travel(41)->seconds();
+    $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])
+        ->assertStatus(429)->assertJsonPath('remaining_seconds', 1);
+    $this->travel(1)->seconds();
     $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])->assertOk();
     Mail::assertSentCount(2);
 });
@@ -95,9 +102,33 @@ test('mail delivery failure removes the challenge and returns a safe error', fun
     $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])
         ->assertStatus(503)->assertJsonPath('message', 'Unable to send the verification email. Please try again later.');
     $this->assertDatabaseCount('signup_email_verifications', 0);
+    Mail::swap(new \Illuminate\Mail\MailManager(app()));
+    Mail::fake();
+    $this->postJson('/api/auth/email-verification/send', ['email' => 'verify@example.com'])
+        ->assertOk()->assertJsonPath('expires_in', 600)->assertJsonPath('resend_after', 60);
+    Mail::assertSentCount(1);
 });
 
 test('the verification email renders the code', function () {
     $mail = new SignupVerificationCode('123456');
     expect($mail->render())->toContain('123456', '10 minutes');
+});
+
+
+test('public auth endpoint throttles have independent counters and retain their limits', function () {
+    Mail::fake();
+    foreach ([
+        '/api/auth/login' => 5,
+        '/api/auth/register' => 5,
+        '/api/auth/forgot-password' => 5,
+        '/api/auth/email-verification/verify' => 20,
+        '/api/auth/email-verification/send' => 5,
+    ] as $path => $limit) {
+        // Invalid requests exercise middleware without sending mail or creating accounts.
+        for ($i = 0; $i < $limit; $i++) {
+            $this->postJson($path, [])->assertUnprocessable();
+        }
+        $this->postJson($path, [])->assertStatus(429)->assertHeader('Retry-After');
+    }
+    Mail::assertNothingSent();
 });

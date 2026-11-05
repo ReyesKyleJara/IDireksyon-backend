@@ -45,21 +45,21 @@ Route::get('/government-ids/{governmentId}', [
 
 Route::prefix('auth')->group(function () {
     Route::post('forgot-password', [PasswordResetLinkController::class, 'sendApi'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:5,1,auth-forgot-password:');
 
     Route::post('email-verification/send', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'send'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:5,1,signup-send:');
     Route::post('email-verification/verify', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'verify'])
-        ->middleware('throttle:20,1');
+        ->middleware('throttle:20,1,signup-verify:');
     Route::post('register', [
         ResidentAuthController::class,
         'register',
-    ])->middleware('throttle:5,1');
+    ])->middleware('throttle:5,1,auth-register:');
 
     Route::post('login', [
         ResidentAuthController::class,
         'login',
-    ])->middleware('throttle:5,1');
+    ])->middleware('throttle:5,1,auth-login:');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('roadmap-plan', [\App\Http\Controllers\Api\ResidentRoadmapController::class, 'plan']);
