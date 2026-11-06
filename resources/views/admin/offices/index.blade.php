@@ -7,7 +7,7 @@
         <div>
             <p class="admin-eyebrow mb-2">Office Directory</p>
             <h1 class="text-3xl font-bold tracking-tight text-slate-900">Offices</h1>
-            <p class="mt-2 text-sm text-slate-500">Research branches serving Santa Maria and nearby communities. Save incomplete findings as drafts.</p>
+            <p class="mt-2 text-sm text-slate-500">Research branches serving Santa Maria and nearby communities. Link offices to an ID or document to show them to residents.</p>
         </div>
         <a href="{{ route('admin.offices.create') }}" class="admin-primary">Add Office</a>
     </div>
@@ -25,14 +25,6 @@
                 @endforeach
             </select>
         </div>
-        <div>
-            <label for="status-filter" class="mb-2 block text-sm font-medium">Status</label>
-            <select id="status-filter" name="status" class="admin-input">
-                <option value="">All statuses</option>
-                <option value="draft" @selected(($filters['status'] ?? '') === 'draft')>Draft</option>
-                <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Inactive</option>
-            </select>
-        </div>
         <div class="flex items-end gap-3">
             <button class="admin-primary" type="submit">Search</button>
             <a href="{{ route('admin.offices.index') }}" class="admin-secondary">Clear</a>
@@ -43,7 +35,7 @@
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        @foreach(['Office', 'Agency', 'Location', 'Status', 'Actions'] as $heading)
+                        @foreach(['Office', 'Agency', 'Location', 'Actions'] as $heading)
                             <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $heading }}</th>
                         @endforeach
                     </tr>
@@ -54,11 +46,10 @@
                             <td class="px-5 py-4 font-semibold text-slate-900">{{ $office->name }}</td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $office->agency?->name ?? 'Not yet assigned' }}</td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ collect([$office->municipality, $office->province])->filter()->implode(', ') ?: 'Not yet researched' }}</td>
-                            <td class="px-5 py-4 text-sm"><span class="rounded-full bg-slate-100 px-3 py-1 text-slate-700">{{ ucfirst($office->status) }}</span></td>
                             <td class="px-5 py-4"><a href="{{ route('admin.offices.edit', $office) }}" class="admin-secondary" aria-label="Edit {{ $office->name }}">Edit</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-6 py-16 text-center">
+                        <tr><td colspan="4" class="px-6 py-16 text-center">
                             <p class="font-semibold text-slate-800">{{ array_filter($filters) ? 'No matching offices found.' : 'No offices yet.' }}</p>
                             <p class="mt-2 text-sm text-slate-500">{{ array_filter($filters) ? 'Try another search or clear the filters.' : 'Add a branch when you have its name. Other research details can follow.' }}</p>
                         </td></tr>

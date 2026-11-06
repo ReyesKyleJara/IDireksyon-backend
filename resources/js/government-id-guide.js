@@ -43,6 +43,10 @@ export default function governmentIdGuide(config) {
                     const previous = JSON.parse(config.oldPayload);
                     if (!Array.isArray(previous)) throw new Error();
                     if (previous.some(row => !row || !Array.isArray(row.steps))) throw new Error();
+                    if (config.singleScenario) {
+                        if (previous.length !== 1) throw new Error();
+                        this.scenarios = [];
+                    }
                     previous.forEach(row => {
                         const restored = this.prepare(row);
                         restored.dirty = true;
@@ -256,7 +260,7 @@ export default function governmentIdGuide(config) {
         },
         get payload() {
             if (this.restoreError) return config.oldPayload;
-            return JSON.stringify(this.scenarios.filter(row => row.dirty).map(row => ({ ...pick(row, scenarioFields),
+            return JSON.stringify(this.scenarios.filter(row => config.serializeAll || row.dirty).map(row => ({ ...pick(row, scenarioFields),
                 steps: row.steps.map(step => ({ ...pick(step, stepFields), blocks: step.blocks.map(block => {
                     const content = clone(block.content);
                     if (Array.isArray(content.items)) content.items = content.items.map(item => item.originalString !== undefined && item.body === item.originalString ? item.originalString : ({ body: item.body }));

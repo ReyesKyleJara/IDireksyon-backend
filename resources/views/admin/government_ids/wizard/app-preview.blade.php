@@ -1,7 +1,7 @@
 <aside class="min-w-0 2xl:sticky 2xl:top-6" aria-labelledby="guide-app-preview-heading">
     <div class="mb-3">
         <h2 id="guide-app-preview-heading" class="text-base font-semibold text-slate-900">App preview</h2>
-        <p class="mt-1 text-xs leading-5 text-slate-500">Intended resident presentation. The mobile app does not read this guide yet.</p>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Preview the saved guide content. The resident app displays the selected request channel.</p>
     </div>
     <div class="mx-auto max-w-sm overflow-hidden rounded-3xl border border-slate-200 bg-[#F7F6F2] shadow-sm">
         <header class="border-b border-slate-200 bg-white px-5 py-5">

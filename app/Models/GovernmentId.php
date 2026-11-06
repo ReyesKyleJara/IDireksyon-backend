@@ -17,6 +17,7 @@ class GovernmentId extends Model
     ];
 
     protected $fillable = [
+        'research_metadata',
         'application_availability',
         'acquisition_type',
         'target_group',
@@ -54,6 +55,7 @@ class GovernmentId extends Model
         'application_process',
 
         'processing_time',
+        'processing_time_note',
         'processing_time_type',
         'processing_time_min',
         'processing_time_max',
@@ -74,7 +76,7 @@ class GovernmentId extends Model
     protected function casts(): array
     {
         return [
-            'include_in_smart_sequencing' => 'boolean',
+            'research_metadata' => 'array',            'include_in_smart_sequencing' => 'boolean',
             'last_verified_at' => 'datetime',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',

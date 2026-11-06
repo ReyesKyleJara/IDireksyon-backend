@@ -21,8 +21,25 @@ Route::get('/dashboard', fn () => redirect()->route(auth()->user()->cmsHomeRoute
 
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'auth.session', 'can:access-cms'])
+    ->middleware(['auth', 'auth.session', 'can:access-cms', \App\Http\Middleware\CheckCatalogRevision::class])
     ->group(function () {
+
+        foreach (['documents' => 'document', 'government-ids' => 'governmentId'] as $resource => $parameter) {
+            $controller = \App\Http\Controllers\Admin\CatalogSpecialCaseController::class;
+            Route::get($resource.'/{'.$parameter.'}/special-cases/create', [$controller, $parameter.'Edit'])->name($resource.'.special-cases.create');
+            Route::get($resource.'/{'.$parameter.'}/special-cases/{specialCase}/edit', [$controller, $parameter.'Edit'])->name($resource.'.special-cases.edit');
+            Route::post($resource.'/{'.$parameter.'}/special-cases', [$controller, $parameter.'Save'])->name($resource.'.special-cases.save');
+            Route::post($resource.'/{'.$parameter.'}/special-cases/action', [$controller, $parameter.'Action'])->name($resource.'.special-cases.action');
+        }
+
+        Route::post('documents/{document}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'document'])->name('documents.channels');
+        Route::post('government-ids/{governmentId}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'governmentId'])->name('government-ids.channels');
+        foreach (['documents' => 'document', 'government-ids' => 'governmentId'] as $resource => $parameter) {
+            $controller = \App\Http\Controllers\Admin\CatalogChannelController::class;
+            Route::get($resource.'/{'.$parameter.'}/request-options/create', [$controller, $parameter.'Edit'])->name($resource.'.request-options.create');
+            Route::get($resource.'/{'.$parameter.'}/request-options/{pathId}/edit', [$controller, $parameter.'Edit'])->whereNumber('pathId')->name($resource.'.request-options.edit');
+            Route::delete($resource.'/{'.$parameter.'}/request-options/{pathId}', [$controller, $parameter.'Delete'])->whereNumber('pathId')->name($resource.'.request-options.destroy');
+        }
 
         // Dashboard
         Route::get('/', [DashboardController::class, 'index'])

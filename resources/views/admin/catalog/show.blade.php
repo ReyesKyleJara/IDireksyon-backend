@@ -150,6 +150,8 @@
         </section>
     @endif
 
+    @include('admin.catalog.partials.encoding-summary')
+
     @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
 
     @include('admin.government_ids.partials.checklists', ['editable' => false])

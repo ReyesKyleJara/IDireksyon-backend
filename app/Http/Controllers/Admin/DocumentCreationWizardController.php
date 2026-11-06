@@ -20,6 +20,7 @@ class DocumentCreationWizardController extends Controller
     public const STEPS = GovernmentIdCreationWizardController::STEPS;
 
     private const BASIC_FIELDS = [
+        'research_metadata',
         'application_availability',
         'acquisition_type',
         'target_group',
@@ -41,6 +42,7 @@ class DocumentCreationWizardController extends Controller
         'validity_type',
         'validity_value',
         'validity_unit',
+        'processing_time_note',
         'processing_time_type',
         'processing_time_min',
         'processing_time_max',
@@ -85,12 +87,12 @@ class DocumentCreationWizardController extends Controller
         if ($starts[$key] !== null) {
             return redirect()->route(
                 'admin.documents.wizard.show',
-                [$starts[$key], 'requirements']
+                [$starts[$key], 'channels']
             );
         }
 
         $document = DB::transaction(function () use ($request) {
-            $document = Document::create($this->basicData($request));
+            $document = Document::create(['research_metadata' => ['status' => 'draft'], ...$this->basicData($request)]);
             $document->requirementSets()->create([
                 'application_type' => 'new',
                 'applicant_type' => 'all',
@@ -114,17 +116,17 @@ class DocumentCreationWizardController extends Controller
             $request,
             $document,
             'basic',
-            'requirements'
+            'channels'
         );
 
         return redirect()
             ->route(
                 'admin.documents.wizard.show',
-                [$document, 'requirements']
+                [$document, 'channels']
             )
             ->with(
                 'success',
-                'Basic information saved. Continue by adding the requirements for this document.'
+                'Basic information saved. Continue by setting up its request options.'
             );
     }
 
@@ -178,11 +180,16 @@ class DocumentCreationWizardController extends Controller
             404
         );
 
+        $selectedPath = $this->selectedCatalogPath($request, $document);
+        $request->validate(['option_content' => ['sometimes', 'in:1']]);
+
         DB::transaction(function () use (
             $request,
             $document,
-            $step
+            $step,
+            $selectedPath
         ) {
+            $this->saveSectionVisibility($request, $document, $step);
             switch ($step) {
                 case 'basic':
                     $document->update(
@@ -213,13 +220,7 @@ class DocumentCreationWizardController extends Controller
                         $input
                     );
 
-                    $this->syncFees(
-                        $document,
-                        $this->prepareFeeRows(
-                            $data['fees'] ?? []
-                        ),
-                        true
-                    );
+                    $this->saveOptionFees($request, $document, $data['fees'] ?? [], $selectedPath);
                     break;
 
                 case 'guide':
@@ -241,10 +242,7 @@ class DocumentCreationWizardController extends Controller
                     );
 
                     if ($rows !== null) {
-                        $this->syncOfficeLinks(
-                            $document,
-                            $rows
-                        );
+                        $this->saveOptionOffices($request, $document, $rows, $selectedPath);
                     }
                     break;
 
@@ -289,7 +287,7 @@ class DocumentCreationWizardController extends Controller
         return redirect()
             ->route(
                 $this->wizardRoutes($request, 'documents').'.show',
-                [$document, $next]
+                [$document, $next, 'path' => $request->input('path')]
             )
             ->with(
                 'success',
@@ -364,6 +362,7 @@ class DocumentCreationWizardController extends Controller
 
         $sets = $document?->requirementSets
             ?? collect();
+        $selectedPath = $document ? $this->selectedCatalogPath($request, $document) : null;
 
         $groups = $sets->flatMap->groups;
 
@@ -399,6 +398,7 @@ class DocumentCreationWizardController extends Controller
                 'governmentId' => $document,
                 'recordKind' => 'document',
                 'editing' => $this->editingWizard($request),
+                'selectedPath' => $selectedPath,
                 'step' => $step,
                 'steps' => self::STEPS,
                 'creationKey' => $creationKey,
@@ -406,7 +406,7 @@ class DocumentCreationWizardController extends Controller
 
                 'requirementsIncomplete' =>
                     $sets->isEmpty()
-                    || $sets->contains(
+                    || $sets->where('id', $selectedPath)->contains(
                         fn ($set) =>
                             $set->groups->isEmpty()
                     ),
@@ -437,9 +437,7 @@ class DocumentCreationWizardController extends Controller
                     : collect(),
 
                 'checklists' => $sets
-                    ->when(! $this->editingWizard($request), fn ($rows) => $rows
-                        ->filter(fn ($set) => $set->application_type === 'new' && $set->applicant_type === 'all')
-                        ->take(1))
+                    ->when($selectedPath, fn ($rows) => $rows->where('id', $selectedPath))
                     ->map(
                         fn ($set) =>
                             GovernmentIdChecklistController::present(

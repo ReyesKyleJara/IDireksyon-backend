@@ -58,6 +58,7 @@
             'selectedProcessingMin' => $governmentId?->processing_time_min,
             'selectedProcessingMax' => $governmentId?->processing_time_max,
             'selectedProcessingUnit' => $governmentId?->processing_time_unit,
+            'selectedProcessingNote' => $governmentId?->processing_time_note,
         ])
     </div>
 
@@ -127,3 +128,5 @@
         @error('include_in_smart_sequencing')<p id="smart-sequencing-inclusion-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
     </div>
 </section>
+
+@include('admin.catalog.partials.research-fields')

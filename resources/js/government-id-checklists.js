@@ -2,9 +2,11 @@ const copy = value => JSON.parse(JSON.stringify(value));
 
 export default function governmentIdChecklists(config) {
     return {
+        catalogRevision: config.catalogRevision || null,
         createLabel: config.createLabel || 'Create ID',
         checklists: config.checklists || [],
         deferred: !!config.deferred,
+        embedded: !!config.embedded,
         wizardMode: !!config.wizardMode,
         allowWizardCreate: !!config.allowWizardCreate,
         ready: false,
@@ -50,6 +52,18 @@ export default function governmentIdChecklists(config) {
                 }
                 this.form = this.$el.closest('form');
                 this.submitHandler = event => {
+                    if (this.embedded && !this.restoreError) {
+                        if (this.editing) {
+                            event.preventDefault();
+                            this.formError = 'Finish or cancel the open requirement before saving this guide.';
+                            this.$refs.errors?.focus();
+                            return;
+                        }
+                        if (this.$refs.pendingPayload) this.$refs.pendingPayload.value = this.creationPayload;
+                        this.submitting = true;
+                        queueMicrotask(() => { if (event.defaultPrevented) this.submitting = false; });
+                        return;
+                    }
                     if (this.draft || this.restoreError) {
                         event.preventDefault();
                         this.formError = this.restoreError ? this.formError : 'Apply or cancel the open checklist before creating the entry.';
@@ -60,7 +74,7 @@ export default function governmentIdChecklists(config) {
                     queueMicrotask(() => { if (event.defaultPrevented) this.submitting = false; });
                 };
                 this.form?.addEventListener('submit', this.submitHandler);
-                this.$nextTick(() => this.checklists.forEach(row => this.$dispatch('guide-scenario-changed', row)));
+                if (!this.embedded) this.$nextTick(() => this.checklists.forEach(row => this.$dispatch('guide-scenario-changed', row)));
             }
             if (!this.deferred) {
                 this.form = this.$el.closest('form');
@@ -82,7 +96,7 @@ export default function governmentIdChecklists(config) {
             }
             this.ready = true;
             this.beforeUnload = event => {
-                if (!this.submitting && (this.dirty() || this.saving || (this.deferred && this.checklists.length > 0))) {
+                if (!this.submitting && (this.dirty() || this.saving || (this.deferred && !this.embedded && this.checklists.length > 0))) {
                     event.preventDefault();
                     event.returnValue = '';
                 }
@@ -95,6 +109,7 @@ export default function governmentIdChecklists(config) {
         },
         get creationPayload() {
             if (this.restoreError) return config.oldPayload;
+            if (this.embedded && this.draft) return JSON.stringify([{ client_key: 'special-case', ...this.payload() }]);
             return JSON.stringify(this.checklists.map(row => ({ client_key: row.client_key, ...this.payload(row) })));
         },
         discardUnreadableDrafts() {
@@ -560,7 +575,7 @@ export default function governmentIdChecklists(config) {
         async request(url, method, body) {
             const response = await fetch(url, {
                 method, credentials: 'same-origin',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': config.csrf },
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': config.csrf, ...(this.catalogRevision ? { 'X-Catalog-Revision': this.catalogRevision } : {}) },
                 body: body === undefined ? undefined : JSON.stringify(body),
             });
             const data = await response.json().catch(() => ({}));
@@ -573,6 +588,10 @@ export default function governmentIdChecklists(config) {
                             ? 'This checklist or one of its entries no longer exists. Your entries are still here; close and refresh to load the latest version.'
                             : 'Unable to save this change. Your entries have been kept. Please try again.',
                 ] };
+            }
+            if (data._catalog_revision) {
+                this.catalogRevision = data._catalog_revision;
+                document.querySelectorAll('input[name="_catalog_revision"]').forEach(input => input.value = data._catalog_revision);
             }
             return data;
         },
@@ -618,7 +637,20 @@ export default function governmentIdChecklists(config) {
             this.saving = true;
             try {
                 const id = this.draft.id;
-                const data = await this.request(config.url + (id ? '/' + id : ''), id ? 'PUT' : 'POST', this.payload());
+                const body = this.payload();
+                if (this.wizardMode && this.form?.tagName === 'FORM' && typeof FormData !== 'undefined') {
+                    const fields = new FormData(this.form);
+                    if (fields.has('prerequisites_present')) {
+                        const rows = {};
+                        for (const [name, value] of fields) {
+                            const match = name.match(/^prerequisites\[(\d+)\]\[([a-z_]+)\]$/);
+                            if (match) (rows[match[1]] ||= {})[match[2]] = value;
+                        }
+                        body.prerequisites_present = 1;
+                        body.prerequisites = Object.values(rows);
+                    }
+                }
+                const data = await this.request(config.url + (id ? '/' + id : ''), id ? 'PUT' : 'POST', body);
                 const index = this.checklists.findIndex(checklist => checklist.id === data.checklist.id);
                 if (index < 0) this.checklists.push(data.checklist);
                 else this.checklists.splice(index, 1, data.checklist);

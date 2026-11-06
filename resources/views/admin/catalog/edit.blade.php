@@ -342,6 +342,7 @@
                         'selectedProcessingMin' => $governmentId->processing_time_min,
                         'selectedProcessingMax' => $governmentId->processing_time_max,
                         'selectedProcessingUnit' => $governmentId->processing_time_unit,
+                        'selectedProcessingNote' => $governmentId->processing_time_note,
                     ]
                 )
 

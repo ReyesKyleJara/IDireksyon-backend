@@ -11,8 +11,12 @@ import governmentIdGuide from './government-id-guide';
 import guideRichText from './guide-rich-text';
 
 import catalogPrerequisites from './catalog-prerequisites';
+import requestOptionEditor, { catalogStepChanges, inlineRequestMethods } from './request-option-editor';
 
 window.Alpine = Alpine;
+Alpine.data('requestOptionEditor', requestOptionEditor);
+Alpine.data('inlineRequestMethods', inlineRequestMethods);
+Alpine.data('catalogStepChanges', catalogStepChanges);
 Alpine.data('catalogPrerequisites', catalogPrerequisites);
 Alpine.data('governmentIdGuide', governmentIdGuide);
 Alpine.data('guideRichText', guideRichText);

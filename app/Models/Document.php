@@ -17,6 +17,7 @@ class Document extends Model
     ];
 
     protected $fillable = [
+        'research_metadata',
         'application_availability',
         'acquisition_type',
         'target_group',
@@ -55,6 +56,7 @@ class Document extends Model
         'application_process',
 
         'processing_time',
+        'processing_time_note',
         'processing_time_type',
         'processing_time_min',
         'processing_time_max',
@@ -73,7 +75,7 @@ class Document extends Model
     protected function casts(): array
     {
         return [
-            'include_in_smart_sequencing' => 'boolean',
+            'research_metadata' => 'array',            'include_in_smart_sequencing' => 'boolean',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',
             'validity_value' => 'integer',

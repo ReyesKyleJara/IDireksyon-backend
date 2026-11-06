@@ -28,6 +28,9 @@ Route::get('/health', function () {
 
 Route::get('/barangays', [BarangayController::class, 'index']);
 
+Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class, 'index']);
+Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'show']);
+
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);
 Route::get('/government-ids/{governmentId}', [
     GovernmentIdController::class,
@@ -42,23 +45,27 @@ Route::get('/government-ids/{governmentId}', [
 
 Route::prefix('auth')->group(function () {
     Route::post('forgot-password', [PasswordResetLinkController::class, 'sendApi'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:5,1,auth-forgot-password:');
 
     Route::post('email-verification/send', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'send'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:5,1,signup-send:');
     Route::post('email-verification/verify', [\App\Http\Controllers\Api\SignupEmailVerificationController::class, 'verify'])
-        ->middleware('throttle:20,1');
+        ->middleware('throttle:20,1,signup-verify:');
     Route::post('register', [
         ResidentAuthController::class,
         'register',
-    ])->middleware('throttle:5,1');
+    ])->middleware('throttle:5,1,auth-register:');
 
     Route::post('login', [
         ResidentAuthController::class,
         'login',
-    ])->middleware('throttle:5,1');
+    ])->middleware('throttle:5,1,auth-login:');
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'index']);
+        Route::post('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'store']);
+        Route::put('journeys/{journey}/completion', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'complete'])->whereNumber('journey');
+
         Route::post('roadmap-plan', [\App\Http\Controllers\Api\ResidentRoadmapController::class, 'plan']);
 
         Route::get('me', [
@@ -90,6 +97,13 @@ Route::prefix('auth')->group(function () {
             ResidentAuthController::class,
             'logout',
         ]);
+
+        Route::get('requirement-preparation/{recordType}/{recordId}', [
+            \App\Http\Controllers\Api\ResidentRequirementPreparationController::class, 'show',
+        ])->whereNumber('recordId');
+        Route::put('requirement-preparation/{recordType}/{recordId}', [
+            \App\Http\Controllers\Api\ResidentRequirementPreparationController::class, 'update',
+        ])->whereNumber('recordId');
 
         Route::get('inventory', [
             ResidentInventoryController::class,

@@ -9,7 +9,47 @@ use App\Models\GovernmentIdRequirementWay;
 /** Resident display projection; does not evaluate eligibility or readiness. */
 class ResidentRequirements
 {
-    public static function forId(GovernmentId $id): array
+    /** Reuse display models for a JSON-only assistance checklist. No model is saved. */
+    public static function fromDraft(array $groups, string $title): array
+    {
+        $rows = collect($groups)->flatMap(fn ($group) => isset($group['ways'])
+            ? collect($group['ways'])->flatMap(fn ($way) => $way['items']) : ($group['items'] ?? []));
+        $ids = GovernmentId::whereIn('id', $rows->pluck('government_id_id')->filter()->unique())->get(['id', 'name'])->keyBy('id');
+        $documents = \App\Models\Document::whereIn('id', $rows->pluck('document_id')->filter()->unique())->get(['id', 'name'])->keyBy('id');
+        $set = new GovernmentIdRequirementSet(['application_type' => 'new', 'applicant_type' => 'all']);
+        $set->forceFill(['id' => 1]);
+        $set->setRelation('groups', collect($groups)->map(function ($row, $index) use ($ids, $documents) {
+            $group = new \App\Models\GovernmentIdRequirementGroup($row);
+            $group->forceFill(['id' => $index + 1]);
+            $items = collect();
+            $makeItems = function ($rows) use (&$items, $ids, $documents) {
+                $result = collect($rows)->map(function ($data) use ($ids, $documents) {
+                    $item = new \App\Models\GovernmentIdRequirementItem($data);
+                    $item->setRelation('governmentId', $ids->get($data['government_id_id'] ?? null));
+                    $item->setRelation('document', $documents->get($data['document_id'] ?? null));
+                    return $item;
+                });
+                $items = $items->concat($result);
+                return $result;
+            };
+            $ways = collect($row['ways'] ?? [])->map(function ($wayRow) use ($makeItems) {
+                $way = new GovernmentIdRequirementWay($wayRow);
+                $way->setRelation('items', $makeItems($wayRow['items']));
+                return $way;
+            });
+            if ($ways->isEmpty()) $makeItems($row['items'] ?? []);
+            $group->setRelation('ways', $ways)->setRelation('items', $items);
+            return $group;
+        }));
+        $owner = new GovernmentId();
+        $owner->setRelation('requirementSets', collect([$set]));
+        if ($groups === []) return [];
+        $result = self::forId($owner);
+        $result[0]['display_label'] = $title;
+        return $result;
+    }
+
+    public static function forId(GovernmentId|\App\Models\Document $id): array
     {
         return $id->requirementSets->map(fn ($set) => [
             'id' => $set->id,

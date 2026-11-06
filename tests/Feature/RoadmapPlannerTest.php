@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 function roadmapLink($record): array
 {
     $type = $record instanceof Document ? 'document' : 'government_id';
+
     return ['type' => $type, $type.'_id' => $record->id];
 }
 
@@ -120,4 +121,52 @@ it('protects the resident plan API and validates selected Government IDs', funct
     foreach ([[], [999999], [1, 1], ['wrong']] as $targets) {
         $this->postJson('/api/auth/roadmap-plan', ['target_government_id_ids' => $targets])->assertUnprocessable();
     }
+});
+
+it('accepts document targets and keeps same-number government IDs distinct', function () {
+    $resident = User::factory()->create();
+    $id = GovernmentId::create(['name' => 'ID target']);
+    $document = Document::forceCreate(['id' => $id->id, 'name' => 'Document target']);
+    $this->actingAs($resident);
+    $plan = $this->postJson('/api/auth/roadmap-plan', [
+        'target_document_ids' => [$document->id],
+    ])->assertOk()->json('data');
+    expect($plan['target_government_id_ids'])->toBe([])
+        ->and($plan['target_document_ids'])->toBe([$document->id])
+        ->and(roadmapSteps($plan))->toBe(['document:'.$document->id])
+        ->and($plan['steps'][0]['selected'])->toBeTrue();
+    $mixed = $this->postJson('/api/auth/roadmap-plan', [
+        'target_government_id_ids' => [$id->id],
+        'target_document_ids' => [$document->id],
+    ])->assertOk()->json('data');
+    expect(roadmapSteps($mixed))->toBe(['government_id:'.$id->id, 'document:'.$document->id]);
+});
+
+it('rejects empty or invalid document targets', function () {
+    $this->actingAs(User::factory()->create());
+    foreach ([[], ['target_government_id_ids' => [], 'target_document_ids' => []],
+        ['target_document_ids' => [999999]], ['target_document_ids' => ['invalid']]] as $payload) {
+        $this->postJson('/api/auth/roadmap-plan', $payload)->assertUnprocessable();
+    }
+});
+
+it('derives the Passport to PSA Birth Certificate sequence from structured Requirements', function () {
+    $resident = User::factory()->create();
+    $passport = GovernmentId::forceCreate(['id' => 55, 'name' => 'Philippine Passport']);
+    $birth = Document::forceCreate(['id' => 28, 'name' => 'PSA Birth Certificate']);
+    $set = $passport->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $group = $set->groups()->create(['rule' => 'all']);
+    $way = $group->ways()->create(['required_count' => 1]);
+    $item = $group->items()->make(['type' => 'document', 'document_id' => $birth->id]);
+    $item->requirement_way_id = $way->id;
+    $item->save();
+    $this->actingAs($resident);
+    $payload = ['target_government_id_ids' => [55]];
+    $plan = $this->postJson('/api/auth/roadmap-plan', $payload)->assertOk()->json('data');
+    expect(roadmapSteps($plan))->toBe(['document:28', 'government_id:55'])
+        ->and($plan['blocked'])->toBeFalse();
+    $resident->ownedDocuments()->attach($birth);
+    $owned = $this->postJson('/api/auth/roadmap-plan', $payload)->assertOk()->json('data');
+    expect(roadmapSteps($owned))->toBe(['government_id:55'])
+        ->and($owned['steps'][0]['prerequisites'][0]['status'])->toBe('satisfied');
 });

@@ -36,6 +36,22 @@ test('deleting removes only the resident and their related records', function ()
     $id = GovernmentId::create(['name' => 'Passport']);
     $user->ownedGovernmentIds()->attach($id);
     $other->ownedGovernmentIds()->attach($id);
+    $document = \App\Models\Document::create(['name' => 'Birth certificate']);
+    $user->ownedDocuments()->attach($document);
+    $other->ownedDocuments()->attach($document);
+    $set = $id->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $group = $set->groups()->create(['rule' => 'all']);
+    $item = $group->items()->create(['type' => 'custom', 'custom_name' => 'Form']);
+    foreach ([$user, $other] as $resident) {
+        DB::table('resident_id_preparations')->insert([
+            'user_id' => $resident->id, 'requirement_item_id' => $item->id, 'prepared' => true,
+        ]);
+        DB::table('signup_email_verifications')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(), 'email' => $resident->email,
+            'code_hash' => 'fixture', 'expires_at' => now()->addMinutes(10),
+        ]);
+    }
+
     $other->createToken('other');
     DB::table('sessions')->insert([
         ['id' => 'mine', 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()],
@@ -61,6 +77,14 @@ test('deleting removes only the resident and their related records', function ()
     expect(DB::table('sessions')->where('user_id', $user->id)->count())->toBe(0);
     expect(DB::table('password_reset_tokens')->where('email', $user->email)->count())->toBe(0);
     expect(GovernmentId::find($id->id))->not->toBeNull();
+    expect(DB::table('resident_documents')->where('user_id', $user->id)->count())->toBe(0);
+    expect(DB::table('resident_id_preparations')->where('user_id', $user->id)->count())->toBe(0);
+    expect(DB::table('signup_email_verifications')->where('email', $user->email)->count())->toBe(0);
+    expect($other->ownedDocuments()->count())->toBe(1);
+    expect(DB::table('resident_id_preparations')->where('user_id', $other->id)->count())->toBe(1);
+    expect(DB::table('signup_email_verifications')->where('email', $other->email)->count())->toBe(1);
+    expect(\App\Models\Document::find($document->id))->not->toBeNull();
+
 
     expect(User::find($other->id))->not->toBeNull();
     expect($other->ownedGovernmentIds()->count())->toBe(1);

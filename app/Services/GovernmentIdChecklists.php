@@ -17,6 +17,17 @@ use Illuminate\Validation\ValidationException;
 
 class GovernmentIdChecklists
 {
+    public function saveRequest(GovernmentId|Document $owner, Request $request, ?string $checklist = null): GovernmentIdRequirementSet
+    {
+        return DB::transaction(function () use ($owner, $request, $checklist) {
+            if ($request->has('prerequisites_present')) {
+                $input = $request->validate(['prerequisites_present' => ['in:1'], 'prerequisites' => ['sometimes', 'array']]);
+                app(CatalogPrerequisites::class)->save($owner, $input['prerequisites'] ?? []);
+            }
+            return $this->save($owner, $request->validated(), $checklist);
+        });
+    }
+
     /** Validate form drafts before writing any part of a new ID. */
     public function readForCreation(Request $request): array
     {
@@ -159,7 +170,7 @@ class GovernmentIdChecklists
         $set->loadMissing(['groups.items.governmentId', 'groups.items.document', 'groups.ways']);
         return [
             ...$set->only(['id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom', 'min_age', 'max_age']),
-            'label' => $set->display_label,
+            'label' => $set->request_channel['label'] ?? $set->display_label,
             'groups' => $set->groups->map(function ($group) {
                 $result = [
                     ...$group->only(['id', 'title', 'rule', 'condition_type', 'condition_custom']),

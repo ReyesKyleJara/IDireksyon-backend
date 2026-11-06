@@ -82,6 +82,8 @@ class GovernmentIdController extends Controller
                     /*
                      * Structured processing time.
                      */
+                    'processing_time_note' => $governmentId->processing_time_note,
+
                     'processing_time_type' =>
                         $governmentId->processing_time_type,
 
@@ -148,6 +150,7 @@ class GovernmentIdController extends Controller
 
         return response()->json([
             'data' => [
+                ...\App\Services\CatalogEncoding::detail($governmentId),
                 'id' => $governmentId->id,
                 'name' => $governmentId->name,
 
@@ -256,6 +259,8 @@ class GovernmentIdController extends Controller
                 /*
                  * Structured processing time.
                  */
+                'processing_time_note' => $governmentId->processing_time_note,
+
                 'processing_time_type' =>
                     $governmentId->processing_time_type,
 

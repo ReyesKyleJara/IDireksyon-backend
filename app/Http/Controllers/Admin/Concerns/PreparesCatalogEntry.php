@@ -58,6 +58,7 @@ trait PreparesCatalogEntry
             }
         }
 
+        \App\Services\CatalogEncoding::assertReferencesRetained($governmentId, 'office_ids', $retained);
         $removed = $linkClass::where($ownerKey, $governmentId->id)
             ->whereNotIn('office_id', $retained)->delete();
         if ($changed || $removed) {
@@ -68,7 +69,14 @@ trait PreparesCatalogEntry
     private function validateCatalogEntry(
         Request $request
     ): array {
-        return $request->validate([
+        if (is_array($request->input('research_metadata'))) {
+            $visibilityOwner = $request->route('document') ?? $request->route('governmentId');
+            $savedHidden = ($visibilityOwner instanceof Document || $visibilityOwner instanceof GovernmentId)
+                ? ($visibilityOwner->research_metadata['hidden_sections'] ?? []) : [];
+            $request->merge(['research_metadata' => array_replace(['sources' => [], 'hidden_sections' => $savedHidden], $request->input('research_metadata', []))]);
+        }
+        $validated = $request->validate([
+            ...\App\Services\CatalogEncoding::researchRules(),
             'application_availability' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\ApplicationAvailability::LABELS))],
             'acquisition_type' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\AcquisitionType::LABELS))],
             'target_group' => ['nullable', 'string', 'max:1000'],
@@ -115,7 +123,7 @@ trait PreparesCatalogEntry
             ],
 
 
-            'eligibility_age_type' => ['nullable', 'string', 'in:none,minimum,range'],
+            'eligibility_age_type' => ['nullable', 'string', 'in:none,minimum,range,not_applicable'],
             'eligibility_min_age' => [
                 'exclude_unless:eligibility_age_type,minimum,range',
                 'required', 'integer', 'min:0', 'max:150',
@@ -125,8 +133,8 @@ trait PreparesCatalogEntry
                 'required', 'integer', 'min:0', 'max:150',
                 'gte:eligibility_min_age',
             ],
-            'eligibility_citizenship' => ['nullable', 'string', 'in:none,filipino'],
-            'eligibility_residency' => ['nullable', 'string', 'in:none,philippines,santa_maria,custom'],
+            'eligibility_citizenship' => ['nullable', 'string', 'in:none,filipino,not_applicable'],
+            'eligibility_residency' => ['nullable', 'string', 'in:none,philippines,santa_maria,custom,not_applicable'],
             'eligibility_residency_custom' => [
                 'exclude_unless:eligibility_residency,custom',
                 'required', 'string', 'max:255',
@@ -267,6 +275,8 @@ trait PreparesCatalogEntry
                 'max:255',
             ],
 
+            'processing_time_note' => ['nullable', 'string', 'max:10000'],
+
             'processing_time_type' => [
                 'nullable',
                 'string',
@@ -294,7 +304,7 @@ trait PreparesCatalogEntry
                 'nullable',
                 'required_if:processing_time_type,fixed,range',
                 'string',
-                'in:calendar_day,working_day,week,month',
+                'in:minute,hour,calendar_day,working_day,week,month',
             ],
 
             /*
@@ -382,6 +392,13 @@ trait PreparesCatalogEntry
             ],
 
         ]);
+        \App\Services\CatalogEncoding::validateResearch($validated);
+        $owner = $request->route('document') ?? $request->route('governmentId');
+        if (isset($validated['research_metadata']) && ($owner instanceof Document || $owner instanceof GovernmentId)
+            && array_key_exists('special_cases', $owner->research_metadata ?? [])) {
+            $validated['research_metadata']['special_cases'] = $owner->research_metadata['special_cases'];
+        }
+        return $validated;
     }
 
     private function prepareEligibility(array $validated): array
@@ -427,17 +444,20 @@ trait PreparesCatalogEntry
         $max = $validated['eligibility_max_age'];
         $lines = [
             match ($ageType) {
+                'not_applicable' => 'Age: Not applicable.',
                 'none' => 'Age: No age requirement.',
                 'minimum' => "Age: {$min} ".($min === 1 ? 'year' : 'years').' old and above.',
                 'range' => "Age: {$min}–{$max} years old (inclusive).",
                 default => null,
             },
             match ($validated['eligibility_citizenship']) {
+                'not_applicable' => 'Citizenship: Not applicable.',
                 'none' => 'Citizenship: No specific citizenship requirement.',
                 'filipino' => 'Citizenship: Filipino citizen required.',
                 default => null,
             },
             match ($validated['eligibility_residency']) {
+                'not_applicable' => 'Residency: Not applicable.',
                 'none' => 'Residency: No specific residency requirement.',
                 'philippines' => 'Residency: Philippine resident required.',
                 'santa_maria' => 'Residency: Santa Maria, Bulacan resident required.',
@@ -877,12 +897,13 @@ trait PreparesCatalogEntry
     private function syncFees(
         GovernmentId|Document $governmentId,
         array $feeRows,
-        bool $preserveIds = false
+        bool $preserveIds = false,
+        ?array $updateIds = null
     ): void {
         $feeFields = ['label', 'type', 'amount_min', 'amount_max', 'currency', 'is_optional', 'notes', 'sort_order'];
         $previousFees = $governmentId->fees()->orderBy('sort_order')->orderBy('id')->with('options')->get()->map(fn ($fee) => [...$fee->only($feeFields), 'options' => $fee->options->toArray()])->all();
 
-        $preserveIds = $preserveIds || collect($feeRows)->contains('type', 'options') || $governmentId->fees()->whereHas('options')->exists();
+        $preserveIds = $preserveIds || $governmentId->requirementSets()->whereNotNull('request_channel')->exists() || collect($feeRows)->contains('type', 'options') || $governmentId->fees()->whereHas('options')->exists();
         if ($preserveIds) {
             $existing = $governmentId->fees()->lockForUpdate()->get()->keyBy('id');
             $submittedIds = collect($feeRows)->pluck('id')->filter()->map(fn ($id) => (int) $id);
@@ -894,6 +915,11 @@ trait PreparesCatalogEntry
             $unclaimed = $existing->except($submittedIds->all())->values();
             $retained = [];
             foreach ($feeRows as $index => $fee) {
+                // Inline provider saves must not rewrite unrelated reusable fees or options.
+                if ($updateIds !== null && !empty($fee['id']) && !in_array((int) $fee['id'], $updateIds, true)) {
+                    $retained[] = (int) $fee['id'];
+                    continue;
+                }
                 $saved = ! empty($fee['id']) ? $existing->get((int) $fee['id']) : $unclaimed->shift();
                 $saved ??= $governmentId->fees()->make();
                 $saved->fill([...\Illuminate\Support\Arr::except($fee, ['id', 'options']), 'sort_order' => $index]);
@@ -901,6 +927,7 @@ trait PreparesCatalogEntry
                 $this->syncFeeOptions($saved, $fee);
                 $retained[] = $saved->id;
             }
+            \App\Services\CatalogEncoding::assertReferencesRetained($governmentId, 'fee_ids', $retained);
             $governmentId->fees()->whereNotIn('id', $retained)->delete();
         } else {
             // Preserve the existing full-form/API save contract.

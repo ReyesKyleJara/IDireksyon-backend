@@ -42,7 +42,7 @@
     <div class="mb-5">
         <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
         <p class="mt-1 text-sm text-slate-500">Choose the branches that handle this entry. Record service availability separately for each branch.</p>
-        <p class="mt-2 text-xs text-slate-500">Draft and inactive offices remain hidden from residents. Linking a branch does not publish it.</p>
+        <p class="mt-2 text-xs text-slate-500">Linked offices appear for residents automatically.</p>
     </div>
     <input type="hidden" name="office_links_present" value="1">
     @foreach($errors->get('office_links*') as $messages)
@@ -50,7 +50,7 @@
     @endforeach
     @if($offices->isEmpty())
         <div class="rounded-lg border border-dashed border-slate-300 p-5">
-            <p class="text-sm text-slate-600">No offices yet. Create a branch draft first, then return here to link it.</p>
+            <p class="text-sm text-slate-600">No offices yet. Create a branch first, then return here to link it.</p>
             <a href="{{ route('admin.offices.create') }}" target="_blank" rel="noopener noreferrer" class="admin-secondary mt-3">Add Office (new tab)</a>
             <p class="mt-2 text-xs text-slate-500">Save your ID changes before refreshing this page to load newly added offices.</p>
         </div>
@@ -60,7 +60,7 @@
             <select id="office-link-picker" x-model="selected" class="admin-input">
                 <option value="">Choose an office</option>
                 <template x-for="office in options" :key="office.id">
-                    <option :value="office.id" :disabled="links.some(link => link.office_id === office.id)" x-text="office.name + ' — ' + office.location + ' (' + office.status + ')'"></option>
+                    <option :value="office.id" :disabled="links.some(link => link.office_id === office.id)" x-text="office.name + ' — ' + office.location"></option>
                 </template>
             </select>
             <button type="button" @click="addOffice()" :disabled="!selected || links.length >= 100" class="admin-secondary shrink-0">Add Office</button>
@@ -76,7 +76,6 @@
                         <h3 class="break-words font-semibold text-slate-900" x-text="officeFor(link.office_id)?.name ?? 'Office no longer available'"></h3>
                         <p class="mt-1 text-xs text-slate-500" x-text="officeFor(link.office_id)?.agency"></p>
                         <p class="mt-1 text-xs text-slate-500" x-text="officeFor(link.office_id)?.location"></p>
-                        <span class="mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600" x-text="officeFor(link.office_id)?.status"></span>
                     </div>
                     <button type="button" @click="links.splice(index, 1)" class="text-sm font-medium text-red-700 hover:underline" :aria-label="'Unlink ' + (officeFor(link.office_id)?.name ?? 'office')">Remove</button>
                 </div>

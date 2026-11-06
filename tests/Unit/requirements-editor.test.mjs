@@ -379,6 +379,51 @@ function wizardState(groups = [advanced()]) {
     return state;
 }
 
+test('saved checklist revision refreshes every channel and wizard form token', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalDocument = globalThis.document;
+    const inputs = [{ value: 'old' }, { value: 'old' }];
+    const state = make([], { catalogRevision: 'old' });
+    let sent;
+    globalThis.document = { querySelectorAll: () => inputs };
+    globalThis.fetch = async (url, options) => {
+        sent = options;
+        return { ok: true, json: async () => ({ _catalog_revision: 'fresh' }) };
+    };
+    try {
+        await state.request('/checklists/10', 'PUT', {});
+        assert.equal(sent.headers['X-Catalog-Revision'], 'old');
+        assert.equal(state.catalogRevision, 'fresh');
+        assert.deepEqual(inputs.map(input => input.value), ['fresh', 'fresh']);
+    } finally {
+        globalThis.fetch = originalFetch;
+        globalThis.document = originalDocument;
+    }
+});
+
+test('wizard checklist request carries prerequisites in the same save', async () => {
+    const originalFormData = globalThis.FormData;
+    const state = wizardState();
+    state.form.tagName = 'FORM';
+    globalThis.FormData = class extends Map {
+        constructor() { super([
+            ['prerequisites_present', '1'],
+            ['prerequisites[0][type]', 'custom'],
+            ['prerequisites[0][custom_name]', 'Get issuer confirmation'],
+        ]); }
+    };
+    let sent;
+    state.request = async (url, method, body) => {
+        sent = clone(body);
+        return { checklist: { id: 10, ...state.payload() } };
+    };
+    try {
+        assert.equal(await state.save(), true);
+        assert.equal(sent.prerequisites_present, 1);
+        assert.deepEqual(sent.prerequisites, [{ type: 'custom', custom_name: 'Get issuer confirmation' }]);
+    } finally { globalThis.FormData = originalFormData; }
+});
+
 test('wizard Continue waits for the existing PUT save before submitting the Fees transition', async () => {
     const state = wizardState(); const before = clone(state.payload());
     let resolveSave; const requests = [];

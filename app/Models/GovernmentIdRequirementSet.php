@@ -14,6 +14,10 @@ class GovernmentIdRequirementSet extends Model
         'new' => 'First-Time Application',
         'renewal' => 'Renewal',
         'replacement' => 'Replacement',
+        'correction' => 'Correction',
+        'copy' => 'Repeat / Certified Copy',
+        'authentication' => 'Authentication',
+        'retrieval' => 'Record Retrieval',
         'custom' => 'Other / Custom',
     ];
 
@@ -25,13 +29,13 @@ class GovernmentIdRequirementSet extends Model
     ];
 
     protected $fillable = [
-        'government_id_id', 'application_type', 'application_type_custom',
+        'request_channel', 'government_id_id', 'application_type', 'application_type_custom',
         'applicant_type', 'applicant_type_custom', 'min_age', 'max_age',
     ];
 
     protected function casts(): array
     {
-        return ['min_age' => 'integer', 'max_age' => 'integer'];
+        return ['request_channel' => 'array', 'min_age' => 'integer', 'max_age' => 'integer'];
     }
 
     protected static function booted(): void

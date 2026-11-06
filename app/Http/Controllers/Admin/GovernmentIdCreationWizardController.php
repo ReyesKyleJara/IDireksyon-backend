@@ -18,7 +18,8 @@ class GovernmentIdCreationWizardController extends Controller
     use Concerns\EditsCatalogWizard;
 
     public const STEPS = [
-        'basic' => 'Basic Info',
+        'basic' => 'Basic Information',
+        'channels' => 'Request Methods',
         'requirements' => 'Requirements',
         'fees' => 'Fees',
         'guide' => 'Application Guide',
@@ -27,6 +28,7 @@ class GovernmentIdCreationWizardController extends Controller
     ];
 
     private const BASIC_FIELDS = [
+        'research_metadata',
         'application_availability',
         'acquisition_type',
         'target_group',
@@ -48,6 +50,7 @@ class GovernmentIdCreationWizardController extends Controller
         'validity_type',
         'validity_value',
         'validity_unit',
+        'processing_time_note',
         'processing_time_type',
         'processing_time_min',
         'processing_time_max',
@@ -93,12 +96,12 @@ class GovernmentIdCreationWizardController extends Controller
         if ($starts[$key] !== null) {
             return redirect()->route(
                 'admin.government-ids.wizard.show',
-                [$starts[$key], 'requirements']
+                [$starts[$key], 'channels']
             );
         }
 
         $governmentId = DB::transaction(function () use ($request) {
-            $governmentId = GovernmentId::create($this->basicData($request));
+            $governmentId = GovernmentId::create(['research_metadata' => ['status' => 'draft'], ...$this->basicData($request)]);
             $governmentId->requirementSets()->create([
                 'application_type' => 'new',
                 'applicant_type' => 'all',
@@ -122,17 +125,17 @@ class GovernmentIdCreationWizardController extends Controller
             $request,
             $governmentId,
             'basic',
-            'requirements'
+            'channels'
         );
 
         return redirect()
             ->route(
                 'admin.government-ids.wizard.show',
-                [$governmentId, 'requirements']
+                [$governmentId, 'channels']
             )
             ->with(
                 'success',
-                'Basic information saved. Continue by adding the requirements for this ID.'
+                'Basic information saved. Continue by setting up its request options.'
             );
     }
 
@@ -197,11 +200,16 @@ class GovernmentIdCreationWizardController extends Controller
             404
         );
 
+        $selectedPath = $this->selectedCatalogPath($request, $governmentId);
+        $request->validate(['option_content' => ['sometimes', 'in:1']]);
+
         DB::transaction(function () use (
             $request,
             $governmentId,
-            $step
+            $step,
+            $selectedPath
         ) {
+            $this->saveSectionVisibility($request, $governmentId, $step);
             switch ($step) {
                 case 'basic':
                     $governmentId->update(
@@ -232,13 +240,7 @@ class GovernmentIdCreationWizardController extends Controller
                         $input
                     );
 
-                    $this->syncFees(
-                        $governmentId,
-                        $this->prepareFeeRows(
-                            $data['fees'] ?? []
-                        ),
-                        true
-                    );
+                    $this->saveOptionFees($request, $governmentId, $data['fees'] ?? [], $selectedPath);
                     break;
 
                 case 'guide':
@@ -260,10 +262,7 @@ class GovernmentIdCreationWizardController extends Controller
                     );
 
                     if ($rows !== null) {
-                        $this->syncOfficeLinks(
-                            $governmentId,
-                            $rows
-                        );
+                        $this->saveOptionOffices($request, $governmentId, $rows, $selectedPath);
                     }
                     break;
 
@@ -308,7 +307,7 @@ class GovernmentIdCreationWizardController extends Controller
         return redirect()
             ->route(
                 $this->wizardRoutes($request, 'government-ids').'.show',
-                [$governmentId, $next]
+                [$governmentId, $next, 'path' => $request->input('path')]
             )
             ->with(
                 'success',
@@ -383,6 +382,7 @@ class GovernmentIdCreationWizardController extends Controller
 
         $sets = $governmentId?->requirementSets
             ?? collect();
+        $selectedPath = $governmentId ? $this->selectedCatalogPath($request, $governmentId) : null;
 
         $groups = $sets->flatMap->groups;
 
@@ -417,6 +417,7 @@ class GovernmentIdCreationWizardController extends Controller
             [
                 'governmentId' => $governmentId,
                 'editing' => $this->editingWizard($request),
+                'selectedPath' => $selectedPath,
                 'step' => $step,
                 'steps' => self::STEPS,
                 'creationKey' => $creationKey,
@@ -424,7 +425,7 @@ class GovernmentIdCreationWizardController extends Controller
 
                 'requirementsIncomplete' =>
                     $sets->isEmpty()
-                    || $sets->contains(
+                    || $sets->where('id', $selectedPath)->contains(
                         fn ($set) =>
                             $set->groups->isEmpty()
                     ),
@@ -455,9 +456,7 @@ class GovernmentIdCreationWizardController extends Controller
                     : collect(),
 
                 'checklists' => $sets
-                    ->when(! $this->editingWizard($request), fn ($rows) => $rows
-                        ->filter(fn ($set) => $set->application_type === 'new' && $set->applicant_type === 'all')
-                        ->take(1))
+                    ->when($selectedPath, fn ($rows) => $rows->where('id', $selectedPath))
                     ->map(
                         fn ($set) =>
                             GovernmentIdChecklistController::present(

@@ -4,7 +4,7 @@
         <h3 class="font-semibold">Requirements draft preview</h3>
         <span class="text-xs text-slate-500" x-text="previewGroups.length + (previewGroups.length === 1 ? ' requirement' : ' requirements')"></span>
     </header>
-    <p class="mb-3 text-xs leading-5 text-slate-500">Live draft preview. Continue saves this step.</p>
+    <p class="mb-3 text-xs leading-5 text-slate-500">{{ ($embeddedChecklist ?? false) ? 'Live draft preview. Save special case guide stores these requirements.' : 'Live draft preview. Continue saves this step.' }}</p>
     <p x-show="!previewGroups.length" class="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No requirements added yet.</p>
     <div class="space-y-3">
         <template x-for="group in previewGroups" :key="group.key">

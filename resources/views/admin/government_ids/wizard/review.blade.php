@@ -5,6 +5,8 @@
             '✓ Added'
         ],
 
+        'channels' => ['Request Methods', $governmentId->requirementSets->count().' request options'],
+
         'requirements' => [
             'Requirements',
             $counts['groups']
@@ -79,7 +81,7 @@
                 class="admin-secondary"
                 href="{{ route(
                     $wizardRoutes.'.show',
-                    [$governmentId, $key]
+                    [$governmentId, $key, 'path' => $selectedPath ?? null]
                 ) }}"
                 aria-label="Return to {{ $label }}"
             >
@@ -93,7 +95,7 @@
 </section>
 
 <p class="text-sm text-slate-600">
-    These counts reflect saved data. Empty sections are allowed.
+    These totals cover all saved request options. Review / change opens the selected option. Empty sections are allowed.
     {{ $editing ? 'Finish Editing' : 'Finish' }} opens the current {{ $wizardLabel }} details page.
 </p>
 @if($governmentId->fees->isNotEmpty())
@@ -106,3 +108,5 @@
 @endif
 
 @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
+
+@include('admin.catalog.partials.encoding-summary')

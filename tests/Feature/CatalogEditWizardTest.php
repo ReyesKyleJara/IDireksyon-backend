@@ -56,13 +56,13 @@ it('edits all saved sections on record 55 without replacing identities or unrela
     expect($this->getJson($apiPath)->assertOk()->json())->toBe($apiBefore);
     expect($model::count())->toBe($countBefore)->and($record->requirementSets()->count())->toBe(2);
     $this->post(editWizardRoute($resource, $record, 'basic', 'save'), ['name' => 'Updated '.$label, 'description' => 'Updated description'])
-        ->assertSessionHasNoErrors()->assertRedirect(editWizardRoute($resource, $record, 'requirements'));
+        ->assertSessionHasNoErrors()->assertRedirect(editWizardRoute($resource, $record, 'channels'));
     expect($record->fresh()->id)->toBe(55)->and($record->fresh()->purpose)->toBe('Keep hidden research')
         ->and($record->fresh()->validity)->toBe('Legacy researched validity')
         ->and($record->fresh()->processing_time)->toBe('Legacy processing estimate');
     $requirementsPage = $this->get(editWizardRoute($resource, $record, 'requirements'))->assertOk()
-        ->assertSee('Application checklist')->assertSee('Identity proof')->assertSee('Requirements draft preview');
-    expect(array_column($requirementsPage->viewData('checklists'), 'id'))->toBe([$set->id, $legacy->id]);
+        ->assertSee('Create a request method in Step 2 first.')->assertSee('Identity proof')->assertSee('Requirements draft preview');
+    expect(array_column($requirementsPage->viewData('checklists'), 'id'))->toBe([$set->id]);
     $checklist['groups'][0]['id'] = $saved['groups'][0]['id'];
     $checklist['groups'][0]['ways'][0]['id'] = $saved['groups'][0]['ways'][0]['id'];
     foreach ($saved['groups'][0]['ways'][0]['items'] as $index => $item) {
@@ -90,8 +90,8 @@ it('edits all saved sections on record 55 without replacing identities or unrela
             ['id' => $block->id, 'type' => 'requirements', 'content' => ['intro' => $richText]],
         ]],
     ]]];
-    $this->get(editWizardRoute($resource, $record, 'guide'))->assertOk()->assertSee('Retain renewal research')
-        ->assertSee('App preview')->assertSee('Application checklist')->assertSee('Optional Link');
+    $this->get(editWizardRoute($resource, $record, 'guide').'?path='.$legacy->id)->assertOk()->assertSee('Retain renewal research')
+        ->assertSee('App preview')->assertSee('Create a request method in Step 2 first.')->assertSee('Optional Link');
     $this->post(editWizardRoute($resource, $record, 'guide', 'save'), ['application_guide_payload' => json_encode($guide)])
         ->assertSessionHasNoErrors()->assertRedirect(editWizardRoute($resource, $record, 'offices'));
     expect($set->applicationSteps()->pluck('id')->all())->toBe([$second->id, $first->id])
@@ -105,7 +105,7 @@ it('edits all saved sections on record 55 without replacing identities or unrela
         ->assertSee('Finish Editing')->assertSee('1 group / 2 items')->assertSee('2 fees')->assertSee('3 steps')->assertSee('1 linked office');
     foreach (['basic' => 'Updated description', 'requirements' => 'Updated identity proof', 'fees' => 'Updated delivery',
         'guide' => 'Submit updated documents', 'offices' => 'Updated service notes'] as $step => $text) {
-        $this->get(editWizardRoute($resource, $record, $step))->assertOk()->assertSee($text);
+        $this->get(editWizardRoute($resource, $record, $step).'?path='.$set->id)->assertOk()->assertSee($text);
     }
     foreach ([1, 2] as $_) {
         $this->post(editWizardRoute($resource, $record, 'review', 'save'))->assertRedirect(route('admin.'.$resource.'.show', $record));
@@ -141,7 +141,7 @@ it('keeps errors on their step and rejects another records fees and guide rows a
 
 it('opens empty records without writes and creates a guide scenario only once on save', function ($resource, $model) {
     $record = $model::create(['name' => 'Empty existing entry']);
-    foreach (['basic', 'requirements', 'fees', 'guide', 'offices', 'review'] as $step) {
+    foreach (['basic', 'channels', 'requirements', 'fees', 'guide', 'offices', 'review'] as $step) {
         $this->get(editWizardRoute($resource, $record, $step))->assertOk();
     }
     expect($record->requirementSets()->count())->toBe(0)->and($model::count())->toBe(1);

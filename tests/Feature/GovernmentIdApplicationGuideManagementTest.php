@@ -40,6 +40,8 @@ beforeEach(function () {
 });
 
 it('renders the editor in guided creation and edit and keeps View read only', function () {
+    // Step 2 owns request-option creation; guide editing requires a saved option.
+    $this->target->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
     $this->get('/admin/government-ids/create')->assertOk()->assertDontSee('governmentIdGuide', false);
     $this->get(route('admin.government-ids.wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false)
         ->assertSee('Done')->assertDontSee('Apply step')->assertDontSee('save the main entry');
@@ -82,12 +84,12 @@ it('reuses scenarios preserves identities and reorders or deletes only submitted
 
 it('preserves guides when omitted and leaves existing resident API fields unchanged', function () {
     $listBefore = $this->getJson('/api/government-ids')->assertOk()->json();
-    $detailBefore = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']);
+    $detailBefore = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     $this->put($this->url, ['name' => $this->target->name, 'application_guide_payload' => json_encode([guideScenario()])])->assertSessionHasNoErrors();
     $this->put($this->url, ['name' => $this->target->name])->assertSessionHasNoErrors();
     expect(GovernmentIdApplicationStep::count())->toBe(1)
         ->and($this->getJson('/api/government-ids')->assertOk()->json())->toBe($listBefore)
-        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($detailBefore);
+        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($detailBefore);
 });
 
 it('rejects malformed guides without partially changing the ID', function ($payload) {
@@ -152,6 +154,8 @@ it('uses live scenario requirements fees offices and processing time on View', f
 });
 
 it('retains the guide payload after unrelated validation failure and renders malformed old data safely', function () {
+    // Step 2 owns request-option creation; guide editing requires a saved option.
+    $this->target->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
     $payload = json_encode([guideScenario()]);
     $this->from($this->url.'/edit')->put($this->url, ['name' => '', 'application_guide_payload' => $payload])->assertSessionHasErrors('name')->assertSessionHasInput('application_guide_payload', $payload);
     $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk()->assertSee('governmentIdGuide', false);
@@ -236,6 +240,8 @@ it('shows structured content without legacy duplicates while preserving stored c
 
 
 it('renders draggable inline guide cards using the existing scenario contract', function () {
+    // Step 2 owns request-option creation; guide editing requires a saved option.
+    $this->target->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
     $this->get(route('admin.government-ids.edit-wizard.show', [$this->target, 'guide']))->assertOk()
         ->assertSee('Drag a card to reorder.')
         ->assertSee('startStepDrag', false)->assertSee('cardKeydown', false)

@@ -17,7 +17,6 @@ class OfficeController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:255'],
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
-            'status' => ['nullable', 'in:draft,inactive'],
         ]);
         $offices = Office::with('agency')
             ->when(filled($filters['q'] ?? null), function ($query) use ($filters) {
@@ -30,7 +29,6 @@ class OfficeController extends Controller
                 });
             })
             ->when($filters['agency_id'] ?? null, fn ($query, $agency) => $query->where('agency_id', $agency))
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderBy('name')->orderBy('id')->paginate(15)->withQueryString();
 
         return view('admin.offices.index', [
@@ -75,7 +73,7 @@ class OfficeController extends Controller
                 ],
             ]);
         }
-        return redirect()->route('admin.offices.edit', $office)->with('success', 'Office draft saved.');
+        return redirect()->route('admin.offices.edit', $office)->with('success', 'Office saved.');
     }
 
     public function update(OfficeRequest $request, Office $office)

@@ -34,7 +34,7 @@ beforeEach(function () {
 it('creates and renders all three item types without changing existing APIs', function () {
     $document = Document::create(['name' => 'Example Birth Certificate']);
     $acceptedId = GovernmentId::create(['name' => 'Example Accepted ID']);
-    $beforeDetail = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->targetId->id)->assertOk()->json('data'), ['requirement_sets']);
+    $beforeDetail = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->targetId->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
     $beforeList = $this->getJson('/api/government-ids')->assertOk()->json();
     $this->get($this->groupsUrl)->assertOk()->assertSee('No requirement groups yet.');
     $this->get($this->groupsUrl.'/create')->assertOk()->assertSee('Requirement Items')->assertSee('Custom Condition Question');
@@ -58,7 +58,7 @@ it('creates and renders all three item types without changing existing APIs', fu
         ->assertSee('Example Birth Certificate')->assertSee('Example Accepted ID')
         ->assertSee('Original + Photocopy')->assertSee('Front and back.')->assertSee('Printed photo');
     $this->get($this->groupsUrl.'/'.$group->id.'/edit')->assertOk()->assertSee('Edit Requirement Group');
-    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->targetId->id)->assertOk()->json('data'), ['requirement_sets']))->toBe($beforeDetail)
+    expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->targetId->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($beforeDetail)
         ->and($this->getJson('/api/government-ids')->assertOk()->json())->toBe($beforeList);
 });
 

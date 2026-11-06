@@ -42,7 +42,7 @@ it('creates an ID with several draft branches and displays their service details
     $this->getJson('/api/government-ids/'.$id->id)->assertOk()
         ->assertJsonPath('data.office_location', 'Legacy location')
         ->assertJsonPath('data.office_hours', 'Legacy hours')
-        ->assertJsonMissingPath('data.offices');
+        ->assertJsonCount(2, 'data.offices');
 });
 
 it('uses existing office linking and new-tab office creation in both wizard modes', function () {
