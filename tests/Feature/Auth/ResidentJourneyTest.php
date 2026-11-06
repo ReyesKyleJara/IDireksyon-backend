@@ -157,3 +157,49 @@ test('later Inventory changes do not rewrite the saved timeline or infer complet
     expect($user->ownedDocuments()->pluck('documents.id')->all())->toBe([$document->id]);
     $this->assertDatabaseCount('resident_government_ids', 0);
 });
+
+test('unrelated goals finish in any order while dependencies still come first', function () {
+    $user = User::factory()->create();
+    $dependency = Document::create(['name' => 'Supporting document']);
+    $dependent = GovernmentId::create(['name' => 'Dependent ID']);
+    $unrelated = GovernmentId::create(['name' => 'Unrelated ID']);
+    app(CatalogPrerequisites::class)->save($dependent, [['type' => 'document', 'document_id' => $dependency->id]]);
+    $this->actingAs($user);
+    $journey = $this->postJson('/api/auth/journeys', [
+        'target_government_id_ids' => [$dependent->id, $unrelated->id],
+    ])->assertCreated()->json('data');
+    $path = '/api/auth/journeys/'.$journey['id'].'/completion';
+
+    $this->putJson($path, ['step_identity' => 'government_id:'.$dependent->id])
+        ->assertUnprocessable()->assertJsonPath('errors.step_identity.0', 'Complete Supporting document first.');
+    $this->putJson($path, ['step_identity' => 'government_id:'.$unrelated->id])
+        ->assertOk()->assertJsonPath('data.completed_steps', 1);
+    $this->putJson($path, ['step_identity' => 'document:'.$dependency->id])->assertOk();
+    $this->putJson($path, ['step_identity' => 'government_id:'.$dependent->id])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 100);
+});
+
+test('an owned target adds no progress step and cannot be completed', function () {
+    $user = User::factory()->create();
+    $owned = GovernmentId::create(['name' => 'Owned ID']);
+    $other = GovernmentId::create(['name' => 'Other ID']);
+    $user->ownedGovernmentIds()->attach($owned);
+    $this->actingAs($user);
+    $journey = $this->postJson('/api/auth/journeys', [
+        'target_government_id_ids' => [$owned->id, $other->id],
+    ])->assertCreated()->assertJsonPath('data.total_steps', 1)->json('data');
+    $path = '/api/auth/journeys/'.$journey['id'].'/completion';
+    $this->putJson($path, ['step_identity' => 'government_id:'.$owned->id])->assertUnprocessable();
+    $this->putJson($path, ['step_identity' => 'government_id:'.$other->id])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 100);
+    $this->assertDatabaseCount('resident_government_ids', 1);
+});
+
+test('a roadmap of only owned targets is not saved', function () {
+    $user = User::factory()->create();
+    $owned = GovernmentId::create(['name' => 'Owned ID']);
+    $user->ownedGovernmentIds()->attach($owned);
+    $this->actingAs($user)->postJson('/api/auth/journeys', ['target_government_id_ids' => [$owned->id]])
+        ->assertUnprocessable()->assertJsonPath('errors.journey.0', 'You already have everything in this roadmap.');
+    $this->assertDatabaseCount('resident_journeys', 0);
+});

@@ -62,6 +62,10 @@ class ResidentJourneyController extends Controller
                 throw ValidationException::withMessages(['journey' => 'Review the unresolved requirements before confirming this journey.']);
             }
 
+            if (collect($plan['steps'])->every(fn ($step) => $step['already_owned'] ?? false)) {
+                throw ValidationException::withMessages(['journey' => 'You already have everything in this roadmap.']);
+            }
+
             return ResidentJourney::create(['user_id' => $user->id, 'journey_key' => $key, 'plan' => $plan]);
         });
 
@@ -85,9 +89,9 @@ class ResidentJourneyController extends Controller
             $query = DB::table('resident_journey_completions')->where('resident_journey_id', $saved->id);
             $completed = (clone $query)->pluck('step_identity')->all();
             if (! in_array($data['step_identity'], $completed, true)) {
-                $current = collect($saved->plan['steps'])->first(fn ($item) => ResidentJourney::actionable($item) && ! in_array(ResidentJourney::identity($item), $completed, true));
-                if (! $current || ResidentJourney::identity($current) !== $data['step_identity']) {
-                    throw ValidationException::withMessages(['step_identity' => 'Complete the current step before continuing.']);
+                $waiting = ResidentJourney::waitingOn($step, $saved->plan['steps'], $completed);
+                if ($waiting) {
+                    throw ValidationException::withMessages(['step_identity' => 'Complete '.implode(', ', array_column($waiting, 'name')).' first.']);
                 }
                 DB::table('resident_journey_completions')->insert([
                     'resident_journey_id' => $saved->id,
