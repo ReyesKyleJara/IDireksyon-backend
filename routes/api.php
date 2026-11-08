@@ -33,6 +33,10 @@ Route::get('/offices', [\App\Http\Controllers\Api\OfficeController::class, 'inde
 Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class, 'index']);
 Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'show']);
 
+Route::get('/catalog-images/{file}', [\App\Http\Controllers\Api\CatalogImageController::class, 'show'])
+    ->where('file', '[A-Za-z0-9]{40}\.jpg')
+    ->name('catalog-images.show');
+
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);
 Route::get('/government-ids/{governmentId}', [
     GovernmentIdController::class,

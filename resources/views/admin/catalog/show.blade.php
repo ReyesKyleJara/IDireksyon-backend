@@ -108,6 +108,18 @@
         </header>
 
             <section class="admin-panel">
+                <h2>Image</h2>
+                <div class="flex items-center gap-4">
+                    @if($governmentId->image_url)
+                        <img src="{{ $governmentId->image_url }}" alt="" class="h-28 w-28 shrink-0 rounded-lg object-cover">
+                    @else
+                        <div class="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-center text-xs text-slate-400">No image yet</div>
+                    @endif
+                    <a href="{{ route('admin.images.index', ['open' => ($recordKind === 'document' ? 'documents' : 'government-ids').':'.$governmentId->id]) }}" class="admin-secondary">Manage image</a>
+                </div>
+            </section>
+
+            <section class="admin-panel">
                 <h2>Basic information</h2>
                 <dl class="record-facts">
                     <div class="record-fact">

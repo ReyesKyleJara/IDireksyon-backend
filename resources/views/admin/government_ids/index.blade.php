@@ -446,8 +446,11 @@
                            focus-visible:outline-[#012877]"
                 >
 
-                    {{-- PLACEHOLDER IMAGE --}}
+                    {{-- SQUARE IMAGE --}}
                     <div class="flex h-44 items-center justify-center bg-slate-100 text-slate-400">
+                        @if($governmentId->image_url)
+                            <img src="{{ $governmentId->image_url }}" alt="" loading="lazy" class="h-36 w-36 rounded-lg object-cover">
+                        @else
 
                         <div class="text-center">
 
@@ -484,6 +487,7 @@
 
                         </div>
 
+                        @endif
                     </div>
 
 

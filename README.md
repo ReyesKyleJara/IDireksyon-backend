@@ -74,6 +74,12 @@ For an already configured checkout:
 php artisan serve
 ~~~
 
+### ID and document images
+
+Admins manage square images under **Images** in the CMS. Files are saved through the disk named by `CATALOG_IMAGE_DISK` (default `public`) and are served by the app at `/api/catalog-images/{file}`, so `storage:link` is not needed.
+
+On a host with temporary disk storage, such as Railway without a volume, files are lost on every deployment. Mount a persistent volume at `storage/app/public`, or point `CATALOG_IMAGE_DISK` at an S3-compatible disk.
+
 In a separate terminal, use the asset development server while editing CSS/JavaScript:
 
 ~~~bash

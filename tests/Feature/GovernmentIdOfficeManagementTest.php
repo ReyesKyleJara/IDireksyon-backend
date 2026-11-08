@@ -45,12 +45,13 @@ it('creates an ID with several draft branches and displays their service details
         ->assertJsonCount(2, 'data.offices');
 });
 
-it('uses existing office linking and new-tab office creation in both wizard modes', function () {
+it('uses the office dialog with in-page office creation in both wizard modes', function () {
     $id = GovernmentId::create(['name' => 'Empty offices']);
-    $this->get(route('admin.government-ids.wizard.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
-        ->assertDontSee('offices-dialog')->assertDontSee('iframe', false);
-    $this->get(route('admin.government-ids.edit-wizard.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
-        ->assertDontSee('offices-dialog')->assertSee('Add Office (new tab)')->assertDontSee('iframe', false);
+    foreach (['wizard', 'edit-wizard'] as $mode) {
+        $this->get(route('admin.government-ids.'.$mode.'.show', [$id, 'offices']))->assertOk()->assertSee('No offices yet.')
+            ->assertSee('offices-dialog')->assertSee('+ Add office')->assertSee('x-ref="createFrame"', false)
+            ->assertDontSee('Add Office (new tab)');
+    }
     $this->get(route('admin.offices.create', ['embedded' => 1]))->assertOk()
         ->assertSee('Office / Branch Name');
 });
@@ -208,7 +209,7 @@ it('does not erase removed rows intent when another field fails validation', fun
         $html->loadHTML($response->getContent());
         $section = (new DOMXPath($html))->query('//section[.//h2[normalize-space(.)="Linked Offices"]]')->item(0);
         expect($section)->not->toBeNull();
-        expect($section->getAttribute('x-data'))->toContain('links: []');
+        expect($section->getAttribute('x-data'))->toEndWith(', [])');
     } finally {
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
