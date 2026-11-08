@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GovernmentId extends Model
 {
+    use \App\Models\Concerns\HasCatalogImage;
+
+    /** Storage locations stay private; residents receive image_url instead. */
+    protected $hidden = ['image_path', 'image_original_path'];
+
     protected $attributes = [
         'application_availability' => 'available',
         'acquisition_type' => 'general_public',

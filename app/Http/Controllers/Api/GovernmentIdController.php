@@ -27,6 +27,7 @@ class GovernmentIdController extends Controller
                 return [
                     'id' => $governmentId->id,
                     'name' => $governmentId->name,
+                    'image_url' => $governmentId->image_url,
 
                     'level' => $governmentId->level,
                     'category' => $governmentId->category,
@@ -152,6 +153,7 @@ class GovernmentIdController extends Controller
             'data' => [
                 ...\App\Services\CatalogEncoding::detail($governmentId),
                 'id' => $governmentId->id,
+                'image_url' => $governmentId->image_url,
                 'name' => $governmentId->name,
 
                 'level' => $governmentId->level,

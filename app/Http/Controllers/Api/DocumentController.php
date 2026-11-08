@@ -14,6 +14,7 @@ class DocumentController extends Controller
         return response()->json(['data' => Document::with('agency')->orderBy('name')->get()->map(fn ($document) => [
             ...$document->only(['id', 'name', 'description', 'level', 'category', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing']),
             'record_type' => 'document', 'issued_by' => $document->agency?->name ?? $document->issued_by,
+            'image_url' => $document->image_url,
             'research_metadata' => $document->research_metadata ?? [],
         ])->values()]);
     }
@@ -24,6 +25,7 @@ class DocumentController extends Controller
             ...$document->only(['id', 'name', 'description', 'purpose', 'level', 'category', 'eligibility', 'validity', 'validity_type',
                 'processing_time', 'processing_time_note', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing', 'requirements', 'fee']),
             ...CatalogEncoding::detail($document),
+            'image_url' => $document->image_url,
             'issued_by' => $document->agency?->name ?? $document->issued_by,
             'requirement_sets' => ResidentRequirements::generalForId($document),
             'fee' => $document->fees->isNotEmpty() && CatalogEncoding::generalFees($document)->isEmpty() ? null : $document->fee,
