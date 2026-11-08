@@ -65,11 +65,12 @@ it('supports all edge types and deduplicates shared dependencies deterministical
     $save->save($e, [roadmapLink($c)]);
     $planner = app(RoadmapPlanner::class);
     $plan = $planner->build($resident, [$a->id, $b->id]);
-    expect(roadmapSteps($plan))->toBe(['government_id:'.$c->id, 'document:'.$e->id, 'document:'.$d->id, 'government_id:'.$a->id, 'government_id:'.$b->id])
+    // B needs fewer additional steps than A, so it comes first.
+    expect(roadmapSteps($plan))->toBe(['government_id:'.$c->id, 'government_id:'.$b->id, 'document:'.$e->id, 'document:'.$d->id, 'government_id:'.$a->id])
         ->and($planner->build($resident, [$a->id, $b->id]))->toBe($plan);
     $resident->ownedGovernmentIds()->attach($c);
     $plan = $planner->build($resident, [$a->id, $b->id]);
-    expect($plan['steps'][2]['prerequisite_readiness'])->toBe(['satisfied' => 1, 'total' => 2, 'percentage' => 50, 'manual' => 0]);
+    expect($plan['steps'][3]['prerequisite_readiness'])->toBe(['satisfied' => 1, 'total' => 2, 'percentage' => 50, 'manual' => 0]);
 });
 
 it('keeps unavailable dependencies visible and blocks their dependent paths', function (string $availability) {
@@ -139,7 +140,7 @@ it('accepts document targets and keeps same-number government IDs distinct', fun
         'target_government_id_ids' => [$id->id],
         'target_document_ids' => [$document->id],
     ])->assertOk()->json('data');
-    expect(roadmapSteps($mixed))->toBe(['government_id:'.$id->id, 'document:'.$document->id]);
+    expect(roadmapSteps($mixed))->toBe(['document:'.$document->id, 'government_id:'.$id->id]);
 });
 
 it('rejects empty or invalid document targets', function () {

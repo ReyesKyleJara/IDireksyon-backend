@@ -25,8 +25,9 @@ class DocumentController extends Controller
                 'processing_time', 'processing_time_note', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing', 'requirements', 'fee']),
             ...CatalogEncoding::detail($document),
             'issued_by' => $document->agency?->name ?? $document->issued_by,
-            'requirement_sets' => ResidentRequirements::forId($document),
-            'fees' => $document->fees->map(fn ($fee) => CatalogEncoding::fee($fee))->values(),
+            'requirement_sets' => ResidentRequirements::generalForId($document),
+            'fee' => $document->fees->isNotEmpty() && CatalogEncoding::generalFees($document)->isEmpty() ? null : $document->fee,
+            'fees' => CatalogEncoding::generalFees($document)->map(fn ($fee) => CatalogEncoding::fee($fee))->values(),
         ]]);
     }
 }

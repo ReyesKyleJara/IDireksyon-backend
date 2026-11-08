@@ -9,6 +9,20 @@ use App\Models\GovernmentIdRequirementWay;
 /** Resident display projection; does not evaluate eligibility or readiness. */
 class ResidentRequirements
 {
+    public static function isRequestMethod($set): bool
+    {
+        return filled($set->request_channel['label'] ?? null)
+            || filled($set->request_channel['channel'] ?? null);
+    }
+
+    /** Method checklists are reference material, never general acquisition requirements. */
+    public static function generalForId(GovernmentId|\App\Models\Document $owner): array
+    {
+        $methodIds = $owner->requirementSets->filter(fn ($set) => self::isRequestMethod($set))->pluck('id')->all();
+
+        return array_values(array_filter(self::forId($owner), fn ($set) => ! in_array($set['id'], $methodIds, true)));
+    }
+
     /** Reuse display models for a JSON-only assistance checklist. No model is saved. */
     public static function fromDraft(array $groups, string $title): array
     {

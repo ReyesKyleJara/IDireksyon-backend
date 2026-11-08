@@ -122,10 +122,14 @@ class CatalogEncoding
                 'blocks' => $step->blocks->map->only(['id', 'type', 'section_title', 'content'])->values()->all()])->values()->all();
             return [...$set->only(['id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom']),
                 'label' => $channel['label'] ?? $set->display_label,
+                'is_request_method' => ResidentRequirements::isRequestMethod($set),
                 'channel' => $channel['channel'] ?? null, 'provider' => $channel['provider'] ?? null,
                 'portal_url' => $channel['portal_url'] ?? null, 'fulfillment' => $channel['fulfillment'] ?? [],
                 'appointment' => $channel['appointment'] ?? 'unknown', 'applicability' => $channel['applicability'] ?? null,
                 'processing' => $channel['processing'] ?? $owner->processing_time,
+                'fee_ids' => $channel['fee_ids'] ?? null,
+                'preparation' => in_array('guide', $hidden) ? null : ($channel['preparation'] ?? null),
+                'application_guide_text' => in_array('guide', $hidden) ? null : ($channel['application_guide_text'] ?? null),
                 'requirement_sets' => in_array('requirements', $hidden) ? [] : array_values(array_filter($requirements, fn ($row) => $row['id'] === $set->id)),
                 'fees' => in_array('fees', $hidden) ? [] : $fees->map(fn ($fee) => self::fee($fee))->values()->all(),
                 'offices' => in_array('offices', $hidden) ? [] : $offices->map(fn ($office) => self::office($office))->values()->all(),
@@ -141,5 +145,16 @@ class CatalogEncoding
             'special_cases' => in_array('troubleshooting', $hidden) ? [] : CatalogSpecialCases::present($owner),
             'resident_notice' => ($research['status'] ?? null) === 'reviewed' ? null : 'Research is not yet reviewed. Confirm current instructions with the issuing agency.',
         ];
+    }
+
+    /** Fees explicitly assigned to a method are not general estimated costs. */
+    public static function generalFees(Document|GovernmentId $owner)
+    {
+        $methodFeeIds = $owner->requirementSets
+            ->filter(fn ($set) => ResidentRequirements::isRequestMethod($set))
+            ->flatMap(fn ($set) => $set->request_channel['fee_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)->unique()->all();
+
+        return $owner->fees->reject(fn ($fee) => in_array($fee->id, $methodFeeIds, true));
     }
 }

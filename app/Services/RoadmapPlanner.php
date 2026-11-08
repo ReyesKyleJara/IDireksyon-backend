@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\GovernmentId;
 use App\Models\User;
+use App\Support\ProcessingTime;
 use App\Support\ResidentRequirements;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -92,13 +93,14 @@ class RoadmapPlanner
                     'type' => $type,
                     'id' => $record->id,
                     'name' => $record->name,
+                    'processing_time' => $record->processing_time,
                     'application_availability' => $record->application_availability,
                     'guidance_mode' => $record->guidance_mode,
                     'include_in_smart_sequencing' => $record->include_in_smart_sequencing,
                     'requirement_sets' => array_map(fn ($set) => [
                         ...$set,
                         'path_label' => $record->requirementSets->firstWhere('id', $set['id'])?->request_channel['label'] ?? null,
-                    ], ResidentRequirements::forId($record)),
+                    ], ResidentRequirements::generalForId($record)),
                     'prerequisites' => $status->evaluate(
                         CatalogPrerequisites::present($record),
                         $ownedIds,
@@ -201,6 +203,7 @@ class RoadmapPlanner
             &$ordered,
             $catalog,
             $selected,
+            $owned,
             $status
         ): bool {
             if (($states[$key] ?? null) === 'done') {
@@ -225,6 +228,24 @@ class RoadmapPlanner
                 'guidance_mode' => 'guided',
                 'prerequisites' => [],
             ];
+
+            // A selected item the resident already holds is shown as owned, not
+            // acquired, so it adds no step and pulls in none of its requirements.
+            if (isset($selected[$key], $owned[$key])) {
+                $nodes[$key] = [
+                    ...$record,
+                    'selected' => true,
+                    'already_owned' => true,
+                    'blocked' => false,
+                    'issues' => [],
+                    'prerequisite_readiness' => $status->readiness($record['prerequisites']),
+                ];
+                unset($nodes[$key]['pending']);
+                $states[$key] = 'done';
+                $ordered[] = $key;
+
+                return false;
+            }
 
             $issues = [];
 
@@ -317,11 +338,12 @@ class RoadmapPlanner
                     if ($metrics === null) {
                         continue;
                     } // Never offer a path back to its dependent target.
-                    $options[] = [...$option, ...$metrics];
+                    // Already planned here, so using it adds no extra acquisition.
+                    $options[] = [...$option, ...$metrics, 'in_journey' => isset($selected[$option['type'].':'.$option['id']])];
                 }
                 if ($pending['kind'] !== 'path') {
-                    usort($options, fn ($a, $b) => [$a['missing_prerequisites'], $a['dependency_depth'], $a['additional_steps'], $a['name'], $a['type'], $a['id'], $a['way_id']]
-                        <=> [$b['missing_prerequisites'], $b['dependency_depth'], $b['additional_steps'], $b['name'], $b['type'], $b['id'], $b['way_id']]);
+                    usort($options, fn ($a, $b) => [! $a['in_journey'], $a['missing_prerequisites'], $a['dependency_depth'], $a['additional_steps'], $a['estimated_days'] ?? PHP_INT_MAX, $a['name'], $a['type'], $a['id'], $a['way_id']]
+                        <=> [! $b['in_journey'], $b['missing_prerequisites'], $b['dependency_depth'], $b['additional_steps'], $b['estimated_days'] ?? PHP_INT_MAX, $b['name'], $b['type'], $b['id'], $b['way_id']]);
                 }
                 $nodes[$pendingKey] = [
                     ...$pending, 'type' => 'unresolved_requirement', 'id' => $pending['group_id'] ?? $record['id'],
@@ -341,12 +363,11 @@ class RoadmapPlanner
             return $nodes[$key]['blocked'];
         };
 
-        foreach ($targets as $id) {
-            $visit('government_id:'.$id);
-        }
-
-        foreach ($documentTargets as $id) {
-            $visit('document:'.$id);
+        // Each target's dependencies are placed before it. Targets that don't
+        // depend on each other have no required order, so this only picks a
+        // sensible, repeatable one: fewest steps, then known processing time.
+        foreach ($this->independentOrder(array_keys($selected), $catalog) as $key) {
+            $visit($key);
         }
 
         $steps = array_map(
@@ -363,6 +384,58 @@ class RoadmapPlanner
             ),
             'steps' => $steps,
         ];
+    }
+
+    private function independentOrder(array $keys, array $catalog): array
+    {
+        $rank = function (string $key) use ($catalog): array {
+            $chain = $this->missingChain($key, $catalog);
+
+            return [
+                count($chain),
+                $this->estimatedDays($chain, $catalog) ?? PHP_INT_MAX,
+                $catalog[$key]['name'] ?? '',
+                $key,
+            ];
+        };
+        usort($keys, fn ($a, $b) => $rank($a) <=> $rank($b));
+
+        return $keys;
+    }
+
+    /** Total days for these records, or null when any of them has no usable duration. */
+    private function estimatedDays(array $keys, array $catalog): ?int
+    {
+        $total = 0;
+        foreach ($keys as $key) {
+            $days = ProcessingTime::estimatedDays($catalog[$key]['processing_time'] ?? null);
+            if ($days === null) {
+                return null;
+            }
+            $total += $days;
+        }
+
+        return $total;
+    }
+
+    /** The record plus every prerequisite still to be obtained, following linked records. */
+    private function missingChain(string $key, array $catalog): array
+    {
+        $seen = [];
+        $walk = function (string $current) use (&$walk, &$seen, $catalog): void {
+            if (isset($seen[$current])) {
+                return;
+            }
+            $seen[$current] = true;
+            foreach ($catalog[$current]['prerequisites'] ?? [] as $row) {
+                if ($row['status'] === 'missing' && in_array($row['type'], ['government_id', 'document'], true)) {
+                    $walk($row['type'].':'.$row['id']);
+                }
+            }
+        };
+        $walk($key);
+
+        return array_keys($seen);
     }
 
     /** Estimates from current unresolved paths; counts distinct additional acquisitions. */
@@ -401,6 +474,8 @@ class RoadmapPlanner
         return [
             'missing_prerequisites' => count(array_filter($catalog[$key]['prerequisites'], fn ($row) => $row['status'] === 'missing')) + count(array_filter($catalog[$key]['pending'], fn ($row) => $row['kind'] === 'path')),
             'dependency_depth' => $depth, 'additional_steps' => max(0, count($seen) - 1),
+            'processing_time' => $catalog[$key]['processing_time'] ?? null,
+            'estimated_days' => $this->estimatedDays(array_keys($seen), $catalog),
             'ranking_is_estimate' => (bool) array_filter(array_keys($seen), fn ($node) => ! empty($catalog[$node]['pending'])),
         ];
     }

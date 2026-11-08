@@ -209,7 +209,7 @@ class GovernmentIdController extends Controller
                 'requirements' =>
                     $governmentId->requirements,
 
-                'requirement_sets' => ResidentRequirements::forId($governmentId),
+                'requirement_sets' => ResidentRequirements::generalForId($governmentId),
 
                 'prerequisite_notes' =>
                     $governmentId->prerequisite_notes,
@@ -228,14 +228,15 @@ class GovernmentIdController extends Controller
                  * Delivery Fee: ₱250.00
                  */
                 'fee' =>
-                    $governmentId->fee,
+                    $governmentId->fees->isNotEmpty() && \App\Services\CatalogEncoding::generalFees($governmentId)->isEmpty()
+                        ? null : $governmentId->fee,
 
                 /*
                  * New structured fee list.
                  */
                 'fees' =>
                     $this->formatFees(
-                        $governmentId
+                        $governmentId, true
                     ),
 
                 /*
@@ -352,10 +353,10 @@ class GovernmentIdController extends Controller
      */
 
     private function formatFees(
-        GovernmentId $governmentId
+        GovernmentId $governmentId,
+        bool $generalOnly = false
     ): array {
-        return $governmentId
-            ->fees
+        return ($generalOnly ? \App\Services\CatalogEncoding::generalFees($governmentId) : $governmentId->fees)
             ->map(function ($fee) {
                 return [
                     ...($fee->type === 'options' ? [
