@@ -29,7 +29,9 @@ it('uses seven ordered steps with one option editor and reuses existing path IDs
     $payload = ['path_id' => $set->id, 'return_wizard' => 'create', 'option_editor' => 1, 'application_type' => 'copy', 'applicant_type' => 'all', 'request_channel' => optionWizardChannel(), 'fee_ids_scope' => 'selected', 'office_ids_scope' => 'selected'];
     foreach ([1, 2] as $_) $this->post(route('admin.'.$resource.'.channels', $owner), $payload)->assertSessionHasNoErrors()->assertRedirect($url('channels').'#related-content');
     expect($owner->requirementSets()->sole()->id)->toBe($set->id);
-    foreach (['requirements', 'fees', 'guide', 'offices'] as $step) {
+    // Offices are linked to the whole entry, so that step has no method picker.
+    $this->get($url('offices'))->assertOk()->assertSee('No Request Method is required.')->assertDontSee('Editing Request Method:');
+    foreach (['requirements', 'fees', 'guide'] as $step) {
         $this->get($url($step))->assertOk()->assertSee('Editing Request Method:')->assertSee('Manage Request Methods')
             ->assertDontSee('+ Add Request Method')->assertDontSee('name="request_channel[label]"', false)->assertDontSee('Delete Method');
     }
@@ -73,13 +75,14 @@ it('edits channel fees and offices without removing other options reusable recor
     $cases = $owner->research_metadata['special_cases'];
     $url = fn ($step) => route('admin.'.$resource.'.edit-wizard.show', [$owner, $step, 'path' => $first->id]);
     $this->get($url('fees'))->assertOk()->assertSee('Counter fee')->assertDontSee('Online fee');
-    $this->get($url('offices'))->assertOk()->assertSee('Editing Request Method:');
+    $this->get($url('offices'))->assertOk()->assertSee('No Request Method is required.')->assertDontSee('Editing Request Method:');
     $this->post(route('admin.'.$resource.'.edit-wizard.save', [$owner, 'fees']), ['option_content' => 1, 'path' => $first->id, 'fees' => [['id' => $fee1->id, 'label' => 'Updated counter fee', 'type' => 'free'], ['label' => 'Counter delivery', 'type' => 'free']]])->assertSessionHasNoErrors();
     expect($owner->fees()->count())->toBe(3)->and($fee2->fresh()->label)->toBe('Online fee')->and($first->fresh()->request_channel['fee_ids'])->toHaveCount(2);
-    $this->post(route('admin.'.$resource.'.edit-wizard.save', [$owner, 'offices']), ['option_content' => 1, 'path' => $first->id, 'office_links_present' => 1, 'office_links' => []])->assertSessionHasNoErrors();
-    expect($owner->offices()->count())->toBe(2)->and($first->fresh()->request_channel['office_ids'])->toBe([])->and($second->fresh()->request_channel['office_ids'])->toBe([$office2->id]);
+    $this->post(route('admin.'.$resource.'.edit-wizard.save', [$owner, 'offices']), ['option_content' => 1, 'path' => $first->id, 'office_links_present' => 1, 'office_links' => []])->assertSessionHasErrors('office_ids');
+    // Offices are saved for the whole entry, so one still used by a Request Method cannot be unlinked.
+    expect($owner->offices()->count())->toBe(2)->and($first->fresh()->request_channel['office_ids'])->toBe([$office1->id])->and($second->fresh()->request_channel['office_ids'])->toBe([$office2->id]);
     $api = '/api/'.$resource.'/'.$owner->id;
-    $this->getJson($api)->assertOk()->assertJsonCount(2, 'data.request_paths.0.fees')->assertJsonPath('data.request_paths.0.offices', [])->assertJsonPath('data.request_paths.1.fees.0.id', $fee2->id)->assertJsonPath('data.request_paths.1.offices.0.id', $office2->id);
+    $this->getJson($api)->assertOk()->assertJsonCount(2, 'data.request_paths.0.fees')->assertJsonPath('data.request_paths.0.offices.0.id', $office1->id)->assertJsonPath('data.request_paths.1.fees.0.id', $fee2->id)->assertJsonPath('data.request_paths.1.offices.0.id', $office2->id);
     $this->post(route('admin.'.$resource.'.edit-wizard.save', [$owner, 'fees']), ['option_content' => 1, 'path' => $first->id, 'fees' => []])->assertSessionHasNoErrors();
     expect($owner->fees()->count())->toBe(3)->and($first->fresh()->request_channel['fee_ids'])->toBe([])->and($owner->fresh()->research_metadata['special_cases'])->toBe($cases);
     $this->get($url('guide'))->assertOk()->assertSee('Delayed Registration')->assertSee('Special Cases / Additional Help');
