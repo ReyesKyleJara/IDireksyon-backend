@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 
+Route::view('/privacy', 'legal.privacy')->name('privacy');
+Route::view('/account-deletion', 'legal.account-deletion')->name('account-deletion');
+
 Route::get('/dashboard', fn () => redirect()->route(auth()->user()->cmsHomeRoute()))
     ->middleware(['auth', 'can:access-cms'])
     ->name('dashboard');
