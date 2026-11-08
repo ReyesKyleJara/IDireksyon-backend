@@ -57,7 +57,7 @@ test('account edits can change the birthday, validate it, and keep it when omitt
     expect($user->fresh()->date_of_birth)->toStartWith('1999-12-25')
         ->and($other->fresh()->date_of_birth)->toStartWith('1990-05-05');
 
-    foreach ([now()->toDateString(), now()->addDay()->toDateString(), 'not a date', null] as $invalid) {
+    foreach ([now()->toDateString(), now()->addDay()->toDateString(), 'not a date', '12/25/1999', null] as $invalid) {
         $this->postJson('/api/auth/account', [...$body, 'date_of_birth' => $invalid])
             ->assertUnprocessable()->assertJsonValidationErrors('date_of_birth');
     }

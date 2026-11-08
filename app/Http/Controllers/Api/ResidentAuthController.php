@@ -320,7 +320,7 @@ class ResidentAuthController extends Controller
 
         $data = $request->validate([
             'barangay_id' => ['sometimes', 'required', 'integer', 'exists:barangays,id'],
-            'date_of_birth' => ['sometimes', 'required', 'date', 'before:today'],
+            'date_of_birth' => ['sometimes', 'required', 'date_format:Y-m-d', 'before:today'],
             'name' => [
                 'required',
                 'string',
