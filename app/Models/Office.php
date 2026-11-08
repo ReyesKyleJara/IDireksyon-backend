@@ -22,6 +22,7 @@ class Office extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'last_verified_at' => 'datetime',
+            'location_checked_at' => 'datetime',
         ];
     }
 

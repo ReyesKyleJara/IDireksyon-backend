@@ -88,12 +88,14 @@ it('rejects incomplete unsafe foreign stale and unauthorised changes without los
     $this->postJson($url, specialGuideInput())->assertForbidden();
 });
 
-it('retains draft office links without exposing unpublished office details', function () {
+it('shows linked draft offices in special cases and retains their links', function () {
     $owner = Document::create(['name' => 'Office visibility fixture']);
     $office = Office::create(['name' => 'Unpublished fixture counter']);
     $owner->offices()->attach($office);
     $this->post(route('admin.documents.special-cases.save', $owner), specialGuideInput(['office_ids' => [$office->id]]))->assertSessionHasNoErrors();
-    $this->getJson('/api/documents/'.$owner->id)->assertJsonPath('data.special_cases.0.offices', []);
+    $this->getJson('/api/documents/'.$owner->id)
+        ->assertJsonCount(1, 'data.special_cases.0.offices')
+        ->assertJsonPath('data.special_cases.0.offices.0.id', $office->id);
     expect(CatalogSpecialCases::all($owner->fresh())[0]['office_ids'])->toBe([$office->id]);
 });
 

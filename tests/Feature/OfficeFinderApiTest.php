@@ -42,13 +42,15 @@ it('still lists a linked office that has no coordinates yet', function () {
         ->assertJsonPath('data.0.agency', null);
 });
 
-it('hides draft, inactive and unlinked offices', function () {
+it('lists linked offices whatever their status and hides unlinked ones', function () {
     $id = GovernmentId::create(['name' => 'Postal ID']);
     $id->offices()->attach(Office::create(['name' => 'Draft', 'status' => 'draft']));
     $id->offices()->attach(Office::create(['name' => 'Inactive', 'status' => 'inactive']));
     Office::create(['name' => 'Unlinked', 'status' => 'active']);
 
-    $this->getJson('/api/offices')->assertOk()->assertExactJson(['data' => []]);
+    $data = $this->getJson('/api/offices')->assertOk()->json('data');
+
+    expect(array_column($data, 'name'))->toBe(['Draft', 'Inactive']);
 });
 
 it('respects records that hide their offices section', function () {

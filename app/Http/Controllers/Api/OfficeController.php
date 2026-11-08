@@ -10,13 +10,12 @@ use Illuminate\Http\JsonResponse;
 class OfficeController extends Controller
 {
     /**
-     * Published offices for the Office Finder. As in the CMS, an office reaches
-     * residents only when an ID or document that shows its offices links to it.
+     * Offices for the Office Finder. As on ID and document pages, an office
+     * reaches residents when a record that shows its offices links to it.
      */
     public function index(): JsonResponse
     {
         $offices = Office::query()
-            ->where('status', 'active')
             ->with([
                 'agency',
                 'schedules.intervals',

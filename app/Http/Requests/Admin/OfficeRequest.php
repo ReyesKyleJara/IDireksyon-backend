@@ -17,8 +17,8 @@ class OfficeRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
             'address' => ['nullable', 'string', 'max:5000'],
             'municipality' => ['nullable', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],

@@ -117,7 +117,7 @@ class CatalogEncoding
         $paths = $owner->requirementSets->map(function ($set) use ($owner, $requirements, $hidden) {
             $channel = $set->request_channel ?? [];
             $fees = $owner->fees->filter(fn ($fee) => ! array_key_exists('fee_ids', $channel) || $channel['fee_ids'] === null || in_array($fee->id, $channel['fee_ids'], true));
-            $offices = $owner->offices->where('status', 'active')->filter(fn ($office) => ! array_key_exists('office_ids', $channel) || $channel['office_ids'] === null || in_array($office->id, $channel['office_ids'], true));
+            $offices = $owner->offices->filter(fn ($office) => ! array_key_exists('office_ids', $channel) || $channel['office_ids'] === null || in_array($office->id, $channel['office_ids'], true));
             $guide = $set->applicationSteps->map(fn ($step) => [...$step->only(['id', 'title', 'short_description', 'type']),
                 'blocks' => $step->blocks->map->only(['id', 'type', 'section_title', 'content'])->values()->all()])->values()->all();
             return [...$set->only(['id', 'application_type', 'application_type_custom', 'applicant_type', 'applicant_type_custom']),

@@ -7,11 +7,16 @@ use App\Http\Requests\Admin\OfficeRequest;
 use App\Models\Agency;
 use App\Models\ContentChangeLog;
 use App\Models\Office;
+use App\Services\OfficeLocator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OfficeController extends Controller
 {
+    public function __construct(private OfficeLocator $locator)
+    {
+    }
+
     public function index(Request $request)
     {
         $filters = $request->validate([
@@ -84,10 +89,10 @@ class OfficeController extends Controller
 
     private function saveOffice(Office $office, array $data): Office
     {
-        return DB::transaction(function () use ($office, $data) {
+        $saved = DB::transaction(function () use ($office, $data) {
             $schedules = $data['schedules'] ?? null;
             unset($data['schedules']);
-            $office->fill($data);
+            $office->fill($this->applyLocationInput($office, $data));
             $office->save();
 
             // Omitted days retain existing research; the editor submits all seven days.
@@ -120,5 +125,43 @@ class OfficeController extends Controller
 
             return $office;
         });
+
+        // Outside the transaction so Google can neither hold up nor undo the save.
+        if ($this->locator->shouldLocate($saved)) {
+            $this->locator->locate($saved);
+        }
+
+        return $saved;
+    }
+
+    /** Typed coordinates win; blank boxes leave the location to automatic lookup. */
+    private function applyLocationInput(Office $office, array $data): array
+    {
+        if (! array_key_exists('latitude', $data) || ! array_key_exists('longitude', $data)) {
+            unset($data['latitude'], $data['longitude']);
+
+            return $data;
+        }
+
+        if (filled($data['latitude'])) {
+            $office->forceFill([
+                'location_source' => 'manual',
+                'google_place_id' => null,
+                'location_status' => null,
+                'location_checked_at' => null,
+            ]);
+
+            return $data;
+        }
+
+        if ($office->location_source === 'manual') {
+            $office->location_source = null;
+
+            return $data;
+        }
+
+        unset($data['latitude'], $data['longitude']);
+
+        return $data;
     }
 }

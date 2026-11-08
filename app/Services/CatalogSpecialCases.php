@@ -119,7 +119,7 @@ class CatalogSpecialCases
             ...$case,
             'requirement_sets' => ResidentRequirements::fromDraft($case['requirements'] ?? [], $case['title']),
             'fees' => $owner->fees->whereIn('id', $case['fee_ids'] ?? [])->map(fn ($fee) => CatalogEncoding::fee($fee))->values()->all(),
-            'offices' => $owner->offices->where('status', 'active')->whereIn('id', $case['office_ids'] ?? [])->map(fn ($office) => CatalogEncoding::office($office))->values()->all(),
+            'offices' => $owner->offices->whereIn('id', $case['office_ids'] ?? [])->map(fn ($office) => CatalogEncoding::office($office))->values()->all(),
         ], self::all($owner));
     }
 }

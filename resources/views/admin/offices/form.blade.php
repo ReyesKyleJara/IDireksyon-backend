@@ -7,6 +7,11 @@
         $input = old($field, $office->getAttribute($field));
         return is_scalar($input) ? (string) $input : '';
     };
+    // Found coordinates stay out of the boxes, or the next save would mark them as typed.
+    $override = fn ($field) => $office->location_source === 'auto' && ! old($field) ? '' : $value($field);
+    $googleMapsLink = $office->google_place_id
+        ? 'https://www.google.com/maps/search/?'.http_build_query(['api' => 1, 'query' => $office->name, 'query_place_id' => $office->google_place_id])
+        : null;
 @endphp
 <div class="mx-auto max-w-4xl">
     @unless($embedded ?? false)
@@ -49,8 +54,28 @@
                 <x-admin.field name="address" label="Street / Building Address" type="textarea" :value="$value('address')" maxlength="5000" class="sm:col-span-2" />
                 <x-admin.field name="municipality" label="City / Municipality" :value="$value('municipality')" maxlength="255" />
                 <x-admin.field name="province" label="Province" :value="$value('province')" maxlength="255" />
-                <x-admin.field name="latitude" label="Latitude" type="number" :value="$value('latitude')" min="-90" max="90" step="any" />
-                <x-admin.field name="longitude" label="Longitude" type="number" :value="$value('longitude')" min="-180" max="180" step="any" />
+            </div>
+            <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700" data-office-location-status>
+                <p class="font-semibold text-slate-900">Map location</p>
+                <p class="mt-1">
+                    @if($office->location_source === 'manual')
+                        Using the coordinates entered below. Clear both boxes to find the location automatically.
+                    @elseif($office->location_status === 'found')
+                        Found automatically from the name and address.
+                        <a href="{{ $googleMapsLink }}" target="_blank" rel="noopener" class="font-medium text-[#012877] underline">View on Google Maps</a>.
+                        If this is the wrong place, enter the correct coordinates below.
+                    @elseif($office->location_status === 'not_found')
+                        Google could not find this office. Add more address details, or enter coordinates below.
+                    @elseif($office->location_status === 'failed')
+                        The location lookup did not finish. Save again to retry, or enter coordinates below.
+                    @else
+                        The location is found automatically from the name and address when you save.
+                    @endif
+                </p>
+            </div>
+            <div class="mt-5 grid gap-5 sm:grid-cols-2">
+                <x-admin.field name="latitude" label="Latitude (optional override)" type="number" :value="$override('latitude')" min="-90" max="90" step="any" />
+                <x-admin.field name="longitude" label="Longitude (optional override)" type="number" :value="$override('longitude')" min="-180" max="180" step="any" />
             </div>
         </section>
         @include('admin.offices.partials.schedule-fields')
