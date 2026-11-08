@@ -64,6 +64,7 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'index']);
         Route::post('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'store']);
+        Route::put('journeys/{journey}/resolution', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'resolve'])->whereNumber('journey');
         Route::put('journeys/{journey}/completion', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'complete'])->whereNumber('journey');
 
         Route::post('roadmap-plan', [\App\Http\Controllers\Api\ResidentRoadmapController::class, 'plan']);

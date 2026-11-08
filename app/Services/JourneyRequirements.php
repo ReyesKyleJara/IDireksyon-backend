@@ -121,8 +121,16 @@ class JourneyRequirements
                     }
                 }
             }
-            // Stop at the chosen OR way; otherwise show each genuine accepted option.
-            $activeWays = $planned ? [$savedWay] : $ways;
+            // A complete saved combination is final. An incomplete one must
+            // not hide other accepted ways (for example a linked document plus
+            // a custom photo-ID item with no further guided option).
+            if ($savedWay && count(array_unique([...$savedWay['owned'], ...array_keys($planned)])) >= $savedWay['required_count']) {
+                foreach (array_keys($planned) as $itemKey) {
+                    $rows[] = $this->linked($itemKey, $catalog[$itemKey]['name'], $owned, $catalog);
+                }
+                continue;
+            }
+            $activeWays = $ways;
             $suggestions = [];
             $remaining = null;
             $hasLinked = false;
@@ -130,7 +138,8 @@ class JourneyRequirements
                 if (! $way['verifiable'] || $way['required_count'] < 1) {
                     continue;
                 }
-                $count = count(array_unique([...$way['owned'], ...array_keys($planned)]));
+                $wayPlanned = $savedWay && $way['id'] === $savedWay['id'] ? $planned : [];
+                $count = count(array_unique([...$way['owned'], ...array_keys($wayPlanned)]));
                 $missing = max(0, $way['required_count'] - $count);
                 $remaining = $remaining === null ? $missing : min($remaining, $missing);
                 foreach ($way['items_by_key'] as $itemKey => $item) {
@@ -138,14 +147,14 @@ class JourneyRequirements
                         continue;
                     }
                     $hasLinked = true;
-                    if (! $missing || isset($owned[$itemKey]) || isset($planned[$itemKey])) {
+                    if (! $missing || isset($owned[$itemKey]) || isset($wayPlanned[$itemKey])) {
                         continue;
                     }
                     if (! isset($catalog[$itemKey]) || ! self::suggestible($catalog[$itemKey]) || $itemKey === $owner) {
                         continue;
                     }
                     $record = $catalog[$itemKey];
-                    $suggestions[] = ['type' => $record['type'], 'id' => $record['id'], 'name' => $record['name'], 'way_id' => $way['id']];
+                    $suggestions[] = ['type' => $record['type'], 'id' => $record['id'], 'name' => $record['name'], 'way_id' => $way['id'], 'remaining_count' => $missing];
                 }
             }
             foreach (array_keys($planned) as $itemKey) {

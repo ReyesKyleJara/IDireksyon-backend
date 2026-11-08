@@ -81,6 +81,8 @@ class RoadmapPlanner
                 $model::with([
                     'prerequisites.governmentId',
                     'prerequisites.document',
+                    'fees.options',
+                    'requirementSets.applicationSteps.blocks',
                     'requirementSets.groups.ways.items.governmentId',
                     'requirementSets.groups.ways.items.document',
                     'requirementSets.groups.items.governmentId',
@@ -94,6 +96,7 @@ class RoadmapPlanner
                     'id' => $record->id,
                     'name' => $record->name,
                     'processing_time' => $record->processing_time,
+                    '_option_facts' => RoadmapOptionFacts::forRecord($record),
                     'application_availability' => $record->application_availability,
                     'guidance_mode' => $record->guidance_mode,
                     'include_in_smart_sequencing' => $record->include_in_smart_sequencing,
@@ -125,7 +128,9 @@ class RoadmapPlanner
             }
         }
         $requirements = app(JourneyRequirements::class);
+        $checklists = [];
         foreach ($catalog as $key => &$record) {
+            $checklists[$key] = $record['requirement_sets'];
             $hasStructuredRequirements = (bool) $record['requirement_sets'];
             $resolved = $requirements->resolve($key, $record['requirement_sets'], $owned, $age, $selections, $catalog);
             unset($record['requirement_sets']);
@@ -193,6 +198,11 @@ class RoadmapPlanner
             true
         );
 
+        // Resolve shared accepted evidence against the whole acquisition graph,
+        // before traversal order can turn a target into an unnecessary prompt.
+        $this->reuseRoadmapRequirements($catalog, $checklists, $selected, $owned, $age, $selections);
+        $included = $this->includedKeys(array_keys($selected), $catalog, $owned);
+
         $visit = function (
             string $key,
             int $depth = 0
@@ -204,6 +214,10 @@ class RoadmapPlanner
             $catalog,
             $selected,
             $owned,
+            $included,
+            $checklists,
+            $age,
+            $selections,
             $status
         ): bool {
             if (($states[$key] ?? null) === 'done') {
@@ -240,7 +254,7 @@ class RoadmapPlanner
                     'issues' => [],
                     'prerequisite_readiness' => $status->readiness($record['prerequisites']),
                 ];
-                unset($nodes[$key]['pending']);
+                unset($nodes[$key]['pending'], $nodes[$key]['_option_facts']);
                 $states[$key] = 'done';
                 $ordered[] = $key;
 
@@ -334,26 +348,27 @@ class RoadmapPlanner
 
                         continue;
                     }
-                    $metrics = $this->metrics($option['type'].':'.$option['id'], $catalog, array_fill_keys(array_keys(array_filter($states, fn ($state) => $state === 'visiting')), true));
+                    $metrics = $this->optionMetrics($option, $pending, $catalog, $checklists, $selected, $owned, $included, $age, $selections,
+                        array_fill_keys(array_keys(array_filter($states, fn ($state) => $state === 'visiting')), true));
                     if ($metrics === null) {
                         continue;
                     } // Never offer a path back to its dependent target.
                     // Already planned here, so using it adds no extra acquisition.
-                    $options[] = [...$option, ...$metrics, 'in_journey' => isset($selected[$option['type'].':'.$option['id']])];
+                    $options[] = [...$option, ...$metrics, 'in_journey' => isset($included[$option['type'].':'.$option['id']]), 'already_owned' => isset($owned[$option['type'].':'.$option['id']])];
                 }
                 if ($pending['kind'] !== 'path') {
-                    usort($options, fn ($a, $b) => [! $a['in_journey'], $a['missing_prerequisites'], $a['dependency_depth'], $a['additional_steps'], $a['estimated_days'] ?? PHP_INT_MAX, $a['name'], $a['type'], $a['id'], $a['way_id']]
-                        <=> [! $b['in_journey'], $b['missing_prerequisites'], $b['dependency_depth'], $b['additional_steps'], $b['estimated_days'] ?? PHP_INT_MAX, $b['name'], $b['type'], $b['id'], $b['way_id']]);
+                    $options = $this->rankOptions($options);
                 }
                 $nodes[$pendingKey] = [
                     ...$pending, 'type' => 'unresolved_requirement', 'id' => $pending['group_id'] ?? $record['id'],
                     'resolution_key' => $pending['key'], 'name' => $pending['name'], 'suggestions' => $options,
+                    'manual_preparation' => $pending['kind'] === 'requirement' && $options === [],
                     'selected' => false, 'blocked' => false, 'issues' => [], 'prerequisites' => [],
                     'prerequisite_readiness' => ['satisfied' => 0, 'total' => 0, 'percentage' => null, 'manual' => 0],
                 ];
                 $ordered[] = $pendingKey;
             }
-            unset($nodes[$key]['pending']);
+            unset($nodes[$key]['pending'], $nodes[$key]['_option_facts']);
             $nodes[$key]['prerequisite_readiness'] =
                 $status->readiness($record['prerequisites']);
 
@@ -384,6 +399,121 @@ class RoadmapPlanner
             ),
             'steps' => $steps,
         ];
+    }
+
+    /** Actual acquisitions only: accepted alternatives are not dependencies yet. */
+    private function includedKeys(array $targets, array $catalog, array $owned): array
+    {
+        $included = [];
+        $walk = function (string $key) use (&$walk, &$included, $catalog, $owned): void {
+            if (isset($included[$key]) || isset($owned[$key])) {
+                return;
+            }
+            $included[$key] = true;
+            foreach ($catalog[$key]['prerequisites'] ?? [] as $row) {
+                if ($row['status'] === 'missing' && in_array($row['type'], ['government_id', 'document'], true)
+                    && ($row['resolution'] ?? null) !== 'reference_only') {
+                    $walk($row['type'].':'.$row['id']);
+                }
+            }
+        };
+        foreach ($targets as $key) {
+            $walk($key);
+        }
+
+        return $included;
+    }
+
+    /** Derived choices stay in memory; Inventory and explicit saved choices win. */
+    private function reuseRoadmapRequirements(array &$catalog, array $checklists, array $selected, array $owned, ?int $age, array $selections): void
+    {
+        while (true) {
+            $included = $this->includedKeys(array_keys($selected), $catalog, $owned);
+            $choices = [];
+            foreach ($included as $owner => $_) {
+                foreach ($catalog[$owner]['pending'] ?? [] as $pending) {
+                    if ($pending['kind'] !== 'requirement') {
+                        continue;
+                    }
+                    $set = collect($checklists[$owner])->firstWhere('id', $pending['set_id']);
+                    $group = collect($set['groups'])->firstWhere('id', $pending['group_id']);
+                    foreach ($group['ways'] as $way) {
+                        if ($way['qualification_type'] !== 'none' || $way['required_count'] < 1) {
+                            continue;
+                        }
+                        // A partially saved choice locks the OR way. Only ways
+                        // still offered by the resolver can be reused here.
+                        if (! collect($pending['suggestions'])->contains(fn ($option) => $option['way_id'] === $way['id'])) {
+                            continue;
+                        }
+                        $available = [];
+                        $ownedCount = 0;
+                        foreach ($way['items'] as $item) {
+                            $key = JourneyRequirements::itemKey($item);
+                            if ($key === null || isset($available[$key])) {
+                                continue;
+                            }
+                            if (isset($owned[$key])) {
+                                $available[$key] = ['owned' => true, 'pending' => 0];
+                                $ownedCount++;
+                            } elseif (isset($included[$key], $catalog[$key]) && JourneyRequirements::suggestible($catalog[$key])) {
+                                $metrics = $this->metrics($key, $catalog, [$owner => true]);
+                                if ($metrics === null) {
+                                    continue; // Adding owner -> key would form a cycle.
+                                }
+                                $chain = $this->includedKeys([$key], $catalog, $owned);
+                                if (collect(array_keys($chain))->contains(fn ($node) => ! in_array($catalog[$node]['application_availability'] ?? null, ['available', 'limited_conditional'], true))) {
+                                    continue;
+                                }
+                                $available[$key] = ['owned' => false,
+                                    'pending' => array_sum(array_map(fn ($node) => count($catalog[$node]['pending'] ?? []), array_keys($chain)))];
+                            }
+                        }
+                        // Never combine OR ways, count duplicates, or silently
+                        // assume an unverified custom/qualified item is supplied.
+                        if (count($available) < $way['required_count']) {
+                            continue;
+                        }
+                        uksort($available, fn ($a, $b) => [! $available[$a]['owned'], $available[$a]['pending'], $a]
+                            <=> [! $available[$b]['owned'], $available[$b]['pending'], $b]);
+                        $items = array_slice(array_keys($available), 0, $way['required_count']);
+                        $previous = $selections['groups'][$pending['key']] ?? [];
+                        // Keep valid explicit selections in their original order.
+                        if (($previous['way_id'] ?? null) === $way['id']) {
+                            $explicit = array_values(array_filter($previous['items'] ?? [], fn ($key) => isset($available[$key])));
+                            $items = array_values(array_unique([...$explicit, ...$items]));
+                        }
+                        $choices[] = ['owner' => $owner, 'pending' => $pending,
+                            'selection' => ['way_id' => $way['id'], 'items' => $items],
+                            'rank' => [-min($ownedCount, $way['required_count']),
+                                array_sum(array_map(fn ($key) => $available[$key]['pending'], $items)),
+                                count($items), $owner, $pending['key'], $way['id']]];
+                    }
+                }
+            }
+            if (! $choices) {
+                return;
+            }
+            usort($choices, fn ($a, $b) => $a['rank'] <=> $b['rank']);
+            $choice = $choices[0];
+            $owner = $choice['owner'];
+            $selections['groups'][$choice['pending']['key']] = $choice['selection'];
+            $resolved = app(JourneyRequirements::class)->resolve($owner, $checklists[$owner], $owned, $age, $selections, $catalog);
+            foreach ($resolved['rows'] as &$row) {
+                if (! in_array($row['type'], ['government_id', 'document'], true)) {
+                    continue;
+                }
+                $previous = collect($catalog[$owner]['prerequisites'])->first(fn ($old) => $old['type'] === $row['type'] && $old['id'] === $row['id'] && filled($old['condition'] ?? null));
+                if ($previous) {
+                    $row['condition'] = $previous['condition'];
+                }
+            }
+            unset($row);
+            $catalog[$owner]['prerequisites'] = $resolved['rows'];
+            $catalog[$owner]['pending'] = $resolved['pending'];
+            // Each pass resolves a complete group, then checks the updated graph
+            // again so two individually safe choices cannot form a mutual cycle.
+        }
     }
 
     private function independentOrder(array $keys, array $catalog): array
@@ -436,6 +566,240 @@ class RoadmapPlanner
         $walk($key);
 
         return array_keys($seen);
+    }
+
+    /** Evaluate choosing an option without saving the hypothetical choice or adding ownership. */
+    private function optionMetrics(array $option, array $pending, array $catalog, array $checklists, array $selected, array $owned, array $included, ?int $age, array $selections, array $ancestors): ?array
+    {
+        $key = $option['type'].':'.$option['id'];
+        $owner = $pending['owner_key'];
+        $previous = $selections['groups'][$pending['key']] ?? [];
+        $items = ($previous['way_id'] ?? null) === $option['way_id'] ? ($previous['items'] ?? []) : [];
+        $selections['groups'][$pending['key']] = ['way_id' => $option['way_id'], 'items' => array_values(array_unique([...$items, $key]))];
+        $resolved = app(JourneyRequirements::class)->resolve($owner, $checklists[$owner], $owned, $age, $selections, $catalog);
+        $catalog[$owner]['prerequisites'] = $resolved['rows'];
+        $catalog[$owner]['pending'] = $resolved['pending'];
+        // Pin owner -> option first. Otherwise a trial could use the owner to
+        // obtain its own prerequisite and appear to solve the ID paradox.
+        $this->reuseRoadmapRequirements($catalog, $checklists, [...$selected, $key => true], $owned, $age, $selections);
+        $metrics = $this->metrics($key, $catalog, $ancestors);
+        if ($metrics === null || ! $this->hasAcquisitionPath($key, $catalog, $checklists, $owned, $age, $selections, $ancestors)) {
+            return null;
+        }
+        $chain = $this->includedKeys([$key], $catalog, $owned);
+        $new = array_values(array_diff(array_keys($chain), array_keys($included), array_keys($owned)));
+        $additional = array_values(array_diff($new, [$key]));
+        $combinationRemaining = max(0, ($option['remaining_count'] ?? 1) - 1);
+        $unresolved = $combinationRemaining;
+        $manual = $reference = 0;
+        $covered = $ownedDocuments = $plannedDocuments = [];
+        foreach (array_keys($chain) as $node) {
+            foreach ($catalog[$node]['pending'] ?? [] as $choice) {
+                $unresolved += $choice['kind'] === 'path' ? 1 : max(1, $choice['remaining_count'] ?? 1);
+            }
+            foreach ($catalog[$node]['prerequisites'] as $row) {
+                if ($row['status'] === 'manual') {
+                    $manual++;
+                }
+                if (! in_array($row['type'], ['government_id', 'document'], true)) {
+                    if ($row['type'] === 'requirement' && $row['status'] === 'satisfied') {
+                        foreach ($checklists[$node] as $set) {
+                            foreach ($set['groups'] as $group) {
+                                if ($group['id'] !== $row['id']) continue;
+                                foreach ($group['ways'] as $way) {
+                                    $matches = [];
+                                    foreach ($way['items'] as $item) {
+                                        $identity = JourneyRequirements::itemKey($item);
+                                        if ($identity !== null && isset($owned[$identity])) $matches[$identity] = true;
+                                    }
+                                    if ($way['qualification_type'] === 'none' && count($matches) >= $way['required_count']) {
+                                        foreach (array_slice(array_keys($matches), 0, $way['required_count']) as $identity) {
+                                            $covered[$identity] = true;
+                                            if (str_starts_with($identity, 'document:')) $ownedDocuments[$identity] = true;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+                $identity = $row['type'].':'.$row['id'];
+                if (isset($owned[$identity]) || isset($included[$identity])) {
+                    $covered[$identity] = true;
+                    if ($row['type'] === 'document') {
+                        if (isset($owned[$identity])) $ownedDocuments[$identity] = true;
+                        else $plannedDocuments[$identity] = true;
+                    }
+                }
+                if ($row['status'] === 'missing' && ($row['resolution'] ?? null) === 'reference_only') $reference++;
+            }
+        }
+        $idSteps = count(array_filter($additional, fn ($node) => $catalog[$node]['type'] === 'government_id'));
+        $directMissing = count(array_filter($catalog[$key]['prerequisites'], fn ($row) => $row['status'] === 'missing'
+            && (! in_array($row['type'], ['government_id', 'document'], true) || ! isset($included[$row['type'].':'.$row['id']]))));
+        $flowComplete = $unresolved === 0 && $manual === 0 && $reference === 0;
+        foreach (array_unique([$key, ...$new]) as $node) {
+            $flowComplete = $flowComplete && $this->hasGuide($node, $catalog, $checklists, $age, $selections);
+        }
+
+        return [...$metrics,
+            'missing_prerequisites' => $directMissing,
+            'additional_steps' => count($additional), 'additional_id_steps' => $idSteps,
+            'combination_remaining' => $combinationRemaining,
+            'unresolved_choices' => $unresolved, 'manual_review_steps' => $manual + $reference,
+            'preparation_steps' => count($additional) + $unresolved + $manual + $reference,
+            'covered_prerequisites' => count($covered),
+            'uses_owned_documents' => (bool) $ownedDocuments, 'uses_roadmap_documents' => (bool) $plannedDocuments,
+            'no_additional_id_required' => $idSteps === 0 && $unresolved === 0 && $manual === 0 && $reference === 0,
+            'estimated_days' => $new && $unresolved === 0 && $manual === 0 && $reference === 0 ? $this->estimatedDays($new, $catalog) : null,
+            'known_cost' => $unresolved === 0 && $manual === 0 && $reference === 0 ? $this->knownAdditionalCost($new, $catalog) : null,
+            'acquisition_flow_complete' => $flowComplete,
+            'ranking_is_estimate' => $unresolved > 0 || $manual > 0 || $reference > 0,
+        ];
+    }
+
+    /** Find complete escape routes, including explicit application-path alternatives. */
+    private function hasAcquisitionPath(string $key, array $catalog, array $checklists, array $owned, ?int $age, array $selections, array $forbidden): bool
+    {
+        $variants = [];
+        foreach ($catalog as $candidate => $record) {
+            $path = collect($record['pending'] ?? [])->firstWhere('kind', 'path');
+            if ($path === null) {
+                $variants[$candidate] = [['rows' => $record['prerequisites'], 'pending' => $record['pending'] ?? []]];
+                continue;
+            }
+            $variants[$candidate] = [];
+            foreach ($path['suggestions'] as $option) {
+                $trial = $selections;
+                $trial['paths'][$candidate] = $option['set_id'];
+                $variants[$candidate][] = app(JourneyRequirements::class)->resolve($candidate, $checklists[$candidate], $owned, $age, $trial, $catalog);
+            }
+        }
+        // A least fixed point avoids exponentially expanding mutually accepted IDs.
+        $possible = $owned;
+        do {
+            $changed = false;
+            foreach ($catalog as $candidate => $record) {
+                if (isset($possible[$candidate]) || isset($forbidden[$candidate])
+                    || ! in_array($record['application_availability'], ['available', 'limited_conditional'], true)) continue;
+                foreach ($variants[$candidate] as $variant) {
+                    if ($this->viableRequirements($variant, $checklists[$candidate], $catalog, $owned, $possible)) {
+                        $possible[$candidate] = true;
+                        $changed = true;
+                        break;
+                    }
+                }
+            }
+        } while ($changed && ! isset($possible[$key]));
+
+        return isset($possible[$key]);
+    }
+
+    private function viableRequirements(array $resolved, array $sets, array $catalog, array $owned, array $possible): bool
+    {
+        foreach ($resolved['rows'] as $row) {
+            if ($row['status'] === 'missing' && in_array($row['type'], ['government_id', 'document'], true)
+                && ($row['resolution'] ?? null) !== 'reference_only'
+                && ! isset($possible[$row['type'].':'.$row['id']])) return false;
+        }
+        foreach ($resolved['pending'] as $pending) {
+            if ($pending['kind'] === 'path') return false;
+            $set = collect($sets)->firstWhere('id', $pending['set_id']);
+            $group = collect($set['groups'])->firstWhere('id', $pending['group_id']);
+            $wayIds = array_column($pending['suggestions'], 'way_id');
+            $escape = false;
+            foreach ($group['ways'] as $way) {
+                if ($way['qualification_type'] !== 'none' || $way['required_count'] < 1
+                    || ($wayIds && ! in_array($way['id'], $wayIds, true))) continue;
+                $available = [];
+                foreach ($way['items'] as $item) {
+                    $identity = JourneyRequirements::itemKey($item);
+                    if ($identity === null) {
+                        // Only a real custom item is manual work. Missing or
+                        // unavailable linked IDs must never be relabelled manual.
+                        $available['manual:'.$item['id']] = true;
+                    } elseif (isset($owned[$identity]) || (isset($possible[$identity], $catalog[$identity])
+                        && JourneyRequirements::suggestible($catalog[$identity]))) {
+                        $available[$identity] = true;
+                    }
+                }
+                if (count($available) >= $way['required_count']) {
+                    $escape = true;
+                    break;
+                }
+            }
+            if (! $escape) return false;
+        }
+
+        return true;
+    }
+
+    private function hasGuide(string $key, array $catalog, array $checklists, ?int $age, array $selections): bool
+    {
+        $facts = $catalog[$key]['_option_facts'];
+        if ($facts['has_legacy_guide']) return true;
+        $chosen = $selections['paths'][$key] ?? null;
+        if ($chosen !== null) return in_array($chosen, $facts['guide_set_ids'], true);
+        $applicable = array_filter($checklists[$key], fn ($set) => $set['applicant_type'] !== 'custom'
+            && ($set['applicant_type'] === 'all' || ($age !== null
+                && ($set['min_age'] === null || $age >= $set['min_age']) && ($set['max_age'] === null || $age <= $set['max_age']))));
+
+        return count($applicable) === 1 && in_array(array_values($applicable)[0]['id'], $facts['guide_set_ids'], true);
+    }
+
+    private function knownAdditionalCost(array $keys, array $catalog): ?array
+    {
+        if (! $keys) return null;
+        $total = ['min' => 0.0, 'max' => 0.0, 'currency' => null];
+        foreach ($keys as $key) {
+            $cost = $catalog[$key]['_option_facts']['cost'];
+            if ($cost === null || ($total['currency'] !== null && $total['currency'] !== $cost['currency'])) return null;
+            $total['min'] += $cost['min'];
+            $total['max'] += $cost['max'];
+            $total['currency'] = $cost['currency'];
+        }
+        $total['min'] = round($total['min'], 2);
+        $total['max'] = round($total['max'], 2);
+
+        return $total;
+    }
+
+    private function practicalRank(array $option): array
+    {
+        return [$option['combination_remaining'], ! $option['in_journey'], $option['preparation_steps'], $option['unresolved_choices'],
+            $option['additional_id_steps'], $option['missing_prerequisites'], $option['dependency_depth'], -$option['covered_prerequisites']];
+    }
+
+    private function rankOptions(array $options): array
+    {
+        // Never invent an exchange rate to compare unlike currencies.
+        $currencies = array_unique(array_filter(array_map(fn ($option) => $option['known_cost']['currency'] ?? null, $options)));
+        $rank = fn ($option) => [...$this->practicalRank($option), $option['estimated_days'] ?? PHP_INT_MAX,
+            ...(count($currencies) <= 1 ? [$option['known_cost'] === null, $option['known_cost']['max'] ?? 0] : []),
+            ! $option['acquisition_flow_complete'], $option['name'], $option['type'], $option['id'], $option['way_id']];
+        usort($options, fn ($a, $b) => $rank($a) <=> $rank($b));
+        $shortlisted = [];
+        foreach ($options as &$option) {
+            $reasons = [];
+            if ($option['uses_owned_documents']) $reasons[] = 'Uses documents you already have';
+            if ($option['uses_roadmap_documents']) $reasons[] = 'Uses documents already in your Roadmap';
+            if ($option['no_additional_id_required']) $reasons[] = 'No additional ID required';
+            if (collect($options)->contains(fn ($other) => $other['preparation_steps'] > $option['preparation_steps'])) $reasons[] = 'Fewer preparation steps';
+            $comparable = array_filter($options, fn ($other) => $this->practicalRank($other) === $this->practicalRank($option));
+            if ($option['estimated_days'] !== null && collect($comparable)->contains(fn ($other) => $other['estimated_days'] !== null && $other['estimated_days'] > $option['estimated_days'])) $reasons[] = 'Shorter known processing time';
+            if (count($currencies) <= 1 && $option['known_cost'] !== null && collect($comparable)->contains(fn ($other) => $other['known_cost'] !== null
+                && $other['known_cost']['currency'] === $option['known_cost']['currency'] && $option['known_cost']['max'] < $other['known_cost']['min'])) $reasons[] = 'Lower known cost';
+            if ($option['acquisition_flow_complete']) $reasons[] = 'Guided steps available';
+            $identity = $option['type'].':'.$option['id'];
+            $option['recommended'] = count($shortlisted) < 3 && ! isset($shortlisted[$identity]);
+            if ($option['recommended']) $shortlisted[$identity] = true;
+            $option['recommendation_reasons'] = $reasons;
+        }
+        unset($option);
+
+        return $options;
     }
 
     /** Estimates from current unresolved paths; counts distinct additional acquisitions. */

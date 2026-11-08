@@ -73,6 +73,41 @@ class ResidentJourneyController extends Controller
         return response()->json(['data' => $journey->present()], $journey->wasRecentlyCreated ? 201 : 200);
     }
 
+    public function resolve(Request $request, int $journey, RoadmapPlanner $planner): JsonResponse
+    {
+        $user = $this->resident($request);
+        $data = $request->validate([
+            'resolution' => ['required', 'array:key,set_id,type,id,way_id'],
+            'resolution.key' => ['required', 'string', 'max:255'],
+            'resolution.set_id' => ['sometimes', 'integer', 'min:1'],
+            'resolution.type' => ['sometimes', 'in:government_id,document'],
+            'resolution.id' => ['sometimes', 'integer', 'min:1'],
+            'resolution.way_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'user_id' => ['prohibited'], 'plan' => ['prohibited'],
+            'completed_step_identities' => ['prohibited'],
+        ]);
+
+        return DB::transaction(function () use ($user, $journey, $planner, $data) {
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $saved = ResidentJourney::where('user_id', $user->id)->lockForUpdate()->findOrFail($journey);
+            $step = collect($saved->roadmapSteps())->first(fn ($step) => $step['type'] === 'unresolved_requirement'
+                && ($step['resolution_key'] ?? null) === $data['resolution']['key']);
+            if (! $step) {
+                throw ValidationException::withMessages(['resolution' => 'This choice is no longer in this journey. Reload your journey.']);
+            }
+            $resolution = ($step['resolution_ready'] ?? false) && count($data['resolution']) === 1
+                ? null : $data['resolution'];
+            $plan = $planner->build($user, $saved->plan['target_government_id_ids'] ?? [],
+                $saved->plan['target_document_ids'] ?? [], $resolution);
+            if ($plan['blocked']) {
+                throw ValidationException::withMessages(['resolution' => 'This option creates a blocked journey. Choose another accepted option.']);
+            }
+            $saved->update(['plan' => $plan]);
+            // Completion rows are retained by identity. New acquisitions start incomplete.
+            return response()->json(['data' => $saved->present()]);
+        });
+    }
+
     public function complete(Request $request, int $journey): JsonResponse
     {
         $user = $this->resident($request);

@@ -276,59 +276,56 @@ function mutualAlternativesCatalog(): array
     return compact('psa', 'sss', 'passport', 'philsys', 'postal');
 }
 
-it('never turns an accepted alternative into a dependency by itself', function () {
+it('reuses shared accepted evidence across combined targets without duplicate prompts', function () {
     $c = mutualAlternativesCatalog();
     $resident = User::factory()->create();
     $plan = app(RoadmapPlanner::class)->build($resident, [$c['postal']->id, $c['passport']->id, $c['philsys']->id]);
-
-    $targets = array_values(array_filter($plan['steps'], fn ($step) => $step['selected']));
-    foreach ($targets as $target) {
-        $linked = array_filter($target['prerequisites'], fn ($row) => $row['type'] === 'government_id' && $row['status'] === 'missing');
-        expect($linked)->toBe([]);
-    }
-    expect($plan['blocked'])->toBeFalse();
-    expect(array_column(journeyPending($plan), 'name'))->toContain('Valid ID', 'Proof of Identity');
-    // The mandatory PSA Birth Certificate is shared and appears once, before Passport.
     $names = array_column($plan['steps'], 'name');
-    expect(array_count_values($names)['PSA Birth Certificate'])->toBe(1)
-        ->and(array_search('PSA Birth Certificate', $names))->toBeLessThan(array_search('Philippine Passport', $names));
+    expect(journeyPending($plan))->toBe([])->and($plan['blocked'])->toBeFalse()
+        ->and(array_count_values($names)['PSA Birth Certificate'])->toBe(1);
+    foreach (['PhilSys National ID', 'Postal ID', 'Philippine Passport'] as $target) {
+        expect(array_search('PSA Birth Certificate', $names))->toBeLessThan(array_search($target, $names));
+    }
+    expect(DB::table('resident_journey_resolutions')->count())->toBe(0)
+        ->and($resident->ownedDocuments()->count())->toBe(0);
 });
 
-it('lists other roadmap targets first and depends on one only once it is chosen', function () {
+it('automatically orders Birth Certificate then PhilSys then Passport when those complete CMS combinations apply', function () {
     $c = mutualAlternativesCatalog();
     $resident = User::factory()->create();
     $planner = app(RoadmapPlanner::class);
     $targets = [$c['passport']->id, $c['philsys']->id];
     $plan = $planner->build($resident, $targets);
-    $validId = collect(journeyPending($plan))->firstWhere('name', 'Valid ID');
-    expect($validId['suggestions'][0]['name'])->toBe('PhilSys National ID')
-        ->and($validId['suggestions'][0]['in_journey'])->toBeTrue()
-        ->and($validId['suggestions'][1]['in_journey'])->toBeFalse();
-
-    $chosen = $planner->build($resident, $targets, [], journeyChoose($validId, $validId['suggestions'][0]));
-    $names = array_column($chosen['steps'], 'name');
-    expect(array_search('PhilSys National ID', $names))->toBeLessThan(array_search('Philippine Passport', $names))
-        ->and(array_count_values($names)['PhilSys National ID'])->toBe(1);
-    // Passport now needs PhilSys, so PhilSys can no longer choose Passport back.
-    $proof = collect(journeyPending($chosen))->firstWhere('name', 'Proof of Identity');
-    expect(array_column($proof['suggestions'], 'name'))->not->toContain('Philippine Passport')
-        ->and($chosen['blocked'])->toBeFalse();
+    expect(array_column($plan['steps'], 'name'))->toBe(['PSA Birth Certificate', 'PhilSys National ID', 'Philippine Passport'])
+        ->and(journeyPending($plan))->toBe([])->and($plan['blocked'])->toBeFalse();
+    expect($planner->build($resident, array_reverse($targets))['steps'])->toBe($plan['steps']);
+    $philsys = collect($plan['steps'])->firstWhere('name', 'PhilSys National ID');
+    expect(array_column($philsys['prerequisites'], 'name'))->toBe(['PSA Birth Certificate']);
+    $passport = collect($plan['steps'])->firstWhere('name', 'Philippine Passport');
+    expect(array_column($passport['prerequisites'], 'name'))->toContain('PhilSys National ID');
 });
 
-it('keeps a non-roadmap alternative available when another target is also accepted', function () {
+it('preserves an explicit saved non-roadmap alternative instead of replacing it with an automatic choice', function () {
     $c = mutualAlternativesCatalog();
     $resident = User::factory()->create();
     $planner = app(RoadmapPlanner::class);
-    $targets = [$c['passport']->id, $c['philsys']->id];
-    $validId = collect(journeyPending($planner->build($resident, $targets)))->firstWhere('name', 'Valid ID');
+    $validId = collect(journeyPending($planner->build($resident, [$c['passport']->id])))->firstWhere('name', 'Valid ID');
     $sss = collect($validId['suggestions'])->firstWhere('name', 'MySSS Card');
-
-    $chosen = $planner->build($resident, $targets, [], journeyChoose($validId, $sss));
+    $planner->build($resident, [$c['passport']->id], [], journeyChoose($validId, $sss));
+    $saved = DB::table('resident_journey_resolutions')->where('user_id', $resident->id)->value('selections');
+    $keys = ['government_id:'.$c['passport']->id, 'government_id:'.$c['philsys']->id];
+    sort($keys);
+    DB::table('resident_journey_resolutions')->insert([
+        'user_id' => $resident->id, 'journey_key' => hash('sha256', json_encode($keys)),
+        'selections' => $saved, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $chosen = $planner->build($resident, [$c['passport']->id, $c['philsys']->id]);
     $names = array_column($chosen['steps'], 'name');
     expect($names)->toContain('MySSS Card')
         ->and(array_search('MySSS Card', $names))->toBeLessThan(array_search('Philippine Passport', $names));
     $passport = collect($chosen['steps'])->firstWhere('name', 'Philippine Passport');
     expect(array_column($passport['prerequisites'], 'name'))->not->toContain('PhilSys National ID');
+    expect(DB::table('resident_journey_resolutions')->where('journey_key', hash('sha256', json_encode($keys)))->value('selections'))->toBe($saved);
 });
 
 it('leaves owned requirements out of the roadmap and satisfies choices from Inventory', function () {
@@ -404,4 +401,148 @@ it('ranks alternatives by requirements first and processing time only as a tie-b
     $options = journeyPending(app(RoadmapPlanner::class)->build($resident, [$target->id]))[0]['suggestions'];
     expect(array_column($options, 'name'))->toBe(['C Quick', 'B Slow', 'D Unknown', 'A Fast but needs more'])
         ->and($options[0]['processing_time'])->toBe('3 days');
+});
+
+
+it('uses Inventory before an accepted shared roadmap acquisition', function () {
+    $c = mutualAlternativesCatalog();
+    $resident = User::factory()->create();
+    $resident->ownedGovernmentIds()->attach($c['sss']);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$c['passport']->id, $c['philsys']->id]);
+    $passport = collect($plan['steps'])->firstWhere('name', 'Philippine Passport');
+    expect(journeyPending($plan))->toBe([])
+        ->and(array_column($passport['prerequisites'], 'name'))->not->toContain('PhilSys National ID')
+        ->and(array_column($plan['steps'], 'name'))->not->toContain('MySSS Card');
+});
+
+it('reuses arbitrary documents already acquired for another target and enforces completion order', function () {
+    $resident = User::factory()->create();
+    $a = GovernmentId::create(['name' => 'Target A']);
+    $b = GovernmentId::create(['name' => 'Target B']);
+    $evidence = Document::create(['name' => 'Shared proof']);
+    $other = Document::create(['name' => 'Other proof']);
+    journeyGroup(journeySet($a), [['items' => [$evidence]]]);
+    journeyGroup(journeySet($b), [['items' => [$evidence, $other]]]);
+    $snapshot = DB::table('government_id_requirement_items')->get()->toJson();
+    $payload = ['target_government_id_ids' => [$b->id, $a->id]];
+    $saved = $this->actingAs($resident)->postJson('/api/auth/journeys', $payload)->assertCreated()->json('data');
+    $names = array_column($saved['plan']['steps'], 'name');
+    expect($names)->toBe(['Shared proof', 'Target A', 'Target B']);
+    $path = '/api/auth/journeys/'.$saved['id'].'/completion';
+    $this->putJson($path, ['step_identity' => 'government_id:'.$b->id])->assertUnprocessable();
+    $this->putJson($path, ['step_identity' => 'document:'.$evidence->id])->assertOk();
+    $this->putJson($path, ['step_identity' => 'government_id:'.$b->id])->assertOk();
+    expect(DB::table('government_id_requirement_items')->get()->toJson())->toBe($snapshot)
+        ->and(DB::table('resident_journey_resolutions')->count())->toBe(0);
+});
+
+it('combines owned and planned distinct items within a Choose N way', function () {
+    $resident = User::factory()->create();
+    $target = GovernmentId::create(['name' => 'Choose two']);
+    $owned = Document::create(['name' => 'Owned proof']);
+    $planned = Document::create(['name' => 'Planned proof']);
+    $unused = Document::create(['name' => 'Unused proof']);
+    $resident->ownedDocuments()->attach($owned);
+    journeyGroup(journeySet($target), [['count' => 2, 'items' => [$owned, $planned, $planned, $unused]]]);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$target->id], [$planned->id]);
+    expect(journeyPending($plan))->toBe([])
+        ->and(array_column($plan['steps'], 'name'))->toBe(['Planned proof', 'Choose two']);
+});
+
+it('does not pool planned items across OR ways or count a duplicate twice', function () {
+    $resident = User::factory()->create();
+    $target = GovernmentId::create(['name' => 'Target']);
+    $a = Document::create(['name' => 'A']);
+    $b = Document::create(['name' => 'B']);
+    $c = Document::create(['name' => 'C']);
+    $d = Document::create(['name' => 'D']);
+    journeyGroup(journeySet($target), [['count' => 2, 'items' => [$a, $a, $b]], ['count' => 2, 'items' => [$c, $d]]]);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$target->id], [$a->id, $c->id]);
+    expect(journeyPending($plan))->toHaveCount(1);
+    $inJourney = array_column(array_filter(journeyPending($plan)[0]['suggestions'], fn ($option) => $option['in_journey']), 'name');
+    expect($inJourney)->toBe(['A', 'C']);
+});
+
+it('never automatically chooses an included option that depends on its owner', function () {
+    $resident = User::factory()->create();
+    $a = GovernmentId::create(['name' => 'Target A']);
+    $b = GovernmentId::create(['name' => 'Target B']);
+    $proof = Document::create(['name' => 'Safe proof']);
+    journeyGroup(journeySet($a), [['items' => [$b, $proof]]]);
+    journeyGroup(journeySet($b), [['items' => [$a]]]);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$a->id, $b->id], [$proof->id]);
+    expect($plan['blocked'])->toBeFalse()->and(journeyPending($plan))->toBe([])
+        ->and(array_column($plan['steps'], 'name'))->toBe(['Safe proof', 'Target A', 'Target B']);
+});
+
+it('checks the graph after every automatic choice to prevent mutual cycles', function () {
+    $resident = User::factory()->create();
+    $a = GovernmentId::create(['name' => 'Target A']);
+    $b = GovernmentId::create(['name' => 'Target B']);
+    $x = Document::create(['name' => 'Extra X']);
+    $y = Document::create(['name' => 'Extra Y']);
+    journeyGroup(journeySet($a), [['items' => [$b, $x]]]);
+    journeyGroup(journeySet($b), [['items' => [$a, $y]]]);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$a->id, $b->id]);
+    expect($plan['blocked'])->toBeFalse()->and(journeyPending($plan))->toHaveCount(1);
+    $pending = journeyPending($plan)[0];
+    expect(array_column($pending['suggestions'], 'name'))->toBe(['Extra Y']);
+});
+
+it('marks shared prerequisites as already in the roadmap even when a Choose N group remains unresolved', function () {
+    $resident = User::factory()->create();
+    $a = GovernmentId::create(['name' => 'A']);
+    $b = GovernmentId::create(['name' => 'B']);
+    $e = Document::create(['name' => 'Shared proof']);
+    $x = Document::create(['name' => 'Extra proof']);
+    journeyGroup(journeySet($a), [['items' => [$e]]]);
+    journeyGroup(journeySet($b), [['count' => 2, 'items' => [$e, $x, 'Manual evidence']]]);
+    $pending = journeyPending(app(RoadmapPlanner::class)->build($resident, [$a->id, $b->id]))[0];
+    $option = collect($pending['suggestions'])->firstWhere('name', 'Shared proof');
+    expect($option['in_journey'])->toBeTrue()->and($option['already_owned'])->toBeFalse();
+});
+
+it('preserves the current PhilSys Birth Certificate plus manual-ID combination and avoids the Passport loop', function () {
+    $c = mutualAlternativesCatalog();
+    $resident = User::factory()->create();
+    // The live CMS requires BOTH these items, not Birth Certificate alone.
+    $c['philsys']->requirementSets()->delete();
+    $group = journeyGroup(journeySet($c['philsys']), [
+        ['count' => 2, 'items' => [$c['psa'], 'Government-issued photo ID with signature']],
+        ['items' => [$c['passport']]], ['items' => [$c['postal']]],
+    ], ['title' => 'Proof of Identity / Supporting Document']);
+    $plan = app(RoadmapPlanner::class)->build($resident, [$c['philsys']->id, $c['passport']->id]);
+    expect($plan['blocked'])->toBeFalse()->and(journeyPending($plan))->toHaveCount(1);
+    $proof = journeyPending($plan)[0];
+    expect($proof['name'])->toBe('Proof of Identity / Supporting Document')
+        ->and(array_column($proof['suggestions'], 'name'))->not->toContain('Philippine Passport');
+    $shared = collect($proof['suggestions'])->firstWhere('name', 'PSA Birth Certificate');
+    expect($shared['in_journey'])->toBeTrue();
+    $names = array_column($plan['steps'], 'name');
+    expect($shared['remaining_count'])->toBe(2);
+    expect(array_search('PSA Birth Certificate', $names))->toBeLessThan(array_search('Philippine Passport', $names));
+    $philsys = collect($plan['steps'])->firstWhere('name', 'PhilSys National ID');
+    expect(array_column($philsys['prerequisites'], 'name'))->not->toContain('PSA Birth Certificate');
+    expect($proof['suggestions'])->not->toBe([]);
+
+    // A saved partial two-item choice must not hide valid alternate ways.
+    $partial = app(RoadmapPlanner::class)->build($resident, [$c['philsys']->id, $c['passport']->id], [], journeyChoose($proof, $shared));
+    $remaining = journeyPending($partial)[0];
+    expect($remaining['manual_preparation'])->toBeFalse()
+        ->and(array_column($remaining['suggestions'], 'name'))->toContain('Postal ID');
+
+    // Simulate the user's CMS correction in the isolated test database:
+    // add a separate complete Birth Certificate-only alternative.
+    $way = $group->ways()->create(['required_count' => 1, 'qualification_type' => 'none']);
+    $item = $group->items()->make(['type' => 'document', 'document_id' => $c['psa']->id]);
+    $item->requirement_way_id = $way->id;
+    $item->save();
+    $snapshot = DB::table('government_id_requirement_items')->get()->toJson();
+    $updated = app(RoadmapPlanner::class)->build($resident, [$c['philsys']->id, $c['passport']->id]);
+    expect(array_column($updated['steps'], 'name'))->toBe(['PSA Birth Certificate', 'PhilSys National ID', 'Philippine Passport'])
+        ->and(journeyPending($updated))->toBe([])
+        ->and($updated['blocked'])->toBeFalse()
+        ->and(DB::table('government_id_requirement_items')->get()->toJson())->toBe($snapshot)
+        ->and(DB::table('resident_journey_resolutions')->count())->toBe(1);
+
 });

@@ -32,6 +32,7 @@ class ResidentJourney extends Model
     {
         return $step['type'] === 'unresolved_requirement'
             && ($step['kind'] ?? null) === 'requirement'
+            && ($step['manual_preparation'] ?? false) === true
             && isset($step['suggestions']) && $step['suggestions'] === [];
     }
 
@@ -55,7 +56,7 @@ class ResidentJourney extends Model
         foreach ($steps as $item) {
             if ($item['type'] === 'unresolved_requirement'
                 && ($item['owner_key'] ?? null) === self::identity($step)
-                && ! in_array(self::identity($item), $completed, true)) {
+                && (! self::manualPreparation($item) || ! in_array(self::identity($item), $completed, true))) {
                 $waiting[] = $item;
             }
         }
@@ -79,6 +80,9 @@ class ResidentJourney extends Model
             ->where('resident_journey_id', $this->id)->orderBy('step_identity')
             ->pluck('step_identity')->all();
         $plan = [...$this->plan, 'steps' => $this->roadmapSteps()];
+        $choices = collect($plan['steps'])->filter(fn ($step) => $step['type'] === 'unresolved_requirement' && ! self::manualPreparation($step))->map(self::identity(...))->all();
+        // Old manual completion must never complete a newly restored choice.
+        $completed = array_values(array_diff($completed, $choices));
         $steps = array_values(array_filter($plan['steps'], self::countsForProgress(...)));
         $identities = array_map(self::identity(...), array_filter($steps, self::actionable(...)));
         $count = count(array_intersect($identities, $completed));
@@ -100,7 +104,7 @@ class ResidentJourney extends Model
     /** Hide old method-only prompts on read; keep the stored acquisition snapshot intact. */
     public function roadmapSteps(): array
     {
-        return array_values(array_filter($this->plan['steps'], function ($step) {
+        $steps = array_values(array_filter($this->plan['steps'], function ($step) {
             if (($step['kind'] ?? null) !== 'path' || empty($step['suggestions'])) {
                 return true;
             }
@@ -118,5 +122,33 @@ class ResidentJourney extends Model
 
             return ! collect($step['suggestions'])->every(fn ($option) => in_array($option['set_id'] ?? null, $methodIds, true));
         }));
+        $unresolved = array_filter($steps, fn ($step) => $step['type'] === 'unresolved_requirement'
+            && isset($step['owner_key'], $step['resolution_key']));
+        if ($unresolved && (! empty($this->plan['target_government_id_ids']) || ! empty($this->plan['target_document_ids']))) {
+            // Only refresh choices, never recalculate stored acquisition steps on read.
+            $current = app(\App\Services\RoadmapPlanner::class)->build(
+                $this->resident(), $this->plan['target_government_id_ids'] ?? [], $this->plan['target_document_ids'] ?? []);
+            $currentChoices = collect($current['steps'])->where('type', 'unresolved_requirement')->keyBy('resolution_key');
+            foreach ($steps as &$step) {
+                if ($step['type'] === 'unresolved_requirement' && isset($step['resolution_key'])
+                    && $currentChoices->has($step['resolution_key'])) {
+                    $step = $currentChoices[$step['resolution_key']];
+                } elseif ($step['type'] === 'unresolved_requirement' && isset($step['owner_key'])) {
+                    // It may already be covered or the CMS checklist may have
+                    // changed. Require an explicit review, never guess 'manual'.
+                    $step['manual_preparation'] = false;
+                    $step['resolution_ready'] = ! $current['blocked'];
+                    $step['suggestions'] = [];
+                }
+            }
+            unset($step);
+        }
+
+        return $steps;
+    }
+
+    private function resident(): \App\Models\User
+    {
+        return \App\Models\User::findOrFail($this->user_id);
     }
 }
