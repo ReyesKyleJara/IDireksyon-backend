@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ResidentJourney extends Model
@@ -78,7 +79,9 @@ class ResidentJourney extends Model
     {
         $completed = DB::table('resident_journey_completions')
             ->where('resident_journey_id', $this->id)->orderBy('step_identity')
-            ->pluck('step_identity')->all();
+            ->pluck('completed_at', 'step_identity');
+        $completedAt = $completed;
+        $completed = $completed->keys()->all();
         $plan = [...$this->plan, 'steps' => $this->roadmapSteps()];
         $choices = collect($plan['steps'])->filter(fn ($step) => $step['type'] === 'unresolved_requirement' && ! self::manualPreparation($step))->map(self::identity(...))->all();
         // Old manual completion must never complete a newly restored choice.
@@ -98,6 +101,10 @@ class ResidentJourney extends Model
             'completed_steps' => $count,
             'total_steps' => count($steps),
             'progress_percentage' => $percentage,
+            // Set only when every step is done: the moment the last one finished.
+            'completed_at' => $count > 0 && $count === count($steps)
+                ? Carbon::parse($completedAt->only($identities)->max())->toIso8601String()
+                : null,
         ];
     }
 
