@@ -28,6 +28,8 @@ Route::get('/health', function () {
 
 Route::get('/barangays', [BarangayController::class, 'index']);
 
+Route::get('/offices', [\App\Http\Controllers\Api\OfficeController::class, 'index']);
+
 Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class, 'index']);
 Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'show']);
 

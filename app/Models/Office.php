@@ -40,6 +40,12 @@ class Office extends Model
         return $this->hasMany(OfficeSchedule::class)->orderBy('day_of_week');
     }
 
+    public function documents(): BelongsToMany
+    {
+        return $this->belongsToMany(Document::class, 'document_office')
+            ->using(DocumentOffice::class);
+    }
+
     public function governmentIds(): BelongsToMany
     {
         return $this->belongsToMany(GovernmentId::class, 'government_id_office')
