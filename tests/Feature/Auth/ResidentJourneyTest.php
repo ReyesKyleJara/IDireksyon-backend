@@ -37,6 +37,24 @@ test('confirmation saves zero completion and a stable server plan without changi
     $this->assertDatabaseCount('resident_document_preparations', 0);
 });
 
+test('a journey reports when it finished only after its last step', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $journey = $this->postJson('/api/auth/journeys', threeStepJourney($user))->assertCreated()
+        ->assertJsonPath('data.completed_at', null)->json('data');
+    $path = '/api/auth/journeys/'.$journey['id'].'/completion';
+    $identities = array_map(ResidentJourney::identity(...), $journey['plan']['steps']);
+
+    $this->freezeSecond();
+    foreach (array_slice($identities, 0, 2) as $identity) {
+        $this->putJson($path, ['step_identity' => $identity])->assertOk()->assertJsonPath('data.completed_at', null);
+    }
+    $this->travel(2)->days();
+    $finished = now()->toIso8601String();
+    $this->putJson($path, ['step_identity' => $identities[2]])->assertOk()->assertJsonPath('data.completed_at', $finished);
+    $this->getJson('/api/auth/journeys')->assertOk()->assertJsonPath('data.0.completed_at', $finished);
+});
+
 test('major step completion is ordered idempotent and survives another login and device', function () {
     $user = User::factory()->create(['password' => 'Password123!']);
     $targets = threeStepJourney($user);

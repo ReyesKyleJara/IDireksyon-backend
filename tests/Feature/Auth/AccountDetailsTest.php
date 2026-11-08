@@ -45,6 +45,26 @@ test('account endpoints require an active resident session', function () {
     $this->postJson('/api/auth/password', [])->assertForbidden();
 });
 
+test('account edits can change the birthday, validate it, and keep it when omitted', function () {
+    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    $user = User::factory()->create(['date_of_birth' => '2000-01-01']);
+    $other = User::factory()->create(['date_of_birth' => '1990-05-05']);
+    $this->withToken($user->createToken('test')->plainTextToken);
+    $body = ['name' => $user->name, 'email' => $user->email];
+
+    $this->postJson('/api/auth/account', [...$body, 'date_of_birth' => '1999-12-25', 'user_id' => $other->id])
+        ->assertOk()->assertJsonPath('user.date_of_birth', '1999-12-25');
+    expect($user->fresh()->date_of_birth)->toStartWith('1999-12-25')
+        ->and($other->fresh()->date_of_birth)->toStartWith('1990-05-05');
+
+    foreach ([now()->toDateString(), now()->addDay()->toDateString(), 'not a date', null] as $invalid) {
+        $this->postJson('/api/auth/account', [...$body, 'date_of_birth' => $invalid])
+            ->assertUnprocessable()->assertJsonValidationErrors('date_of_birth');
+    }
+    $this->postJson('/api/auth/account', $body)->assertOk();
+    expect($user->fresh()->date_of_birth)->toStartWith('1999-12-25');
+});
+
 test('profile returns onboarding barangay and account edits validate and preserve it', function () {
     $first = \App\Models\Barangay::create(['name' => 'Poblacion']);
     $second = \App\Models\Barangay::create(['name' => 'San Vicente']);
