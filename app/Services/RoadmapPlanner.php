@@ -100,7 +100,7 @@ class RoadmapPlanner
                     'requirement_sets' => array_map(fn ($set) => [
                         ...$set,
                         'path_label' => $record->requirementSets->firstWhere('id', $set['id'])?->request_channel['label'] ?? null,
-                    ], ResidentRequirements::forId($record)),
+                    ], ResidentRequirements::generalForId($record)),
                     'prerequisites' => $status->evaluate(
                         CatalogPrerequisites::present($record),
                         $ownedIds,

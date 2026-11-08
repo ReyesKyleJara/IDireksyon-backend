@@ -58,7 +58,8 @@ class ResidentJourneyController extends Controller
                 return $existing;
             }
             $plan = $planner->build($user, $targets, $documents);
-            if ($plan['blocked'] ?? collect($plan['steps'])->contains('blocked', true)) {
+            if (($plan['blocked'] ?? collect($plan['steps'])->contains('blocked', true))
+                || collect($plan['steps'])->contains(fn ($step) => $step['type'] === 'unresolved_requirement' && ! ResidentJourney::manualPreparation($step))) {
                 throw ValidationException::withMessages(['journey' => 'Review the unresolved requirements before confirming this journey.']);
             }
 
@@ -82,14 +83,15 @@ class ResidentJourneyController extends Controller
 
         return DB::transaction(function () use ($user, $journey, $data) {
             $saved = ResidentJourney::where('user_id', $user->id)->lockForUpdate()->findOrFail($journey);
-            $step = collect($saved->plan['steps'])->first(fn ($step) => ResidentJourney::identity($step) === $data['step_identity']);
+            $steps = $saved->roadmapSteps();
+            $step = collect($steps)->first(fn ($step) => ResidentJourney::identity($step) === $data['step_identity']);
             if (! $step || ! ResidentJourney::actionable($step)) {
                 throw ValidationException::withMessages(['step_identity' => 'This is not an actionable step in this journey.']);
             }
             $query = DB::table('resident_journey_completions')->where('resident_journey_id', $saved->id);
             $completed = (clone $query)->pluck('step_identity')->all();
             if (! in_array($data['step_identity'], $completed, true)) {
-                $waiting = ResidentJourney::waitingOn($step, $saved->plan['steps'], $completed);
+                $waiting = ResidentJourney::waitingOn($step, $steps, $completed);
                 if ($waiting) {
                     throw ValidationException::withMessages(['step_identity' => 'Complete '.implode(', ', array_column($waiting, 'name')).' first.']);
                 }

@@ -44,7 +44,7 @@ class JourneyRequirements
             if ($options) {
                 $pending[] = [
                     'key' => $owner.':path', 'kind' => 'path', 'owner_key' => $owner,
-                    'name' => 'Choose a request path for '.$catalog[$owner]['name'], 'message' => 'Select the application and applicant path that applies to you.',
+                    'name' => 'Choose application requirements for '.$catalog[$owner]['name'], 'message' => 'Select the application and applicant checklist that applies to you.',
                     'suggestions' => $options,
                 ];
             } else {

@@ -17,7 +17,7 @@ class ProcessingTime
         if (preg_match('/\b(same[- ]day|on[- ]the[- ]spot)\b/i', $text)) {
             return 0;
         }
-        if (! preg_match('/(\d+)(?:\s*(?:-|–|—|to)\s*(\d+))?\s*(?:working\s+|business\s+)?(hour|day|week|month)/iu', $text, $match)) {
+        if (! preg_match('/(\d+)(?:\s*(?:-|–|—|to)\s*(\d+))?\s*(?:calendar\s+|working\s+|business\s+)?(hour|day|week|month)/iu', $text, $match)) {
             return null;
         }
 

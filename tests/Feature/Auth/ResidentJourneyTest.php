@@ -115,7 +115,7 @@ test('journey endpoints require an active resident session', function () {
     }
 });
 
-test('placeholders and informational entries remain visible but cannot count as completed acquisitions', function () {
+test('unresolved entries prevent full progress and informational entries are not acquisitions', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
     $journey = ResidentJourney::create([
@@ -129,8 +129,8 @@ test('placeholders and informational entries remain visible but cannot count as 
     $path = '/api/auth/journeys/'.$journey->id.'/completion';
     $this->putJson($path, ['step_identity' => 'pending:1'])->assertUnprocessable();
     $this->putJson($path, ['step_identity' => 'document:1'])->assertUnprocessable();
-    $this->getJson('/api/auth/journeys')->assertJsonCount(3, 'data.0.plan.steps')->assertJsonPath('data.0.total_steps', 1);
-    $this->putJson($path, ['step_identity' => 'government_id:2'])->assertOk()->assertJsonPath('data.progress_percentage', 100);
+    $this->getJson('/api/auth/journeys')->assertJsonCount(3, 'data.0.plan.steps')->assertJsonPath('data.0.total_steps', 2);
+    $this->putJson($path, ['step_identity' => 'government_id:2'])->assertOk()->assertJsonPath('data.progress_percentage', 50);
 });
 
 test('blocked plans cannot be persisted as confirmed journeys', function () {
@@ -202,4 +202,82 @@ test('a roadmap of only owned targets is not saved', function () {
     $this->actingAs($user)->postJson('/api/auth/journeys', ['target_government_id_ids' => [$owned->id]])
         ->assertUnprocessable()->assertJsonPath('errors.journey.0', 'You already have everything in this roadmap.');
     $this->assertDatabaseCount('resident_journeys', 0);
+});
+
+function journeyWithAcceptedOptions(bool $guided): GovernmentId
+{
+    $target = GovernmentId::create(['name' => 'Review target']);
+    $set = $target->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
+    $group = $set->groups()->create(['title' => 'Accepted proof', 'rule' => 'all']);
+    $way = $group->ways()->create(['required_count' => 1, 'qualification_type' => 'none']);
+    foreach (['Evidence A', 'Evidence B'] as $name) {
+        $option = GovernmentId::create(['name' => $name, 'guidance_mode' => $guided ? 'guided' : 'informational_only']);
+        $item = $group->items()->make(['type' => 'government_id', 'government_id_id' => $option->id]);
+        $item->requirement_way_id = $way->id;
+        $item->save();
+    }
+
+    return $target;
+}
+
+test('zero-option requirements require manual completion without blocking unrelated targets', function () {
+    $user = User::factory()->create();
+    $target = journeyWithAcceptedOptions(false);
+    $independent = Document::create(['name' => 'Independent document']);
+    $this->actingAs($user);
+    $saved = $this->postJson('/api/auth/journeys', [
+        'target_government_id_ids' => [$target->id], 'target_document_ids' => [$independent->id],
+    ])->assertCreated()->assertJsonPath('data.total_steps', 3)->json('data');
+    $manual = collect($saved['plan']['steps'])->firstWhere('type', 'unresolved_requirement');
+    expect($manual['suggestions'])->toBe([]);
+    $path = '/api/auth/journeys/'.$saved['id'].'/completion';
+    $this->putJson($path, ['step_identity' => 'government_id:'.$target->id])->assertUnprocessable();
+    $this->putJson($path, ['step_identity' => 'document:'.$independent->id])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 33);
+    $this->putJson($path, ['step_identity' => 'government_id:'.$target->id])->assertUnprocessable();
+    $this->putJson($path, ['step_identity' => $manual['resolution_key']])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 67);
+    $this->getJson('/api/auth/journeys')->assertOk()->assertJsonPath('data.0.progress_percentage', 67);
+    $this->putJson($path, ['step_identity' => 'government_id:'.$target->id])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 100);
+    $this->putJson($path, ['step_identity' => $manual['resolution_key']])
+        ->assertOk()->assertJsonPath('data.completed_steps', 3);
+    $this->assertDatabaseCount('resident_journey_completions', 3);
+    $this->assertDatabaseCount('resident_government_ids', 0);
+    $this->assertDatabaseCount('resident_documents', 0);
+});
+
+test('guided choices cannot be bypassed by confirming directly through the API', function () {
+    $target = journeyWithAcceptedOptions(true);
+    $this->actingAs(User::factory()->create())->postJson('/api/auth/journeys', [
+        'target_government_id_ids' => [$target->id],
+    ])->assertUnprocessable()->assertJsonValidationErrors('journey');
+    $this->assertDatabaseCount('resident_journeys', 0);
+});
+
+test('old snapshots with completed targets still require their unfinished manual preparation', function () {
+    $user = User::factory()->create();
+    $target = journeyWithAcceptedOptions(false);
+    $plan = app(\App\Services\RoadmapPlanner::class)->build($user, [$target->id]);
+    $manual = collect($plan['steps'])->firstWhere('type', 'unresolved_requirement');
+    $saved = ResidentJourney::create(['user_id' => $user->id, 'journey_key' => str_repeat('b', 64), 'plan' => $plan]);
+    DB::table('resident_journey_completions')->insert([
+        'resident_journey_id' => $saved->id, 'step_identity' => 'government_id:'.$target->id, 'completed_at' => now(),
+    ]);
+    $this->actingAs($user)->getJson('/api/auth/journeys')->assertOk()
+        ->assertJsonPath('data.0.total_steps', 2)->assertJsonPath('data.0.progress_percentage', 50);
+    $this->putJson('/api/auth/journeys/'.$saved->id.'/completion', ['step_identity' => $manual['resolution_key']])
+        ->assertOk()->assertJsonPath('data.progress_percentage', 100);
+});
+
+test('large journeys never round up to 100 with an unfinished requirement', function () {
+    $user = User::factory()->create();
+    $steps = array_map(fn ($id) => ['type' => 'government_id', 'id' => $id, 'name' => 'Target '.$id], range(1, 199));
+    $steps[] = ['type' => 'unresolved_requirement', 'id' => 1, 'resolution_key' => 'pending:large', 'name' => 'Proof', 'kind' => 'requirement', 'suggestions' => []];
+    $saved = ResidentJourney::create(['user_id' => $user->id, 'journey_key' => str_repeat('c', 64), 'plan' => ['steps' => $steps]]);
+    DB::table('resident_journey_completions')->insert(array_map(fn ($id) => [
+        'resident_journey_id' => $saved->id, 'step_identity' => 'government_id:'.$id, 'completed_at' => now(),
+    ], range(1, 199)));
+    $this->actingAs($user)->getJson('/api/auth/journeys')->assertOk()
+        ->assertJsonPath('data.0.completed_steps', 199)->assertJsonPath('data.0.progress_percentage', 99);
 });

@@ -194,17 +194,16 @@ it('does not infer any Passport dependency without structured links', function (
     expect(array_column($plan['steps'], 'name'))->toBe(['Philippine Passport']);
 });
 
-it('uses saved channel labels to distinguish request paths with identical application labels', function () {
+it('keeps saved request methods informational without requiring a roadmap path', function () {
     $resident = User::factory()->create();
     $target = Document::create(['name' => 'Target document']);
     journeySet($target, ['request_channel' => ['label' => 'Online channel']]);
     journeySet($target, ['request_channel' => ['label' => 'Outlet channel']]);
-    $pending = journeyPending(app(RoadmapPlanner::class)->build($resident, [], [$target->id]))[0];
-    expect($pending['name'])->toBe('Choose a request path for Target document')
-        ->and(array_column($pending['suggestions'], 'name'))->toBe([
-            'All Applicants • First-Time Application — Online channel',
-            'All Applicants • First-Time Application — Outlet channel',
-        ]);
+    $plan = app(RoadmapPlanner::class)->build($resident, [], [$target->id]);
+    expect(journeyPending($plan))->toBe([])->and(array_column($plan['steps'], 'name'))->toBe(['Target document']);
+    $this->getJson('/api/documents/'.$target->id)->assertOk()
+        ->assertJsonPath('data.request_paths.0.label', 'Online channel')
+        ->assertJsonPath('data.request_paths.1.label', 'Outlet channel');
 });
 
 it('does not retain extra acquisitions when the CMS reduces the current Choose N count', function () {
@@ -375,6 +374,20 @@ it('keeps a slow dependency before the fast target that truly needs it', functio
 
     $plan = app(RoadmapPlanner::class)->build($resident, [$dependent->id]);
     expect(array_column($plan['steps'], 'name'))->toBe(['Dependency', 'Dependent']);
+});
+
+it('orders calendar-day targets correctly while dependencies override processing time', function () {
+    $resident = User::factory()->create();
+    $fast = GovernmentId::create(['name' => 'Z Fast', 'processing_time' => '1 calendar day']);
+    $medium = GovernmentId::create(['name' => 'Y Medium', 'processing_time' => '1–3 calendar days']);
+    $slow = GovernmentId::create(['name' => 'A Slow', 'processing_time' => '10 working days']);
+    $planner = app(RoadmapPlanner::class);
+    expect(array_column($planner->build($resident, [$slow->id, $medium->id, $fast->id])['steps'], 'name'))
+        ->toBe(['Z Fast', 'Y Medium', 'A Slow']);
+
+    app(CatalogPrerequisites::class)->save($fast, [['type' => 'government_id', 'government_id_id' => $slow->id]]);
+    expect(array_column($planner->build($resident, [$fast->id, $medium->id, $slow->id])['steps'], 'name'))
+        ->toBe(['Y Medium', 'A Slow', 'Z Fast']);
 });
 
 it('ranks alternatives by requirements first and processing time only as a tie-break', function () {
