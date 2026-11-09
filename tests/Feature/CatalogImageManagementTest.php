@@ -202,7 +202,7 @@ it('manages the image inside Basic Information for saved IDs and documents', fun
     $record = $model::create(['name' => 'Passport']);
 
     $this->get('/admin/'.$resource.'/'.$record->id.'/edit')->assertOk()
-        ->assertSee('catalogImage(', false)->assertSee('Confirm crop')->assertSee('No image yet')
+        ->assertSee('catalogImage(', false)->assertSee('x-ref="dialog"', false)->assertSee('Confirm crop')->assertSee('No image yet')
         ->assertSee('Use a square catalog illustration or icon. Transparent PNG artwork works best.');
 })->with([['government-ids', GovernmentId::class], ['documents', Document::class]]);
 

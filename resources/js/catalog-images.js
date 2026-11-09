@@ -113,6 +113,28 @@ export default ({ item = {} } = {}) => {
         zoom: 1,
         maxZoom: MAX_ZOOM,
 
+        showDialog() {
+            if (!this.$refs.dialog.open) this.$refs.dialog.showModal();
+        },
+
+        closeDialog() {
+            if (this.$refs.dialog.open) this.$refs.dialog.close();
+            this.step = 'manage';
+        },
+
+        askRemove() {
+            this.error = '';
+            this.step = 'remove';
+            this.showDialog();
+        },
+
+        /** Escape and Cancel: never interrupts a save that is already running. */
+        dismiss() {
+            if (this.busy) return;
+            if (this.step === 'crop') this.cancelCrop();
+            else this.closeDialog();
+        },
+
         pickFile() {
             this.error = '';
             this.$refs.file.value = '';
@@ -168,6 +190,8 @@ export default ({ item = {} } = {}) => {
             sourceUrl = URL.createObjectURL(blob);
             this.step = 'crop';
             this.zoom = 1;
+            // The cropper measures its box, so the modal must be open first.
+            this.showDialog();
             await this.$nextTick();
             const [{ default: Cropper }] = await Promise.all([
                 import('cropperjs'),
@@ -232,14 +256,14 @@ export default ({ item = {} } = {}) => {
             if (this.busy) return;
             this.stopCropping();
             this.error = '';
-            this.step = 'manage';
+            this.closeDialog();
         },
 
         applyChange(data) {
             Object.assign(this.item, data.item, { broken: false });
             this.$dispatch('notify', { type: 'success', message: data.message });
             this.stopCropping();
-            this.step = 'manage';
+            this.closeDialog();
         },
 
         async saveCrop() {
@@ -273,7 +297,7 @@ export default ({ item = {} } = {}) => {
                 this.applyChange(data);
             } catch (error) {
                 this.error = uploadError(error);
-                this.step = 'manage';
+                this.closeDialog();
             } finally {
                 this.busy = false;
             }

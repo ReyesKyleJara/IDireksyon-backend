@@ -11,8 +11,10 @@
 
 <div id="c" x-data="catalogImage({ item })">
     <input x-ref="file" type="file">
-    <div style="width: 500px; height: 400px"><img x-ref="cropImage" alt="" style="display: block; max-width: 100%"></div>
-    <div data-crop-preview style="width: 100px; height: 100px; overflow: hidden"></div>
+    <dialog x-ref="dialog" style="width: 700px">
+        <div style="width: 500px; height: 400px"><img x-ref="cropImage" alt="" style="display: block; max-width: 100%"></div>
+        <div data-crop-preview style="width: 100px; height: 100px; overflow: hidden"></div>
+    </dialog>
 </div>
 
 <!-- Holds the page's load event open until the checks finish. -->
@@ -118,7 +120,9 @@ try {
 
     await pick(transparent, 'art.png', 'image/png');
     check('nothing is saved before the crop is confirmed', captured === null && component().step === 'crop');
+    check('cropping opens in a modal', component().$refs.dialog.open);
     const form = await confirm();
+    check('confirming closes the modal', !component().$refs.dialog.open && component().step === 'manage');
     const image = form.get('image');
     const original = form.get('original');
     const output = await pixels(image);
@@ -174,6 +178,12 @@ try {
     await pick(await blobOf(art(700, 700, '#ffffff'), 'image/jpeg'), 'photo.jpg', 'image/jpeg');
     component().cancelCrop();
     check('cancel leaves the crop without saving', captured === null && component().step === 'manage');
+    check('cancel closes the modal', !component().$refs.dialog.open);
+
+    component().askRemove();
+    check('remove asks in a modal', component().$refs.dialog.open && component().step === 'remove');
+    component().dismiss();
+    check('keeping the image closes the modal', !component().$refs.dialog.open && component().step === 'manage');
 
     component().error = '';
     await component().fileChosen({ target: { files: [new File(['x'], 'notes.txt', { type: 'text/plain' })] } });
