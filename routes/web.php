@@ -13,9 +13,10 @@ use App\Http\Controllers\Admin\OfficeController;
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', fn () => redirect()->route('login'));
+Route::view('/', 'landing')->name('home');
 
 Route::view('/privacy', 'legal.privacy')->name('privacy');
+Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/account-deletion', 'legal.account-deletion')->name('account-deletion');
 
 Route::get('/dashboard', fn () => redirect()->route(auth()->user()->cmsHomeRoute()))

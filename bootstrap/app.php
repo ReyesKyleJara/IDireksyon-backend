@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 Request::HEADER_X_FORWARDED_PORT |
                 Request::HEADER_X_FORWARDED_PROTO,
         );
+
+        // First in the group so login redirects carry the header too.
+        $middleware->web(prepend: \App\Http\Middleware\NoIndexPrivatePages::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
