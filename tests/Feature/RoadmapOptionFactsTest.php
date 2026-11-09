@@ -129,7 +129,7 @@ it('respects hidden guide and fee sections without changing their stored content
     $owner->update(['application_process' => 'Visit the issuing office.', 'research_metadata' => ['hidden_sections' => ['fees', 'guide']]]);
     $owner->fees()->create(['label' => 'Issuance', 'type' => 'free']);
     $set = optionFactsSet($owner, ['request_channel' => ['application_guide_text' => 'Complete the application.']]);
-    expect(RoadmapOptionFacts::forRecord($owner))->toBe(['cost' => null, 'guide_set_ids' => [], 'has_legacy_guide' => false]);
+    expect(RoadmapOptionFacts::forRecord($owner))->toBe(['cost' => null, 'guide_set_ids' => [], 'has_legacy_guide' => false, 'researched' => false]);
     expect($owner->fresh()->application_process)->toBe('Visit the issuing office.')
         ->and($set->fresh()->request_channel['application_guide_text'])->toBe('Complete the application.')
         ->and($owner->fees()->count())->toBe(1);

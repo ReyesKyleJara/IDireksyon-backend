@@ -140,7 +140,7 @@ it('does not describe a further unresolved ID choice as requiring no additional 
     $resident = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Target']);
     $paradox = GovernmentId::create(['name' => 'Fast unresolved identity route', 'processing_time' => 'Same day']);
-    $starter = Document::create(['name' => 'Direct supporting document', 'processing_time' => '10 days']);
+    $starter = Document::create(['name' => 'Direct supporting document', 'processing_time' => '10 days', 'application_process' => 'Documented steps']);
     $first = GovernmentId::create(['name' => 'First additional ID']);
     $second = GovernmentId::create(['name' => 'Second additional ID']);
     suggestionGroup(suggestionSet($target), [['items' => [$paradox, $starter]]]);
@@ -183,8 +183,8 @@ it('does not invent processing-time or cost comparisons when the CMS facts are u
 it('uses shorter known processing time before lower known cost when practical requirements tie', function () {
     $resident = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Target']);
-    $slow = Document::create(['name' => 'Cheap slow option', 'processing_time' => '10 days']);
-    $fast = Document::create(['name' => 'Costly fast option', 'processing_time' => '2 days']);
+    $slow = Document::create(['name' => 'Cheap slow option', 'processing_time' => '10 days', 'application_process' => 'Documented steps']);
+    $fast = Document::create(['name' => 'Costly fast option', 'processing_time' => '2 days', 'application_process' => 'Documented steps']);
     suggestionFee($slow, 10);
     suggestionFee($fast, 100);
     suggestionGroup(suggestionSet($target), [['items' => [$slow, $fast]]]);
@@ -196,9 +196,9 @@ it('uses shorter known processing time before lower known cost when practical re
 it('uses lower known same-currency cost as a tie-break without treating an unknown cost as free', function () {
     $resident = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Target']);
-    $expensive = Document::create(['name' => 'A expensive option', 'processing_time' => '3 days']);
-    $cheap = Document::create(['name' => 'Z cheaper option', 'processing_time' => '3 days']);
-    $unknown = Document::create(['name' => 'B unknown fee option', 'processing_time' => '3 days']);
+    $expensive = Document::create(['name' => 'A expensive option', 'processing_time' => '3 days', 'application_process' => 'Documented steps']);
+    $cheap = Document::create(['name' => 'Z cheaper option', 'processing_time' => '3 days', 'application_process' => 'Documented steps']);
+    $unknown = Document::create(['name' => 'B unknown fee option', 'processing_time' => '3 days', 'application_process' => 'Documented steps']);
     suggestionFee($expensive, 100);
     suggestionFee($cheap, 50);
     suggestionGroup(suggestionSet($target), [['items' => [$expensive, $unknown, $cheap]]]);
@@ -233,7 +233,7 @@ it('retains a valid fourth option and choosing it replaces the generic unresolve
     $target = GovernmentId::create(['name' => 'Target']);
     $accepted = [];
     foreach (range(1, 4) as $days) {
-        $accepted[] = Document::create(['name' => 'Accepted option '.$days, 'processing_time' => $days.' days']);
+        $accepted[] = Document::create(['name' => 'Accepted option '.$days, 'processing_time' => $days.' days', 'application_process' => 'Documented steps']);
     }
     suggestionGroup(suggestionSet($target), [['items' => $accepted]]);
     $before = suggestionSnapshot();
@@ -353,10 +353,10 @@ it('does not advertise a partial accepted combination as needing no additional I
 it('shortlists distinct acquisitions while retaining alternative combinations for the same record', function () {
     $resident = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Target']);
-    $a = Document::create(['name' => 'A']);
-    $b = Document::create(['name' => 'B']);
-    $c = Document::create(['name' => 'C']);
-    $d = Document::create(['name' => 'D']);
+    $a = Document::create(['name' => 'A', 'application_process' => 'Documented steps']);
+    $b = Document::create(['name' => 'B', 'application_process' => 'Documented steps']);
+    $c = Document::create(['name' => 'C', 'application_process' => 'Documented steps']);
+    $d = Document::create(['name' => 'D', 'application_process' => 'Documented steps']);
     suggestionGroup(suggestionSet($target), [
         ['items' => [$a, $b, $c, $d]], ['items' => [$a, $b]],
     ]);

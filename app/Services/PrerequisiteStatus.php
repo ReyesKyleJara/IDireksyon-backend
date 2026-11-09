@@ -37,11 +37,15 @@ class PrerequisiteStatus
     {
         $automatic = array_filter($rows, fn ($row) => $row['status'] !== 'manual');
         $satisfied = count(array_filter($automatic, fn ($row) => $row['status'] === 'satisfied'));
+        $manual = count($rows) - count($automatic);
+        $percentage = $automatic ? (int) round(100 * $satisfied / count($automatic)) : null;
+
         return [
             'satisfied' => $satisfied,
             'total' => count($automatic),
-            'percentage' => $automatic ? (int) round(100 * $satisfied / count($automatic)) : null,
-            'manual' => count($rows) - count($automatic),
+            // Requirements the app cannot check mean it can never claim complete readiness.
+            'percentage' => $percentage === 100 && $manual > 0 ? 99 : $percentage,
+            'manual' => $manual,
         ];
     }
 }

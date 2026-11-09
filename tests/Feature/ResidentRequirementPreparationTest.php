@@ -39,9 +39,7 @@ it('autosaves preparation independently of inventory, other applications and res
     $foreign = preparationItem($another);
     $url = "/api/auth/requirement-preparation/$type/$target->id";
     $token = $user->createToken('test')->plainTextToken;
-    $this->withToken($token)->getJson($url)->assertOk()
-        ->assertJsonPath('data.items.0.item_id', $linked->id)
-        ->assertJsonPath('data.items.0.prepared', true);
+    $this->withToken($token)->getJson($url)->assertOk()->assertJsonPath('data.items', []);
     expect(DB::table($table)->count())->toBe(0);
     foreach ([true, false, true] as $prepared) {
         $this->putJson($url, ['item_id' => $item->id, 'prepared' => $prepared])
@@ -113,7 +111,7 @@ it('rolls back only preparation tables and can recreate them without changing in
         ->and(DB::table('resident_id_preparations')->count())->toBe(0);
 });
 
-it('prechecks owned documents but preserves an explicit unchecked choice after reload', function () {
+it('leaves owned documents unchecked until the resident confirms and preserves explicit choices', function () {
     $user = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Application']);
     $document = Document::create(['name' => 'Birth certificate']);
@@ -121,7 +119,9 @@ it('prechecks owned documents but preserves an explicit unchecked choice after r
     $item = preparationItem($target, ['type' => 'document', 'document_id' => $document->id]);
     $url = "/api/auth/requirement-preparation/government_id/$target->id";
     $this->withToken($user->createToken('test')->plainTextToken)->getJson($url)
-        ->assertOk()->assertJsonPath('data.items.0.prepared', true);
+        ->assertOk()->assertJsonPath('data.items', []);
+    $this->putJson($url, ['item_id' => $item->id, 'prepared' => true])->assertOk();
+    $this->getJson($url)->assertOk()->assertJsonPath('data.items.0.prepared', true);
     $this->putJson($url, ['item_id' => $item->id, 'prepared' => false])->assertOk();
     $this->getJson($url)->assertOk()->assertJsonPath('data.items.0.prepared', false);
     expect($user->ownedDocuments()->pluck('documents.id')->all())->toBe([$document->id]);

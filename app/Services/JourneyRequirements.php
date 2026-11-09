@@ -5,6 +5,20 @@ namespace App\Services;
 /** Read-only interpretation of the existing resident Requirements projection. */
 class JourneyRequirements
 {
+    /** Conditions a resident can confirm about an accepted item. Custom wording stays manual. */
+    public const CONFIRMABLE_QUALIFICATIONS = ['unexpired', 'current_address', 'photo', 'signature', 'photo_signature'];
+
+    public static function confirmable(array $way): bool
+    {
+        return in_array($way['qualification_type'], self::CONFIRMABLE_QUALIFICATIONS, true);
+    }
+
+    /** Ways that can guide a choice. Ownership alone only satisfies an unqualified way. */
+    public static function usable(array $way): bool
+    {
+        return $way['required_count'] >= 1 && ($way['qualification_type'] === 'none' || self::confirmable($way));
+    }
+
     public static function itemKey(array $item): ?string
     {
         $type = $item['type'];
@@ -65,7 +79,7 @@ class JourneyRequirements
                 continue;
             }
             if ($applies === null) {
-                $rows[] = $this->manual($label, 'Review applicability: '.($group['condition_label'] ?: 'Condition cannot be verified from the available data.'));
+                $rows[] = $this->manual($label, 'Review applicability: '.($group['condition_label'] ?: 'Condition cannot be verified from the available data.'), 'conditional');
 
                 continue;
             }
@@ -80,9 +94,16 @@ class JourneyRequirements
                 $way['items_by_key'] = $items;
                 $way['owned'] = array_keys(array_intersect_key($items, $owned));
                 $way['verifiable'] = $way['qualification_type'] === 'none';
+                $way['confirmable'] = self::confirmable($way);
 
                 return $way;
             }, $group['ways']);
+            $confirmOwned = function (array $way) use (&$rows, &$pending, $key, $owner, $set, $group, $label) {
+                if ($way['confirmable'] && $way['owned']) {
+                    $rows[] = $this->manual($label, null, 'confirmation');
+                    $pending[] = $this->confirmation($key, $owner, $set['id'], $group['id'], $label, $way);
+                }
+            };
 
             // OR ways are alternatives: never pool Inventory matches across ways.
             $satisfied = collect($ways)->first(fn ($way) => $way['verifiable'] && $way['required_count'] > 0 && count($way['owned']) >= $way['required_count']);
@@ -92,21 +113,30 @@ class JourneyRequirements
                 continue;
             }
 
+            // Ownership is self-reported: only the resident can confirm a qualified item.
+            $confirmWay = collect($ways)->first(fn ($way) => $way['confirmable'] && $way['required_count'] > 0 && count($way['owned']) >= $way['required_count']);
+            if ($confirmWay) {
+                $confirmOwned($confirmWay);
+
+                continue;
+            }
+
             // One way requiring every item is mandatory, even when some items are manual.
-            if (count($ways) === 1 && $ways[0]['verifiable'] && $ways[0]['required_count'] === count($ways[0]['items_by_key'])) {
+            if (count($ways) === 1 && self::usable($ways[0]) && $ways[0]['required_count'] === count($ways[0]['items_by_key'])) {
                 foreach ($ways[0]['items_by_key'] as $itemKey => $item) {
                     if (self::itemKey($item) === null) {
-                        $rows[] = $this->manual($item['name'], $item['instructions'] ?? null);
+                        $rows[] = $this->manual($item['name'], $item['instructions'] ?? null, 'task');
                     } else {
                         $rows[] = $this->linked($itemKey, $item['name'], $owned, $catalog);
                     }
                 }
+                $confirmOwned($ways[0]);
 
                 continue;
             }
 
             $saved = $selections['groups'][$key] ?? [];
-            $savedWay = collect($ways)->first(fn ($way) => $way['id'] === ($saved['way_id'] ?? null) && $way['verifiable']);
+            $savedWay = collect($ways)->first(fn ($way) => $way['id'] === ($saved['way_id'] ?? null) && self::usable($way));
             $planned = [];
             if ($savedWay) {
                 foreach ($saved['items'] ?? [] as $itemKey) {
@@ -128,6 +158,7 @@ class JourneyRequirements
                 foreach (array_keys($planned) as $itemKey) {
                     $rows[] = $this->linked($itemKey, $catalog[$itemKey]['name'], $owned, $catalog);
                 }
+                $confirmOwned($savedWay);
                 continue;
             }
             $activeWays = $ways;
@@ -135,7 +166,7 @@ class JourneyRequirements
             $remaining = null;
             $hasLinked = false;
             foreach ($activeWays as $way) {
-                if (! $way['verifiable'] || $way['required_count'] < 1) {
+                if (! self::usable($way)) {
                     continue;
                 }
                 $wayPlanned = $savedWay && $way['id'] === $savedWay['id'] ? $planned : [];
@@ -164,7 +195,8 @@ class JourneyRequirements
                 continue;
             }
             if (! $hasLinked) {
-                $rows[] = $this->manual($label, 'Prepare this requirement manually. Extra qualifications and custom items cannot be verified from Inventory.');
+                $usable = collect($ways)->contains(fn ($way) => self::usable($way));
+                $rows[] = $this->manual($label, 'Prepare this requirement manually. Extra qualifications and custom items cannot be verified from Inventory.', $usable ? 'task' : 'review');
 
                 continue;
             }
@@ -172,7 +204,8 @@ class JourneyRequirements
             $pending[] = [
                 'key' => $key, 'kind' => 'requirement', 'owner_key' => $owner, 'set_id' => $set['id'], 'group_id' => $group['id'],
                 'name' => $label, 'remaining_count' => $remaining,
-                'message' => $remaining === 1 ? 'You still need at least one accepted option.' : 'You still need at least '.$remaining.' accepted options.',
+                'message' => trim(($remaining === 1 ? 'You still need at least one accepted option.' : 'You still need at least '.$remaining.' accepted options.')
+                    .' '.(collect($ways)->first(fn ($way) => $way['confirmable'])['qualification_label'] ?? '')),
                 'suggestions' => $suggestions,
             ];
         }
@@ -202,13 +235,29 @@ class JourneyRequirements
         if (($catalog[$key]['guidance_mode'] ?? null) === 'informational_only') {
             $row['resolution'] = 'reference_only';
             $row['message'] = 'Obtain this through the issuing institution; review its information.';
+        } elseif ($row['status'] === 'missing' && ($catalog[$key]['include_in_smart_sequencing'] ?? true) === false) {
+            // Excluded from sequencing, so it is something to prepare rather than an acquisition step.
+            return $this->manual($name, null, 'task');
         }
 
         return $row;
     }
 
-    private function manual(string $name, ?string $condition): array
+    private function manual(string $name, ?string $condition, string $kind = 'review'): array
     {
-        return ['type' => 'custom', 'id' => null, 'name' => $name, 'status' => 'manual', 'condition' => $condition];
+        return ['type' => 'custom', 'id' => null, 'name' => $name, 'status' => 'manual', 'condition' => $condition, 'manual_kind' => $kind];
+    }
+
+    private function confirmation(string $key, string $owner, int $setId, int $groupId, string $label, array $way): array
+    {
+        $names = array_map(fn ($identity) => $way['items_by_key'][$identity]['name'], $way['owned']);
+
+        return [
+            'key' => $key, 'kind' => 'requirement', 'owner_key' => $owner, 'set_id' => $setId, 'group_id' => $groupId,
+            'name' => $label, 'remaining_count' => 1,
+            'message' => 'You listed '.implode(', ', $names).' in your Inventory. Confirm it meets this requirement and is still valid and accepted for this application.',
+            'suggestions' => [],
+            'confirmation' => ['qualification' => $way['qualification_label'] ?? null, 'owned_names' => array_values($names)],
+        ];
     }
 }

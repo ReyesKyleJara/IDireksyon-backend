@@ -26,6 +26,24 @@ class Office extends Model
         ];
     }
 
+    /**
+     * Whether residents get a map pin and directions for this office.
+     * The Flutter app applies the same rule in OfficeModel.
+     */
+    public function hasUsableLocation(): bool
+    {
+        if (! is_numeric($this->latitude) || ! is_numeric($this->longitude)) {
+            return false;
+        }
+
+        $latitude = (float) $this->latitude;
+        $longitude = (float) $this->longitude;
+
+        // 0, 0 is what an unset value looks like, and no office is there.
+        return abs($latitude) <= 90 && abs($longitude) <= 180
+            && ($latitude != 0.0 || $longitude != 0.0);
+    }
+
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);

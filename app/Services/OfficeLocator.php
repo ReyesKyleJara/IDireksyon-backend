@@ -15,22 +15,9 @@ class OfficeLocator
 {
     private const ENDPOINT = 'https://places.googleapis.com/v1/places:searchText';
 
-    private const ADDRESS_FIELDS = ['name', 'address', 'municipality', 'province'];
-
     public function isConfigured(): bool
     {
         return filled(config('services.google_maps.server_key'));
-    }
-
-    /** A plain save only searches when an office was never tried or the last try errored. */
-    public function shouldLocate(Office $office): bool
-    {
-        if (! $this->isConfigured() || $office->location_source === 'manual') {
-            return false;
-        }
-
-        return in_array($office->location_status, [null, 'failed'], true)
-            || $office->wasChanged(self::ADDRESS_FIELDS);
     }
 
     public function searchText(Office $office): string

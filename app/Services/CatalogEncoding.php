@@ -99,7 +99,11 @@ class CatalogEncoding
 
     public static function office($office): array
     {
-        return [...$office->only(['id', 'name', 'address', 'municipality', 'province', 'source_url', 'latitude', 'longitude']),
+        $usable = $office->hasUsableLocation();
+
+        return [...$office->only(['id', 'name', 'address', 'municipality', 'province', 'source_url']),
+            'latitude' => $usable ? $office->latitude : null,
+            'longitude' => $usable ? $office->longitude : null,
             'service_notes' => $office->pivot?->service_notes,
             'services' => $office->pivot?->only(['new_application_status', 'renewal_status', 'replacement_status']),
             'schedules' => $office->schedules->map(fn ($schedule) => [...$schedule->only(['day_of_week', 'status']),

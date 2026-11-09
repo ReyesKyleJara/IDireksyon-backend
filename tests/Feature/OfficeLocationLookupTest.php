@@ -23,14 +23,27 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'researcher']));
 });
 
-it('finds a new office from its name and address and stores only the location', function () {
-    Http::fake(['places.googleapis.com/*' => Http::response(officeLookupFound())]);
+it('never calls Google when the CMS creates or edits an office', function () {
+    Http::fake();
 
     $this->post('/admin/offices', [
         'name' => 'Marilao Post Office', 'address' => '162 Sandico St.', 'municipality' => 'Marilao', 'province' => 'Bulacan',
     ])->assertSessionHasNoErrors();
-
     $office = Office::firstOrFail();
+    $this->put('/admin/offices/'.$office->id, ['name' => 'Marilao Post Office', 'address' => 'Moved'])->assertSessionHasNoErrors();
+
+    Http::assertNothingSent();
+    expect($office->fresh()->latitude)->toBeNull()
+        ->and($office->fresh()->location_status)->toBeNull();
+});
+
+it('finds an office from its name and address only when the command is run', function () {
+    Http::fake(['places.googleapis.com/*' => Http::response(officeLookupFound())]);
+    $office = Office::create(['name' => 'Marilao Post Office', 'address' => '162 Sandico St.', 'municipality' => 'Marilao', 'province' => 'Bulacan']);
+
+    $this->artisan('offices:locate', ['--id' => [$office->id]])->assertSuccessful();
+
+    $office->refresh();
     expect((float) $office->latitude)->toBe(14.7574)
         ->and((float) $office->longitude)->toBe(120.9483)
         ->and($office->google_place_id)->toBe('place-1')
@@ -80,9 +93,9 @@ it('requires latitude and longitude together', function () {
 });
 
 it('keeps an automatic location when the form is saved with blank override boxes', function () {
-    Http::fake(['places.googleapis.com/*' => Http::response(officeLookupFound())]);
-    $this->post('/admin/offices', ['name' => 'Found', 'address' => 'Here'])->assertSessionHasNoErrors();
-    $office = Office::firstOrFail();
+    Http::fake();
+    $office = Office::create(['name' => 'Found', 'address' => 'Here']);
+    $office->forceFill(['latitude' => 14.7574, 'longitude' => 120.9483, 'location_source' => 'auto', 'location_status' => 'found'])->saveQuietly();
 
     $this->put('/admin/offices/'.$office->id, [
         'name' => 'Found', 'address' => 'Here', 'notes' => 'Only notes changed', 'latitude' => '', 'longitude' => '',
@@ -90,56 +103,28 @@ it('keeps an automatic location when the form is saved with blank override boxes
 
     expect($office->fresh()->location_source)->toBe('auto')
         ->and((float) $office->fresh()->latitude)->toBe(14.7574);
-    Http::assertSentCount(1);
+    Http::assertNothingSent();
 });
 
-it('searches again when the address changes and clears a location it can no longer find', function () {
-    Http::fake(['places.googleapis.com/*' => Http::sequence()
-        ->push(officeLookupFound())
-        ->push(['places' => []])]);
-    $this->post('/admin/offices', ['name' => 'Moved', 'address' => 'Old street'])->assertSessionHasNoErrors();
-    $office = Office::firstOrFail();
-
-    $this->put('/admin/offices/'.$office->id, ['name' => 'Moved', 'address' => 'New street', 'latitude' => '', 'longitude' => ''])
-        ->assertSessionHasNoErrors();
-
-    $fresh = $office->fresh();
-    expect($fresh->location_status)->toBe('not_found')
-        ->and($fresh->location_source)->toBeNull()
-        ->and($fresh->latitude)->toBeNull()
-        ->and($fresh->google_place_id)->toBeNull();
-    Http::assertSentCount(2);
-});
-
-it('does not search again for a not found office unless its address changes', function () {
-    Http::fake(['places.googleapis.com/*' => Http::response(['places' => []])]);
-    $this->post('/admin/offices', ['name' => 'Unknown'])->assertSessionHasNoErrors();
-    $office = Office::firstOrFail();
-
-    $this->put('/admin/offices/'.$office->id, ['name' => 'Unknown', 'notes' => 'Still unknown'])->assertSessionHasNoErrors();
-    Http::assertSentCount(1);
-
-    $this->put('/admin/offices/'.$office->id, ['name' => 'Unknown', 'address' => 'Now known'])->assertSessionHasNoErrors();
-    Http::assertSentCount(2);
-});
-
-it('returns to automatic lookup when manual coordinates are cleared', function () {
-    Http::fake(['places.googleapis.com/*' => Http::response(officeLookupFound())]);
+it('removes manual coordinates when they are cleared, without searching', function () {
+    Http::fake();
     $this->post('/admin/offices', ['name' => 'Manual', 'latitude' => 14.8, 'longitude' => 120.9])->assertSessionHasNoErrors();
     $office = Office::firstOrFail();
 
     $this->put('/admin/offices/'.$office->id, ['name' => 'Manual', 'latitude' => '', 'longitude' => ''])->assertSessionHasNoErrors();
 
-    expect($office->fresh()->location_source)->toBe('auto')
-        ->and($office->fresh()->google_place_id)->toBe('place-1');
+    expect($office->fresh()->location_source)->toBeNull()
+        ->and($office->fresh()->latitude)->toBeNull();
+    Http::assertNothingSent();
 });
 
-it('still saves the office when Google rejects or cannot be reached', function ($fake) {
+it('records a failed lookup when Google rejects or cannot be reached', function ($fake) {
     Http::fake(['places.googleapis.com/*' => $fake]);
+    $office = Office::create(['name' => 'Saved anyway']);
 
-    $this->post('/admin/offices', ['name' => 'Saved anyway'])->assertSessionHasNoErrors();
+    $this->artisan('offices:locate', ['--id' => [$office->id]])->assertSuccessful();
 
-    $office = Office::firstOrFail();
+    $office->refresh();
     expect($office->name)->toBe('Saved anyway')
         ->and($office->location_status)->toBe('failed')
         ->and($office->latitude)->toBeNull();

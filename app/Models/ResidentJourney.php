@@ -82,7 +82,7 @@ class ResidentJourney extends Model
             ->pluck('completed_at', 'step_identity');
         $completedAt = $completed;
         $completed = $completed->keys()->all();
-        $plan = [...$this->plan, 'steps' => $this->roadmapSteps()];
+        $plan = [...$this->plan, 'steps' => $this->withCatalogNotices($this->roadmapSteps())];
         $choices = collect($plan['steps'])->filter(fn ($step) => $step['type'] === 'unresolved_requirement' && ! self::manualPreparation($step))->map(self::identity(...))->all();
         // Old manual completion must never complete a newly restored choice.
         $completed = array_values(array_diff($completed, $choices));
@@ -106,6 +106,50 @@ class ResidentJourney extends Model
                 ? Carbon::parse($completedAt->only($identities)->max())->toIso8601String()
                 : null,
         ];
+    }
+
+    /** Warns about catalog changes on read; the saved steps and progress are not altered. */
+    private function withCatalogNotices(array $steps): array
+    {
+        $models = ['government_id' => GovernmentId::class, 'document' => Document::class];
+        $ids = [];
+        foreach ($steps as $step) {
+            if (isset($models[$step['type']]) && ! ($step['already_owned'] ?? false)) {
+                $ids[$step['type']][] = $step['id'];
+            }
+        }
+        if ($ids === []) {
+            return $steps;
+        }
+        $records = $changed = [];
+        foreach ($ids as $type => $list) {
+            $records[$type] = $models[$type]::whereKey($list)->get(['id', 'application_availability', 'guidance_mode'])->keyBy('id');
+            foreach (ContentChangeLog::where('entity_type', $type)->whereIn('entity_id', $list)
+                ->where('created_at', '>', $this->updated_at)->get() as $log) {
+                if (preg_grep('/requirement|prerequisite|research/', $log->changed_fields ?? [])) {
+                    $changed[$type.':'.$log->entity_id] = true;
+                }
+            }
+        }
+        foreach ($steps as &$step) {
+            if (! isset($ids[$step['type']]) || ! in_array($step['id'], $ids[$step['type']], true)) {
+                continue;
+            }
+            $record = $records[$step['type']][$step['id']] ?? null;
+            $notice = match (true) {
+                $record === null => 'This item is no longer listed. Review this Roadmap.',
+                ! in_array($record->application_availability, ['available', 'limited_conditional'], true) => 'This item is now marked unavailable. Check with the issuing agency.',
+                $record->guidance_mode === 'informational_only' => 'Guidance for this item has changed. Review this Roadmap.',
+                isset($changed[$step['type'].':'.$step['id']]) => 'Requirements for this item changed after you saved this Roadmap.',
+                default => null,
+            };
+            if ($notice !== null) {
+                $step['catalog_notice'] = $notice;
+            }
+        }
+        unset($step);
+
+        return $steps;
     }
 
     /** Hide old method-only prompts on read; keep the stored acquisition snapshot intact. */

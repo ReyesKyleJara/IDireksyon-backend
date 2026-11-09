@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentRequirementItem;
 use App\Models\GovernmentId;
 use App\Models\GovernmentIdRequirementItem;
+use App\Services\CatalogResidentReferences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,19 +34,11 @@ class ResidentRequirementPreparationController extends Controller
 
         $saved = DB::table($table)->where('user_id', $request->user()->id)
             ->pluck('prepared', 'requirement_item_id');
-        $ownedIds = $request->user()->ownedGovernmentIds()->pluck('government_ids.id')->all();
-        $ownedDocuments = $request->user()->ownedDocuments()->pluck('documents.id')->all();
-        $selections = $items->orderBy('id')->get()->flatMap(function ($item) use ($saved, $ownedIds, $ownedDocuments) {
-            // Explicit choices (including false) always override the Inventory default.
-            $prepared = $saved->has($item->id) ? (bool) $saved[$item->id] : match ($item->type) {
-                'government_id' => in_array($item->government_id_id, $ownedIds, true),
-                'document' => in_array($item->document_id, $ownedDocuments, true),
-                default => false,
-            };
-
-            return $saved->has($item->id) || $prepared
-                ? [['item_id' => $item->id, 'prepared' => $prepared]] : [];
-        })->values()->all();
+        // Only explicit choices count; owning an item never marks it prepared.
+        $selections = $items->orderBy('id')->get()
+            ->filter(fn ($item) => $saved->has($item->id))
+            ->map(fn ($item) => ['item_id' => $item->id, 'prepared' => (bool) $saved[$item->id]])
+            ->values()->all();
 
         return response()->json(['data' => [
             'record_type' => $recordType,
@@ -56,25 +49,27 @@ class ResidentRequirementPreparationController extends Controller
 
     public function update(Request $request, string $recordType, int $recordId): JsonResponse
     {
-        [$items, $table] = $this->scope($request, $recordType, $recordId);
-        $data = $request->validate([
-            'item_id' => ['required', 'integer', 'min:1'],
-            'prepared' => ['required', 'boolean'],
-            'user_id' => ['prohibited'],
-        ]);
-        if (! $items->whereKey($data['item_id'])->exists()) {
-            throw ValidationException::withMessages(['item_id' => 'This requirement does not belong to this application.']);
-        }
+        return CatalogResidentReferences::transaction(function () use ($request, $recordType, $recordId) {
+            [$items, $table] = $this->scope($request, $recordType, $recordId);
+            $data = $request->validate([
+                'item_id' => ['required', 'integer', 'min:1'],
+                'prepared' => ['required', 'boolean'],
+                'user_id' => ['prohibited'],
+            ]);
+            if (! $items->whereKey($data['item_id'])->exists()) {
+                throw ValidationException::withMessages(['item_id' => 'This requirement does not belong to this application.']);
+            }
 
-        // Update a single item; never sync or change Inventory ownership.
-        DB::table($table)->upsert([[
-            'user_id' => $request->user()->id,
-            'requirement_item_id' => $data['item_id'],
-            'prepared' => $data['prepared'],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]], ['user_id', 'requirement_item_id'], ['prepared', 'updated_at']);
+            // Update a single item; never sync or change Inventory ownership.
+            DB::table($table)->upsert([[
+                'user_id' => $request->user()->id,
+                'requirement_item_id' => $data['item_id'],
+                'prepared' => $data['prepared'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]], ['user_id', 'requirement_item_id'], ['prepared', 'updated_at']);
 
-        return $this->show($request, $recordType, $recordId);
+            return $this->show($request, $recordType, $recordId);
+        });
     }
 }

@@ -7,16 +7,11 @@ use App\Http\Requests\Admin\OfficeRequest;
 use App\Models\Agency;
 use App\Models\ContentChangeLog;
 use App\Models\Office;
-use App\Services\OfficeLocator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OfficeController extends Controller
 {
-    public function __construct(private OfficeLocator $locator)
-    {
-    }
-
     public function index(Request $request)
     {
         $filters = $request->validate([
@@ -89,7 +84,7 @@ class OfficeController extends Controller
 
     private function saveOffice(Office $office, array $data): Office
     {
-        $saved = DB::transaction(function () use ($office, $data) {
+        return DB::transaction(function () use ($office, $data) {
             $schedules = $data['schedules'] ?? null;
             unset($data['schedules']);
             $office->fill($this->applyLocationInput($office, $data));
@@ -125,16 +120,9 @@ class OfficeController extends Controller
 
             return $office;
         });
-
-        // Outside the transaction so Google can neither hold up nor undo the save.
-        if ($this->locator->shouldLocate($saved)) {
-            $this->locator->locate($saved);
-        }
-
-        return $saved;
     }
 
-    /** Typed coordinates win; blank boxes leave the location to automatic lookup. */
+    /** Typed coordinates win; blank boxes keep a found location or clear a typed one. */
     private function applyLocationInput(Office $office, array $data): array
     {
         if (! array_key_exists('latitude', $data) || ! array_key_exists('longitude', $data)) {

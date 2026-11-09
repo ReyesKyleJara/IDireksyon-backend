@@ -12,7 +12,7 @@ class RoadmapOptionFacts
 {
     public static function forRecord(Document|GovernmentId $owner): array
     {
-        $owner->loadMissing(['fees.options', 'requirementSets.applicationSteps.blocks']);
+        $owner->loadMissing(['fees.options', 'requirementSets.groups', 'requirementSets.applicationSteps.blocks']);
         $hidden = $owner->research_metadata['hidden_sections'] ?? [];
         $guideSets = [];
         if (! in_array('guide', $hidden, true)) {
@@ -31,6 +31,10 @@ class RoadmapOptionFacts
             'cost' => in_array('fees', $hidden, true) ? null : self::cost($owner),
             'guide_set_ids' => $guideSets,
             'has_legacy_guide' => ! in_array('guide', $hidden, true) && self::hasText($owner->application_process),
+            // Missing research must never look like an easy acquisition.
+            'researched' => $owner->requirementSets->contains(fn ($set) => ! ResidentRequirements::isRequestMethod($set) && in_array($set->id, $guideSets, true))
+                || (! in_array('guide', $hidden, true) && self::hasText($owner->application_process))
+                || $owner->requirementSets->contains(fn ($set) => ! ResidentRequirements::isRequestMethod($set) && $set->groups->isNotEmpty()),
         ];
     }
 

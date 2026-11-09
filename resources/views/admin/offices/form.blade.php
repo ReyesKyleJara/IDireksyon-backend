@@ -59,23 +59,24 @@
                 <p class="font-semibold text-slate-900">Map location</p>
                 <p class="mt-1">
                     @if($office->location_source === 'manual')
-                        Using the coordinates entered below. Clear both boxes to find the location automatically.
+                        Using the coordinates entered below.
                     @elseif($office->location_status === 'found')
                         Found automatically from the name and address.
                         <a href="{{ $googleMapsLink }}" target="_blank" rel="noopener" class="font-medium text-[#012877] underline">View on Google Maps</a>.
                         If this is the wrong place, enter the correct coordinates below.
                     @elseif($office->location_status === 'not_found')
-                        Google could not find this office. Add more address details, or enter coordinates below.
+                        An earlier search could not find this office. Enter coordinates below.
                     @elseif($office->location_status === 'failed')
-                        The location lookup did not finish. Save again to retry, or enter coordinates below.
+                        An earlier location search did not finish. Enter coordinates below.
                     @else
-                        The location is found automatically from the name and address when you save.
+                        No map location yet. Enter coordinates below.
                     @endif
                 </p>
+                <p class="mt-2 text-slate-500">Residents get a map pin and Get Directions as soon as valid coordinates are saved.</p>
             </div>
             <div class="mt-5 grid gap-5 sm:grid-cols-2">
-                <x-admin.field name="latitude" label="Latitude (optional override)" type="number" :value="$override('latitude')" min="-90" max="90" step="any" />
-                <x-admin.field name="longitude" label="Longitude (optional override)" type="number" :value="$override('longitude')" min="-180" max="180" step="any" />
+                <x-admin.field name="latitude" label="Latitude" type="number" :value="$override('latitude')" min="-90" max="90" step="any" />
+                <x-admin.field name="longitude" label="Longitude" type="number" :value="$override('longitude')" min="-180" max="180" step="any" />
             </div>
         </section>
         @include('admin.offices.partials.schedule-fields')

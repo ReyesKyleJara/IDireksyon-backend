@@ -48,7 +48,7 @@ it('orders dependencies using catalog type and ID and updates from saved Invento
     $this->putJson('/api/auth/inventory', ['government_id_ids' => [$c->id], 'document_ids' => [$b->id]])->assertOk();
     $plan = $request();
     expect(roadmapSteps($plan))->toBe(['government_id:'.$a->id])
-        ->and($plan['steps'][0]['prerequisite_readiness']['percentage'])->toBe(100);
+        ->and($plan['steps'][0]['prerequisite_readiness']['percentage'])->toBe(99);
 });
 
 it('supports all edge types and deduplicates shared dependencies deterministically', function () {

@@ -15,7 +15,7 @@ class RoadmapPlanner
 {
     public function build(User $resident, array $targets, array $documentTargets = [], ?array $resolution = null): array
     {
-        return DB::transaction(function () use ($resident, $targets, $documentTargets, $resolution) {
+        return CatalogResidentReferences::transaction(function () use ($resident, $targets, $documentTargets, $resolution) {
             $keys = [...array_map(fn ($id) => 'government_id:'.$id, $targets), ...array_map(fn ($id) => 'document:'.$id, $documentTargets)];
             sort($keys);
             $journeyKey = hash('sha256', json_encode($keys));
@@ -25,6 +25,12 @@ class RoadmapPlanner
             }
             $saved = DB::table('resident_journey_resolutions')->where('user_id', $resident->id)->where('journey_key', $journeyKey)->value('selections');
             $selections = $saved ? json_decode($saved, true, 512, JSON_THROW_ON_ERROR) : ['paths' => [], 'groups' => []];
+            if (! empty($resolution['reset'])) {
+                $selections = $this->clearChoice($selections, $resolution['key']);
+                $this->saveSelections($resident, $journeyKey, $selections, $targets, $documentTargets);
+
+                return $this->compose($resident, $targets, $documentTargets, $selections);
+            }
             $plan = $this->compose($resident, $targets, $documentTargets, $selections);
             if ($resolution === null) {
                 return $plan;
@@ -48,13 +54,74 @@ class RoadmapPlanner
                 $selections['groups'][$resolution['key']] = ['way_id' => $option['way_id'], 'items' => array_values(array_unique($items))];
             }
             $plan = $this->compose($resident, $targets, $documentTargets, $selections);
-            DB::table('resident_journey_resolutions')->upsert([[
-                'user_id' => $resident->id, 'journey_key' => $journeyKey, 'selections' => json_encode($selections, JSON_THROW_ON_ERROR),
-                'created_at' => now(), 'updated_at' => now(),
-            ]], ['user_id', 'journey_key'], ['selections', 'updated_at']);
+            $this->saveSelections($resident, $journeyKey, $selections, $targets, $documentTargets);
 
             return $plan;
         });
+    }
+
+    /** Target IDs stay on the row so catalog deletion can still read what it refers to. */
+    private function saveSelections(User $resident, string $journeyKey, array $selections, array $targets, array $documentTargets): void
+    {
+        $row = DB::table('resident_journey_resolutions')->where('user_id', $resident->id)->where('journey_key', $journeyKey);
+        if (empty($selections['paths']) && empty($selections['groups'])) {
+            $row->delete();
+
+            return;
+        }
+        $selections['target_government_id_ids'] = array_values($targets);
+        $selections['target_document_ids'] = array_values($documentTargets);
+        DB::table('resident_journey_resolutions')->upsert([[
+            'user_id' => $resident->id, 'journey_key' => $journeyKey, 'selections' => json_encode($selections, JSON_THROW_ON_ERROR),
+            'created_at' => now(), 'updated_at' => now(),
+        ]], ['user_id', 'journey_key'], ['selections', 'updated_at']);
+    }
+
+    /** Clearing an application path also clears the choices made under it. */
+    private function clearChoice(array $selections, string $key): array
+    {
+        $owner = str_ends_with($key, ':path') ? substr($key, 0, -5) : null;
+        if (! ($owner !== null ? isset($selections['paths'][$owner]) : isset($selections['groups'][$key]))) {
+            throw ValidationException::withMessages(['resolution' => 'This choice is no longer saved. Reload your Roadmap.']);
+        }
+        if ($owner === null) {
+            unset($selections['groups'][$key]);
+
+            return $selections;
+        }
+        unset($selections['paths'][$owner]);
+        foreach (array_keys($selections['groups'] ?? []) as $groupKey) {
+            if (str_starts_with($groupKey, $owner.':set:')) {
+                unset($selections['groups'][$groupKey]);
+            }
+        }
+
+        return $selections;
+    }
+
+    /** Explicit choices still in this plan, so a resident can review and change them. */
+    private function savedChoices(array $selections, array $nodes, array $catalog, array $checklists): array
+    {
+        $choices = [];
+        foreach ($selections['paths'] ?? [] as $owner => $setId) {
+            $set = collect($checklists[$owner] ?? [])->firstWhere('id', $setId);
+            if ($set && isset($nodes[$owner])) {
+                $choices[] = ['key' => $owner.':path', 'kind' => 'path', 'owner_key' => $owner,
+                    'name' => 'Application requirements for '.$nodes[$owner]['name'],
+                    'selected' => $set['display_label'].(filled($set['path_label'] ?? null) ? ' — '.$set['path_label'] : '')];
+            }
+        }
+        foreach ($selections['groups'] ?? [] as $key => $choice) {
+            $owner = implode(':', array_slice(explode(':', $key), 0, 2));
+            $names = array_values(array_filter(array_map(fn ($item) => $catalog[$item]['name'] ?? null, $choice['items'] ?? [])));
+            if (isset($nodes[$owner]) && $names !== [] && preg_match('/:group:(\d+)$/', $key, $match)) {
+                $group = collect($checklists[$owner] ?? [])->flatMap(fn ($set) => $set['groups'])->firstWhere('id', (int) $match[1]);
+                $choices[] = ['key' => $key, 'kind' => 'requirement', 'owner_key' => $owner,
+                    'name' => $group['title'] ?? 'Accepted option', 'selected' => implode(', ', $names)];
+            }
+        }
+
+        return $choices;
     }
 
     private function compose(User $resident, array $targets, array $documentTargets, array $selections): array
@@ -292,6 +359,7 @@ class RoadmapPlanner
                 'selected' => isset($selected[$key]),
                 'blocked' => (bool) $issues,
                 'issues' => $issues,
+                'guidance_incomplete' => ! ($record['_option_facts']['researched'] ?? false),
             ];
 
             foreach ($record['prerequisites'] as $row) {
@@ -398,6 +466,7 @@ class RoadmapPlanner
                 fn ($step) => $step['blocked']
             ),
             'steps' => $steps,
+            'saved_choices' => $this->savedChoices($selections, $nodes, $catalog, $checklists),
         ];
     }
 
@@ -644,7 +713,10 @@ class RoadmapPlanner
             $flowComplete = $flowComplete && $this->hasGuide($node, $catalog, $checklists, $age, $selections);
         }
 
+        $researched = (bool) ($catalog[$key]['_option_facts']['researched'] ?? false);
+
         return [...$metrics,
+            'researched' => $researched,
             'missing_prerequisites' => $directMissing,
             'additional_steps' => count($additional), 'additional_id_steps' => $idSteps,
             'combination_remaining' => $combinationRemaining,
@@ -652,7 +724,7 @@ class RoadmapPlanner
             'preparation_steps' => count($additional) + $unresolved + $manual + $reference,
             'covered_prerequisites' => count($covered),
             'uses_owned_documents' => (bool) $ownedDocuments, 'uses_roadmap_documents' => (bool) $plannedDocuments,
-            'no_additional_id_required' => $idSteps === 0 && $unresolved === 0 && $manual === 0 && $reference === 0,
+            'no_additional_id_required' => $researched && $idSteps === 0 && $unresolved === 0 && $manual === 0 && $reference === 0,
             'estimated_days' => $new && $unresolved === 0 && $manual === 0 && $reference === 0 ? $this->estimatedDays($new, $catalog) : null,
             'known_cost' => $unresolved === 0 && $manual === 0 && $reference === 0 ? $this->knownAdditionalCost($new, $catalog) : null,
             'acquisition_flow_complete' => $flowComplete,
@@ -711,7 +783,7 @@ class RoadmapPlanner
             $wayIds = array_column($pending['suggestions'], 'way_id');
             $escape = false;
             foreach ($group['ways'] as $way) {
-                if ($way['qualification_type'] !== 'none' || $way['required_count'] < 1
+                if (! JourneyRequirements::usable($way)
                     || ($wayIds && ! in_array($way['id'], $wayIds, true))) continue;
                 $available = [];
                 foreach ($way['items'] as $item) {
@@ -776,7 +848,7 @@ class RoadmapPlanner
     {
         // Never invent an exchange rate to compare unlike currencies.
         $currencies = array_unique(array_filter(array_map(fn ($option) => $option['known_cost']['currency'] ?? null, $options)));
-        $rank = fn ($option) => [...$this->practicalRank($option), $option['estimated_days'] ?? PHP_INT_MAX,
+        $rank = fn ($option) => [! $option['researched'], ...$this->practicalRank($option), $option['estimated_days'] ?? PHP_INT_MAX,
             ...(count($currencies) <= 1 ? [$option['known_cost'] === null, $option['known_cost']['max'] ?? 0] : []),
             ! $option['acquisition_flow_complete'], $option['name'], $option['type'], $option['id'], $option['way_id']];
         usort($options, fn ($a, $b) => $rank($a) <=> $rank($b));
@@ -792,8 +864,11 @@ class RoadmapPlanner
             if (count($currencies) <= 1 && $option['known_cost'] !== null && collect($comparable)->contains(fn ($other) => $other['known_cost'] !== null
                 && $other['known_cost']['currency'] === $option['known_cost']['currency'] && $option['known_cost']['max'] < $other['known_cost']['min'])) $reasons[] = 'Lower known cost';
             if ($option['acquisition_flow_complete']) $reasons[] = 'Guided steps available';
+            if (! $option['researched']) {
+                $reasons = ['Details are incomplete. Check with the issuing agency.'];
+            }
             $identity = $option['type'].':'.$option['id'];
-            $option['recommended'] = count($shortlisted) < 3 && ! isset($shortlisted[$identity]);
+            $option['recommended'] = $option['researched'] && count($shortlisted) < 3 && ! isset($shortlisted[$identity]);
             if ($option['recommended']) $shortlisted[$identity] = true;
             $option['recommendation_reasons'] = $reasons;
         }

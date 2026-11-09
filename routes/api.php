@@ -68,10 +68,16 @@ Route::prefix('auth')->group(function () {
     ])->middleware('throttle:5,1,auth-login:');
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('offices/{office}/route', [\App\Http\Controllers\Api\OfficeRouteController::class, 'estimate'])
+            ->whereNumber('office')
+            ->middleware(['throttle:10,1,office-route-minute:', 'throttle:60,1440,office-route-day:']);
+
         Route::get('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'index']);
         Route::post('journeys', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'store']);
         Route::put('journeys/{journey}/resolution', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'resolve'])->whereNumber('journey');
         Route::put('journeys/{journey}/completion', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'complete'])->whereNumber('journey');
+        Route::put('journeys/{journey}/refresh', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'refresh'])->whereNumber('journey');
+        Route::delete('journeys/{journey}', [\App\Http\Controllers\Api\ResidentJourneyController::class, 'destroy'])->whereNumber('journey');
 
         Route::post('roadmap-plan', [\App\Http\Controllers\Api\ResidentRoadmapController::class, 'plan']);
 

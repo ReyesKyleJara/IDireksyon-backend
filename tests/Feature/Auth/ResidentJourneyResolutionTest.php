@@ -37,7 +37,7 @@ function legacyCredentialJourney(User $user): array
     $birth = Document::create(['name' => 'Shared birth document']);
     $accepted = [];
     foreach (range(1, 4) as $number) {
-        $accepted[] = GovernmentId::create(['name' => 'Accepted ID '.$number, 'processing_time' => $number.' days']);
+        $accepted[] = GovernmentId::create(['name' => 'Accepted ID '.$number, 'processing_time' => $number.' days', 'application_process' => 'Documented steps']);
     }
     $proofGroup = resolutionGroup(resolutionSet($target), [
         ['count' => 2, 'items' => [$birth, 'Additional government-issued photo ID']],

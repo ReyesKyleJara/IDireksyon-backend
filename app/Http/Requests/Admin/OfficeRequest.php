@@ -42,6 +42,11 @@ class OfficeRequest extends FormRequest
                 return;
             }
 
+            if (filled($this->input('latitude')) && (float) $this->input('latitude') === 0.0
+                && (float) $this->input('longitude') === 0.0) {
+                $validator->errors()->add('latitude', 'Enter the office\'s real coordinates. 0, 0 is not a location.');
+            }
+
             $office = $this->route('office');
             $before = $office?->status ?? 'draft';
             $after = $this->input('status', $before);

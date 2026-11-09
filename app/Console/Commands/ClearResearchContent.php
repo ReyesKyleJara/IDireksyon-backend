@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\GovernmentId;
+use App\Services\CatalogRecordDeletion;
+use App\Services\CatalogResidentReferences;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -41,7 +44,12 @@ class ClearResearchContent extends Command
                 return self::SUCCESS;
             }
 
-            DB::transaction(function () use (&$backupPath) {
+            CatalogResidentReferences::transaction(function () use (&$backupPath) {
+                foreach (GovernmentId::orderBy('id')->lockForUpdate()->get() as $record) {
+                    if (app(CatalogResidentReferences::class)->exists($record, lock: true)) {
+                        throw new RuntimeException(CatalogRecordDeletion::BLOCKED_MESSAGE);
+                    }
+                }
                 $tables = [];
                 foreach (self::TABLES as $table) {
                     $tables[$table] = DB::table($table)->orderBy('id')->lockForUpdate()->get()->toArray();
@@ -61,7 +69,7 @@ class ClearResearchContent extends Command
                         DB::table($table)->whereIn('id', $ids)->delete();
                     }
                 }
-            });
+            }, exclusive: true);
             $this->info('Government ID and office research cleared. Documents, agencies, users and audit logs preserved.');
             $this->line('Backup: '.Storage::disk('local')->path($backupPath));
             return self::SUCCESS;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Barangay;
+use App\Services\CatalogResidentReferences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -165,12 +166,15 @@ class ResidentAuthController extends Controller
             'phone',
             'date_of_birth',
             'barangay_id',
-            'owned_ids',
-            'owned_documents',
             'profile_setup_completed_at',
         ]);
         $profile['barangay_name'] = $user->barangay_id === null
             ? null : Barangay::whereKey($user->barangay_id)->value('name');
+        // Preserve the response keys, but never return the legacy JSON snapshot.
+        $profile['owned_ids'] = $user->ownedGovernmentIds()->orderBy('government_ids.name')
+            ->pluck('government_ids.name')->all();
+        $profile['owned_documents'] = $user->ownedDocuments()->orderBy('documents.name')
+            ->pluck('documents.name')->all();
 
         return $profile;
     }
@@ -185,49 +189,49 @@ class ResidentAuthController extends Controller
             403
         );
 
-        $data = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
+        return CatalogResidentReferences::transaction(function () use ($user, $request) {
+            $data = $request->validate([
+                'name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                ],
 
-            'date_of_birth' => [
-                'required',
-                'date',
-                'before:today',
-            ],
+                'date_of_birth' => [
+                    'required',
+                    'date',
+                    'before:today',
+                ],
 
-            'barangay_id' => [
-                'required',
-                'integer',
-                'exists:barangays,id',
-            ],
+                'barangay_id' => [
+                    'required',
+                    'integer',
+                    'exists:barangays,id',
+                ],
 
-            'government_id_ids' => [
-                'present',
-                'array',
-            ],
+                'government_id_ids' => [
+                    'present',
+                    'array',
+                ],
 
-            'government_id_ids.*' => [
-                'integer',
-                'distinct',
-                'exists:government_ids,id',
-            ],
+                'government_id_ids.*' => [
+                    'integer',
+                    'distinct',
+                    'exists:government_ids,id',
+                ],
 
-            'document_ids' => [
-                'present',
-                'array',
-            ],
+                'document_ids' => [
+                    'present',
+                    'array',
+                ],
 
-            'document_ids.*' => [
-                'integer',
-                'distinct',
-                'exists:documents,id',
-            ],
-        ]);
+                'document_ids.*' => [
+                    'integer',
+                    'distinct',
+                    'exists:documents,id',
+                ],
+            ]);
 
-        DB::transaction(function () use ($user, $data) {
             /*
              * Save the resident's basic profile details.
              */
@@ -269,11 +273,11 @@ class ResidentAuthController extends Controller
 
                 'profile_setup_completed_at' => now(),
             ])->save();
-        });
 
-        return response()->json([
-            'user' => $this->profile($user->fresh()),
-        ]);
+            return response()->json([
+                'user' => $this->profile($user->fresh()),
+            ]);
+        });
     }
 
     public function logout(Request $request): JsonResponse

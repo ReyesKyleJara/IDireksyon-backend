@@ -15,6 +15,8 @@ use App\Models\GovernmentIdRequirementItem;
 use App\Models\GovernmentIdRequirementSet;
 use App\Models\GovernmentIdRequirementWay;
 use App\Services\GovernmentIdApplicationGuide;
+use App\Services\CatalogRecordDeletion;
+use App\Services\CatalogResidentReferences;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -62,7 +64,7 @@ class ImportPassport extends Command
             $this->warn($data['research_notice']);
             $this->info($this->apply ? ($this->example ? 'STANDALONE EXAMPLE — existing Passport and directory records are untouched.' : ($this->replace ? 'REPLACEMENT IMPORT — selected Passport fields and covered sections will be corrected.' : 'IMPORT — existing populated sections are preserved.')) : 'PREVIEW ONLY — no database writes.');
             $work = fn () => $this->import($data);
-            $id = $this->apply ? DB::transaction($work) : $work();
+            $id = $this->apply ? CatalogResidentReferences::transaction($work, exclusive: true) : $work();
             $this->newLine();
             $this->info($this->apply ? 'Import complete. Open /admin/government-ids/'.$id->id.'/edit to review.' : 'Preview complete. To save, run this command with --apply (and the same --example, --id or --replace options if supplied).');
             return self::SUCCESS;
@@ -95,6 +97,9 @@ class ImportPassport extends Command
             if ($id->exists && $this->apply) $id = GovernmentId::query()->lockForUpdate()->findOrFail($id->id);
         }
         $wasNew = ! $id->exists;
+        if ($this->apply && $this->replace && $id->exists && app(CatalogResidentReferences::class)->exists($id, lock: true)) {
+            throw new RuntimeException(CatalogRecordDeletion::BLOCKED_MESSAGE);
+        }
         if ($this->replace) {
             $this->line('Replacement covers basic fields, eligibility, validity, processing, legacy summaries, fees, office links, and the four listed scenarios.');
             $this->line('Other applicant/application scenarios and shared ID/document records are not replaced.');

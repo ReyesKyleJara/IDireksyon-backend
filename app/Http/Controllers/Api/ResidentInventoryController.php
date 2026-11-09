@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\GovernmentId;
+use App\Services\CatalogResidentReferences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ResidentInventoryController extends Controller
 {
@@ -84,36 +84,36 @@ class ResidentInventoryController extends Controller
             403
         );
 
-        $data = $request->validate([
-            'government_id_ids' => [
-                'present',
-                'array',
-            ],
-            'government_id_ids.*' => [
-                'integer',
-                'distinct',
-                'exists:government_ids,id',
-            ],
+        return CatalogResidentReferences::transaction(function () use ($user, $request) {
+            $data = $request->validate([
+                'government_id_ids' => [
+                    'present',
+                    'array',
+                ],
+                'government_id_ids.*' => [
+                    'integer',
+                    'distinct',
+                    'exists:government_ids,id',
+                ],
 
-            'document_ids' => [
-                'present',
-                'array',
-            ],
-            'document_ids.*' => [
-                'integer',
-                'distinct',
-                'exists:documents,id',
-            ],
-        ]);
+                'document_ids' => [
+                    'present',
+                    'array',
+                ],
+                'document_ids.*' => [
+                    'integer',
+                    'distinct',
+                    'exists:documents,id',
+                ],
+            ]);
 
-        DB::transaction(function () use ($user, $data) {
             $user->ownedGovernmentIds()
                 ->sync($data['government_id_ids']);
 
             $user->ownedDocuments()
                 ->sync($data['document_ids']);
-        });
 
-        return $this->show($request);
+            return $this->show($request);
+        });
     }
 }

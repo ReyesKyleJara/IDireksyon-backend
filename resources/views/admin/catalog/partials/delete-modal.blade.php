@@ -1,4 +1,5 @@
 @can('delete-catalog-records')
+    @error('catalog_deletion')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
     <div x-data="catalogDelete({ url: @js(route($recordRoutes.'.delete-impact', $governmentId)) })">
         <button type="button" @click="open()" class="admin-secondary !border-red-200 !text-red-700 hover:!bg-red-50">Delete</button>
 
@@ -17,14 +18,14 @@
                     </div>
                 </template>
 
-                <p x-show="impact" x-cloak class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">This cannot be undone.</p>
+                <p x-show="impact?.can_delete === true" x-cloak class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">This cannot be undone.</p>
 
                 <form method="POST" action="{{ route($recordRoutes.'.destroy', $governmentId) }}" class="mt-5 flex flex-wrap justify-end gap-3">
                     @csrf
                     @method('DELETE')
                     <input type="hidden" name="_catalog_revision" value="{{ \App\Services\CatalogRevision::token($governmentId) }}">
                     <button type="button" @click="close()" class="admin-secondary">Cancel</button>
-                    <button type="submit" :disabled="!impact" class="admin-primary !bg-red-700 hover:!bg-red-800 disabled:opacity-50">Delete permanently</button>
+                    <button type="submit" disabled :disabled="impact?.can_delete !== true" class="admin-primary !bg-red-700 hover:!bg-red-800 disabled:opacity-50">Delete permanently</button>
                 </form>
             </div>
         </dialog>

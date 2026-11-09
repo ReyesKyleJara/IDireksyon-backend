@@ -18,12 +18,13 @@ class ResidentRoadmapController extends Controller
             'target_government_id_ids.*' => ['required', 'integer', 'distinct', 'exists:government_ids,id'],
             'target_document_ids' => ['required_without:target_government_id_ids', 'array', 'list', 'max:100'],
             'target_document_ids.*' => ['required', 'integer', 'distinct', 'exists:documents,id'],
-            'resolution' => ['sometimes', 'required', 'array:key,set_id,type,id,way_id'],
+            'resolution' => ['sometimes', 'required', 'array:key,set_id,type,id,way_id,reset'],
             'resolution.key' => ['required_with:resolution', 'string', 'max:255'],
             'resolution.set_id' => ['sometimes', 'integer', 'min:1'],
             'resolution.type' => ['sometimes', 'in:government_id,document'],
             'resolution.id' => ['sometimes', 'integer', 'min:1'],
             'resolution.way_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'resolution.reset' => ['sometimes', 'accepted'],
         ]);
 
         return response()->json(['data' => $planner->build($resident, $data['target_government_id_ids'] ?? [], $data['target_document_ids'] ?? [], $data['resolution'] ?? null)]);

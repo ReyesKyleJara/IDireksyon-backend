@@ -149,7 +149,7 @@ it('removes owned content, including an Application Guide, but not offices or li
     expect(Storage::disk('public')->allFiles())->toBeEmpty();
 });
 
-it('detaches inventories and keeps residents progress without overriding explicit choices', function () {
+it('blocks deletion without changing inventories or explicit preparation choices', function () {
     $target = Document::create(['name' => 'PSA Birth Certificate']);
     $owner = GovernmentId::create(['name' => 'National ID']);
     ['item' => $item] = linkedRequirement($owner, $target);
@@ -160,13 +160,15 @@ it('detaches inventories and keeps residents progress without overriding explici
     $changedMind->ownedDocuments()->attach($target->id);
     DB::table('resident_id_preparations')->insert(['user_id' => $changedMind->id, 'requirement_item_id' => $item->id, 'prepared' => false]);
 
-    $this->delete(deletePath($target))->assertSessionHas('success');
+    $this->delete(deletePath($target))->assertSessionHasErrors('catalog_deletion');
 
-    expect(DB::table('resident_documents')->count())->toBe(0);
+    $this->assertModelExists($target);
+    expect($item->fresh()->type)->toBe('document');
+    expect(DB::table('resident_documents')->count())->toBe(2);
     $prepared = fn ($user) => DB::table('resident_id_preparations')->where('user_id', $user->id)->value('prepared');
-    expect((bool) $prepared($owned))->toBeTrue()->and((bool) $prepared($changedMind))->toBeFalse()->and($prepared($unrelated))->toBeNull();
+    expect($prepared($owned))->toBeNull()->and((bool) $prepared($changedMind))->toBeFalse()->and($prepared($unrelated))->toBeNull();
     $this->actingAs($owned)->getJson('/api/auth/requirement-preparation/government_id/'.$owner->id)->assertOk()
-        ->assertJsonPath('data.items.0', ['item_id' => $item->id, 'prepared' => true]);
+        ->assertJsonPath('data.items', []);
 });
 
 it('logs each affected record without changing its research timestamp', function () {
@@ -189,15 +191,13 @@ it('rolls everything back if the delete fails', function () {
     $target = Document::create(['name' => 'PSA Birth Certificate']);
     $owner = GovernmentId::create(['name' => 'National ID']);
     ['item' => $item] = linkedRequirement($owner, $target);
-    $resident = User::factory()->create();
-    $resident->ownedDocuments()->attach($target->id);
     Document::deleting(fn () => throw new RuntimeException('Forced failure'));
 
     expect(fn () => app(CatalogRecordDeletion::class)->delete($target))->toThrow(RuntimeException::class);
 
     $this->assertModelExists($target);
     expect($item->fresh()->type)->toBe('document')->and($item->fresh()->document_id)->toBe($target->id);
-    expect(DB::table('resident_documents')->count())->toBe(1)->and(DB::table('resident_id_preparations')->count())->toBe(0);
+    expect(DB::table('resident_documents')->count())->toBe(0)->and(DB::table('resident_id_preparations')->count())->toBe(0);
 });
 
 it('rejects a delete from a stale page', function () {
@@ -208,21 +208,21 @@ it('rejects a delete from a stale page', function () {
     $this->assertModelExists($record);
 });
 
-it('keeps saved journeys and the planner working when a target is deleted', function () {
+it('blocks deleting a saved journey target and keeps its details available', function () {
     $resident = User::factory()->create();
     $target = GovernmentId::create(['name' => 'Target ID']);
     $this->actingAs($resident);
     $journey = $this->postJson('/api/auth/journeys', ['target_government_id_ids' => [$target->id], 'target_document_ids' => []])->assertCreated()->json('data');
 
-    $this->actingAs($this->admin, 'web')->delete(deletePath($target))->assertSessionHas('success');
+    $this->actingAs($this->admin, 'web')->delete(deletePath($target))->assertSessionHasErrors('catalog_deletion');
 
     $this->actingAs($resident)->getJson('/api/auth/journeys')->assertOk()
         ->assertJsonPath('data.0.id', $journey['id'])->assertSee('Target ID');
-    expect(app(RoadmapPlanner::class)->build($resident, [$target->id], [])['blocked'])->toBeTrue();
-    $this->getJson('/api/government-ids/'.$target->id)->assertNotFound();
+    expect(app(RoadmapPlanner::class)->build($resident, [$target->id], [])['blocked'])->toBeFalse();
+    $this->getJson('/api/government-ids/'.$target->id)->assertOk();
 });
 
-it('keeps saved journeys working when a deleted record was one of their steps', function () {
+it('blocks deleting a saved journey acquisition step', function () {
     $resident = User::factory()->create();
     $step = Document::create(['name' => 'Supporting document']);
     $target = GovernmentId::create(['name' => 'Target ID']);
@@ -230,7 +230,7 @@ it('keeps saved journeys working when a deleted record was one of their steps', 
     $this->actingAs($resident);
     $this->postJson('/api/auth/journeys', ['target_government_id_ids' => [$target->id], 'target_document_ids' => []])->assertCreated();
 
-    $this->actingAs($this->admin, 'web')->delete(deletePath($step))->assertSessionHas('success');
+    $this->actingAs($this->admin, 'web')->delete(deletePath($step))->assertSessionHasErrors('catalog_deletion');
 
     $this->actingAs($resident)->getJson('/api/auth/journeys')->assertOk()->assertSee('Supporting document');
     expect(ResidentJourney::count())->toBe(1);
@@ -244,31 +244,32 @@ it('reports usage for the warning without changing anything', function () {
     $prerequisiteOwner = Document::create(['name' => 'Echo Document']);
     app(CatalogPrerequisites::class)->save($prerequisiteOwner, [['type' => 'document', 'document_id' => $target->id]]);
     $target->offices()->attach(Office::create(['name' => 'Office'])->id);
-    User::factory()->create()->ownedDocuments()->attach($target->id);
 
     $impact = $this->getJson(impactPath($target))->assertOk()->json('data');
 
     expect($impact['counts'])->toBe([
         'requirements' => 4, 'requirement_entries' => 4, 'prerequisites' => 1,
-        'prerequisite_entries' => 1, 'offices' => 1, 'inventory' => 1, 'journeys' => 0,
+        'prerequisite_entries' => 1, 'offices' => 1,
     ]);
     $text = json_encode($impact['sections']);
     expect($text)->toContain('Alpha ID, Bravo ID, and 2 others list this as a requirement (4 requirements).')
         ->toContain('Echo Document lists this as a prerequisite.')
-        ->toContain('kept as custom text')->toContain('1 office link')->toContain('Offices themselves are not deleted.')
-        ->toContain('1 has it in their inventory');
+        ->toContain('kept as custom text')->toContain('1 office link')->toContain('Offices themselves are not deleted.');
+    expect($impact['can_delete'])->toBeTrue();
     expect($item->fresh()->type)->toBe('document');
     $this->assertModelExists($target);
 });
 
-it('counts journeys and says when nothing else uses the record', function () {
+it('blocks saved journey references without exposing a resident count', function () {
     $target = GovernmentId::create(['name' => 'Target ID']);
     expect(json_encode($this->getJson(impactPath($target))->assertOk()->json('data.sections')))->toContain('No other entries use this.');
 
     $this->actingAs(User::factory()->create());
     $this->postJson('/api/auth/journeys', ['target_government_id_ids' => [$target->id], 'target_document_ids' => []])->assertCreated();
 
-    $this->actingAs($this->admin, 'web')->getJson(impactPath($target))->assertOk()->assertJsonPath('data.counts.journeys', 1);
+    $this->actingAs($this->admin, 'web')->getJson(impactPath($target))->assertOk()
+        ->assertJsonPath('data.can_delete', false)->assertJsonMissingPath('data.counts.journeys')
+        ->assertJsonMissingPath('data.counts.inventory')->assertSee(CatalogRecordDeletion::BLOCKED_MESSAGE);
 });
 
 it('lets a Super Admin see the Delete action', function ($model, $resource) {

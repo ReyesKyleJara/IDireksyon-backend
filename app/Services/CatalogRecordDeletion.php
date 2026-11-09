@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Models\ContentChangeLog;
 use App\Models\Document;
 use App\Models\GovernmentId;
-use App\Models\ResidentJourney;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Permanently deletes an ID or Document without losing what other records say.
@@ -17,34 +17,30 @@ use Illuminate\Support\Str;
  */
 class CatalogRecordDeletion
 {
+    public const BLOCKED_MESSAGE = 'Permanent deletion is blocked because resident inventory, preparation progress, or roadmap data depends on this entry. Keep this catalog entry to preserve resident data.';
+
     private const TABLES = [
         GovernmentId::class => [
-            'kind' => 'government_id',
             'label' => 'Government ID',
             'column' => 'government_id_id',
             'sets' => 'government_id_requirement_sets',
             'groups' => 'government_id_requirement_groups',
             'items' => 'government_id_requirement_items',
-            'preparations' => 'resident_id_preparations',
             'prerequisites' => 'catalog_government_id_prerequisites',
             'steps' => 'government_id_application_steps',
-            'inventory' => 'resident_government_ids',
         ],
         Document::class => [
-            'kind' => 'document',
             'label' => 'Document',
             'column' => 'document_id',
             'sets' => 'document_requirement_sets',
             'groups' => 'document_requirement_groups',
             'items' => 'document_requirement_items',
-            'preparations' => 'resident_document_preparations',
             'prerequisites' => 'catalog_document_prerequisites',
             'steps' => 'document_application_steps',
-            'inventory' => 'resident_documents',
         ],
     ];
 
-    /** Live counts and wording for the warning modal. Changes nothing. */
+    /** Catalog usage and deletion eligibility only; never expose resident counts. */
     public function impact(GovernmentId|Document $record): array
     {
         $tables = self::TABLES[$record::class];
@@ -56,18 +52,19 @@ class CatalogRecordDeletion
             'prerequisites' => count($prerequisites),
             'prerequisite_entries' => count($this->owners($prerequisites)),
             'offices' => $record->offices()->count(),
-            'inventory' => DB::table($tables['inventory'])->where($tables['column'], $record->id)->count(),
-            'journeys' => $this->journeyCount($record, $tables['kind']),
         ];
+        $blocked = app(CatalogResidentReferences::class)->exists($record);
 
         return [
             'name' => $record->name,
             'type_label' => $tables['label'],
             'counts' => $counts,
+            'can_delete' => ! $blocked,
             'sections' => array_values(array_filter([
-                ...$this->referenceSections($requirements, $prerequisites),
-                $this->removedSection($record, $tables, $counts['offices']),
-                $this->residentSection($counts['inventory'], $counts['journeys']),
+                ...($blocked ? [['title' => 'Deletion blocked.', 'body' => self::BLOCKED_MESSAGE]] : [
+                    ...$this->referenceSections($requirements, $prerequisites),
+                    $this->removedSection($record, $tables, $counts['offices']),
+                ]),
             ])),
         ];
     }
@@ -75,12 +72,15 @@ class CatalogRecordDeletion
     /** Runs in one transaction and returns the success message. */
     public function delete(GovernmentId|Document $record): string
     {
-        return DB::transaction(function () use ($record) {
+        return CatalogResidentReferences::transaction(function () use ($record) {
+            $record = $record->newQuery()->whereKey($record->id)->lockForUpdate()->firstOrFail();
+            if (app(CatalogResidentReferences::class)->exists($record, lock: true)) {
+                throw ValidationException::withMessages(['catalog_deletion' => self::BLOCKED_MESSAGE]);
+            }
             $tables = self::TABLES[$record::class];
             $requirements = $this->requirementUsages($record, lock: true);
             $prerequisites = $this->prerequisiteUsages($record, lock: true);
 
-            $this->keepResidentProgress($record, $this->foreign($record, $requirements));
             $this->convertRequirements($record);
             $this->convertPrerequisites($record, $prerequisites);
             $this->logAffectedOwners($record, $requirements, $prerequisites);
@@ -95,7 +95,7 @@ class CatalogRecordDeletion
             $record->delete();
 
             return $this->successMessage($name, count($this->foreign($record, $requirements)), count($this->foreign($record, $prerequisites)));
-        });
+        }, exclusive: true);
     }
 
     /** Every requirement item pointing at this record, in both catalogs. */
@@ -136,27 +136,6 @@ class CatalogRecordDeletion
     private function foreign(GovernmentId|Document $record, array $usages): array
     {
         return array_values(array_filter($usages, fn ($usage) => $usage['owner_class'] !== $record::class || $usage['owner_id'] !== $record->id));
-    }
-
-    /** Inventory is what marks these items prepared today, and that link is about to go. */
-    private function keepResidentProgress(GovernmentId|Document $record, array $requirements): void
-    {
-        $tables = self::TABLES[$record::class];
-        $residents = DB::table($tables['inventory'])->where($tables['column'], $record->id)->pluck('user_id');
-        $now = now();
-        foreach ($requirements as $usage) {
-            $rows = $residents->map(fn ($resident) => [
-                'user_id' => $resident,
-                'requirement_item_id' => $usage['id'],
-                'prepared' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->all();
-            // Ignoring existing rows means an explicit choice, including "not prepared", wins.
-            if ($rows !== []) {
-                DB::table(self::TABLES[$usage['owner_class']]['preparations'])->insertOrIgnore($rows);
-            }
-        }
     }
 
     private function convertRequirements(GovernmentId|Document $record): void
@@ -222,20 +201,6 @@ class CatalogRecordDeletion
         return collect($names)->map(fn ($usage) => $usage['owner_class']::whereKey($usage['owner_id'])->value('name'))->sort()->values()->all();
     }
 
-    private function journeyCount(GovernmentId|Document $record, string $kind): int
-    {
-        $count = 0;
-        foreach (ResidentJourney::query()->select('id', 'plan')->cursor() as $journey) {
-            $targets = $journey->plan['target_'.$kind.'_ids'] ?? [];
-            $inSteps = collect($journey->plan['steps'] ?? [])->contains(fn ($step) => ($step['type'] ?? null) === $kind && ($step['id'] ?? null) === $record->id);
-            if ($inSteps || in_array($record->id, $targets, true)) {
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
     private function nameList(array $names): string
     {
         if (count($names) > 3) {
@@ -286,22 +251,6 @@ class CatalogRecordDeletion
         return [
             'title' => 'Also removed:',
             'body' => Arr::join($parts, ', ', count($parts) === 2 ? ' and ' : ', and ').'.'.($offices > 0 ? ' Offices themselves are not deleted.' : ''),
-        ];
-    }
-
-    private function residentSection(int $inventory, int $journeys): ?array
-    {
-        $parts = array_values(array_filter([
-            $inventory > 0 ? $inventory.' '.($inventory === 1 ? 'has' : 'have').' it in their inventory' : null,
-            $journeys > 0 ? $journeys.' saved '.Str::plural('journey', $journeys).' '.($journeys === 1 ? 'mentions' : 'mention').' it' : null,
-        ]));
-        if ($parts === []) {
-            return null;
-        }
-
-        return [
-            'title' => 'Residents:',
-            'body' => implode(', and ', $parts).'.'.($journeys > 0 ? ' Journeys keep their steps, but its details page will no longer open.' : ''),
         ];
     }
 

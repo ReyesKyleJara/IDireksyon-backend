@@ -159,7 +159,9 @@ it('uses verifiable age conditions and leaves unknown conditions qualifications 
     journeyGroup($adult, [['items' => ['Printed form']]]);
     $resident->ownedDocuments()->attach($evidence);
     $plan = app(RoadmapPlanner::class)->build($resident, [$target->id]);
-    expect(array_column($plan['steps'], 'name'))->toBe(['Target'])->and($plan['steps'][0]['prerequisite_readiness']['manual'])->toBe(3);
+    expect(array_column($plan['steps'], 'name'))->toBe(['Accepted evidence', 'Target'])
+        ->and($plan['steps'][0]['manual_preparation'])->toBeTrue()
+        ->and($plan['steps'][1]['prerequisite_readiness']['manual'])->toBe(3);
     $unknown = User::factory()->create(['date_of_birth' => null]);
     expect(journeyPending(app(RoadmapPlanner::class)->build($unknown, [$target->id]))[0]['kind'])->toBe('path');
 });

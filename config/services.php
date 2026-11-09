@@ -30,6 +30,9 @@ return [
 
     'google_maps' => [
         'server_key' => env('GOOGLE_MAPS_SERVER_API_KEY'),
+        // Off until the Routes API and its quota are set up in Google Cloud.
+        'routes_enabled' => (bool) env('GOOGLE_MAPS_ROUTES_ENABLED', false),
+        'routes_daily_limit' => (int) env('GOOGLE_MAPS_ROUTES_DAILY_LIMIT', 300),
     ],
 
     'idireksyon' => [

@@ -128,3 +128,37 @@ test('setup requires an active resident', function () {
         ])
         ->assertForbidden();
 });
+
+test('profile responses use current inventory relationships without rewriting legacy resident data', function () {
+    $user = User::factory()->create([
+        'owned_ids' => ['Stale ID'],
+        'owned_documents' => ['Stale document'],
+        'password' => 'password123',
+    ]);
+    $other = User::factory()->create();
+    $old = GovernmentId::create(['name' => 'Old selection']);
+    $current = GovernmentId::create(['name' => 'Current ID']);
+    $document = Document::create(['name' => 'Current document']);
+    $user->ownedGovernmentIds()->attach($old);
+    $other->ownedGovernmentIds()->attach($old);
+    $this->actingAs($user);
+
+    $this->putJson('/api/auth/inventory', [
+        'government_id_ids' => [$current->id], 'document_ids' => [$document->id],
+    ])->assertOk();
+    $current->update(['name' => 'Renamed current ID']);
+
+    $this->getJson('/api/auth/me')->assertOk()
+        ->assertJsonPath('user.owned_ids', ['Renamed current ID'])
+        ->assertJsonPath('user.owned_documents', ['Current document']);
+    $this->postJson('/api/auth/login', ['identifier' => $user->email, 'password' => 'password123'])->assertOk()
+        ->assertJsonPath('user.owned_ids', ['Renamed current ID'])
+        ->assertJsonPath('user.owned_documents', ['Current document']);
+
+    $this->putJson('/api/auth/inventory', ['government_id_ids' => [], 'document_ids' => []])->assertOk();
+    $this->getJson('/api/auth/me')->assertOk()
+        ->assertJsonPath('user.owned_ids', [])->assertJsonPath('user.owned_documents', []);
+    expect($user->fresh()->owned_ids)->toBe(['Stale ID'])
+        ->and($user->fresh()->owned_documents)->toBe(['Stale document'])
+        ->and($other->ownedGovernmentIds()->pluck('government_ids.id')->all())->toBe([$old->id]);
+});
