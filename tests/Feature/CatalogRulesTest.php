@@ -26,14 +26,13 @@ function catalogReferencePayload(string $type, int $id, string $instructions = '
     ];
 }
 
-it('blocks deletion of referenced records until the checklist is removed', function ($type, $model, $resource) {
+it('deletes a record after the checklist that referenced it is removed', function ($type, $model, $resource) {
     $target = GovernmentId::create(['name' => 'Target credential']);
     $reference = $model::create(['name' => 'Referenced evidence']);
     $url = '/admin/government-ids/'.$target->id.'/checklists';
     $saved = $this->postJson($url, catalogReferencePayload($type, $reference->id))->assertCreated()->json('checklist.id');
-    $this->delete('/admin/'.$resource.'/'.$reference->id)->assertRedirect()->assertSessionHas('error');
-    $this->assertModelExists($reference);
     $this->deleteJson($url.'/'.$saved)->assertOk();
+    $this->actingAs(User::factory()->create(['role' => 'super_admin']));
     $this->delete('/admin/'.$resource.'/'.$reference->id)->assertRedirect('/admin/'.$resource);
     $this->assertModelMissing($reference);
     $this->assertModelExists($target);

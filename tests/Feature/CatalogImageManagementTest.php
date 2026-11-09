@@ -5,6 +5,7 @@ use App\Models\Document;
 use App\Models\GovernmentId;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 /** A JPEG holding only its header: enough for type and size checks, and needs no image library. */
@@ -15,6 +16,20 @@ function jpegOfSize(int $width, int $height, string $name = 'image.jpg'): Upload
         ."\x03\x01\x11\x00\x02\x11\x01\x03\x11\x01\xFF\xD9";
 
     return UploadedFile::fake()->createWithContent($name, $bytes);
+}
+
+/** A square-capable PNG: optionally transparent everywhere except a solid centre. */
+function pngImage(int $width, int $height, string $name = 'image.png', bool $transparent = true): UploadedFile
+{
+    $image = imagecreatetruecolor($width, $height);
+    imagealphablending($image, false);
+    imagesavealpha($image, true);
+    imagefill($image, 0, 0, imagecolorallocatealpha($image, 255, 255, 255, $transparent ? 127 : 0));
+    imagefilledrectangle($image, (int) ($width / 4), (int) ($height / 4), (int) ($width * 3 / 4), (int) ($height * 3 / 4), imagecolorallocatealpha($image, 200, 30, 30, 0));
+    ob_start();
+    imagepng($image);
+
+    return UploadedFile::fake()->createWithContent($name, ob_get_clean());
 }
 
 function imageRoute(string $type, int $id): string
@@ -124,6 +139,7 @@ it('removes image files when the record itself is deleted', function () {
     $record = Document::create(['name' => 'Clearance']);
     uploadImage($this, 'documents', $record->id);
 
+    $this->actingAs(User::factory()->create(['role' => 'super_admin']));
     $this->delete(route('admin.documents.destroy', $record))->assertRedirect();
 
     expect(Storage::disk('public')->allFiles())->toBeEmpty();
@@ -169,20 +185,80 @@ it('keeps image management behind CMS access', function () {
     $record = GovernmentId::create(['name' => 'Passport']);
 
     $this->actingAs(User::factory()->create(['role' => 'resident']));
-    $this->get(route('admin.images.index'))->assertForbidden();
     $this->post(imageRoute('government-ids', $record->id), [])->assertForbidden();
     $this->delete(imageRoute('government-ids', $record->id))->assertForbidden();
 
     auth()->logout();
-    $this->get(route('admin.images.index'))->assertRedirect(route('login'));
+    $this->post(imageRoute('government-ids', $record->id), [])->assertRedirect(route('login'));
 });
 
-it('lists every record on the Images page and opens a requested one', function () {
-    $id = GovernmentId::create(['name' => 'Passport']);
-    Document::create(['name' => 'Birth Certificate']);
+it('has no standalone Images page or sidebar item', function () {
+    expect(Route::has('admin.images.index'))->toBeFalse();
+    $this->get('/admin/images')->assertNotFound();
+    $this->get(route('admin.government-ids.index'))->assertOk()->assertDontSee('/admin/images', false);
+});
 
-    $this->get(route('admin.images.index', ['open' => 'government-ids:'.$id->id]))->assertOk()
-        ->assertSee('Passport')->assertSee('Birth Certificate')->assertSee('government-ids:'.$id->id, false);
+it('manages the image inside Basic Information for saved IDs and documents', function ($resource, $model) {
+    $record = $model::create(['name' => 'Passport']);
+
+    $this->get('/admin/'.$resource.'/'.$record->id.'/edit')->assertOk()
+        ->assertSee('catalogImage(', false)->assertSee('Confirm crop')->assertSee('No image yet')
+        ->assertSee('Use a square catalog illustration or icon. Transparent PNG artwork works best.');
+})->with([['government-ids', GovernmentId::class], ['documents', Document::class]]);
+
+it('explains that a new entry gets its image after saving', function ($resource) {
+    $this->get('/admin/'.$resource.'/create')->assertOk()
+        ->assertSee('You can add an image after saving this entry.')->assertDontSee('catalogImage(', false);
+})->with(['government-ids', 'documents']);
+
+it('stores a transparent PNG as PNG and keeps its transparency when served', function () {
+    $record = GovernmentId::create(['name' => 'Passport']);
+
+    $this->post(imageRoute('government-ids', $record->id), ['image' => pngImage(512, 512), 'original' => pngImage(900, 700, 'original.png')], ['Accept' => 'application/json'])->assertOk();
+    $record->refresh();
+
+    expect($record->image_url)->toEndWith('.png')->and($record->image_original_path)->toEndWith('.png');
+    $response = $this->get($record->image_url)->assertOk()->assertHeader('Content-Type', 'image/png');
+    $served = imagecreatefromstring($response->streamedContent());
+    expect(imagecolorsforindex($served, imagecolorat($served, 0, 0))['alpha'])->toBe(127)
+        ->and(imagecolorsforindex($served, imagecolorat($served, 256, 256))['alpha'])->toBe(0);
+    $this->get(route('admin.images.original', ['type' => 'government-ids', 'id' => $record->id]))->assertOk()->assertHeader('Content-Type', 'image/png');
+});
+
+it('accepts opaque PNG artwork normally', function () {
+    $record = Document::create(['name' => 'Clearance']);
+
+    $this->post(imageRoute('documents', $record->id), ['image' => pngImage(512, 512, 'image.png', false), 'original' => pngImage(600, 600, 'original.png', false)], ['Accept' => 'application/json'])->assertOk();
+
+    $this->get($record->refresh()->image_url)->assertOk()->assertHeader('Content-Type', 'image/png');
+});
+
+it('still serves JPEG uploads as JPEG', function () {
+    $record = GovernmentId::create(['name' => 'Passport']);
+    uploadImage($this, 'government-ids', $record->id)->assertOk();
+
+    expect($record->refresh()->image_url)->toEndWith('.jpg');
+    $this->get($record->image_url)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+});
+
+it('requires the 1:1 crop for PNG too', function () {
+    $record = GovernmentId::create(['name' => 'Passport']);
+
+    $this->post(imageRoute('government-ids', $record->id), ['image' => pngImage(512, 400), 'original' => pngImage(512, 400, 'original.png')], ['Accept' => 'application/json'])
+        ->assertUnprocessable()->assertJsonValidationErrors('image');
+    expect($record->fresh()->image_path)->toBeNull();
+});
+
+it('re-crops a PNG while keeping its original', function () {
+    $record = GovernmentId::create(['name' => 'Passport']);
+    $this->post(imageRoute('government-ids', $record->id), ['image' => pngImage(512, 512), 'original' => pngImage(900, 700, 'original.png')], ['Accept' => 'application/json'])->assertOk();
+    $old = $record->refresh()->only('image_path', 'image_original_path');
+
+    $this->post(imageRoute('government-ids', $record->id), ['image' => pngImage(400, 400)], ['Accept' => 'application/json'])->assertOk();
+
+    expect($record->refresh()->image_original_path)->toBe($old['image_original_path'])
+        ->and($record->image_path)->not->toBe($old['image_path'])->toEndWith('.png');
+    Storage::disk('public')->assertMissing($old['image_path']);
 });
 
 it('shows the saved image on the ID directory and details pages', function () {

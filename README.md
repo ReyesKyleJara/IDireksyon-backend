@@ -76,9 +76,13 @@ php artisan serve
 
 ### ID and document images
 
-Admins manage square images under **Images** in the CMS. Files are saved through the disk named by `CATALOG_IMAGE_DISK` (default `public`) and are served by the app at `/api/catalog-images/{file}`, so `storage:link` is not needed.
+CMS users manage each entry's image in **Basic Information** on its edit screen. Every upload goes through a 1:1 crop. Files are saved through the disk named by `CATALOG_IMAGE_DISK` (default `public`) and are served by the app at `/api/catalog-images/{file}`, so `storage:link` is not needed.
 
 On a host with temporary disk storage, such as Railway without a volume, files are lost on every deployment. Mount a persistent volume at `storage/app/public`, or point `CATALOG_IMAGE_DISK` at an S3-compatible disk.
+
+Artwork guidance (recommended, not enforced): use a square illustration or icon, ideally a transparent PNG around 512x512, with the subject centered and padded, in a consistent style with little or no text. Opaque PNG, JPEG, and WebP are accepted. Do not use scans of real IDs or documents, signatures, QR codes, barcodes, ID numbers, personal information, or official government seals as the main artwork, so the app does not look like an official government service.
+
+Run the real-browser crop check with `python3 tests/browser/run_catalog_cropper.py` after `npm install`.
 
 In a separate terminal, use the asset development server while editing CSS/JavaScript:
 

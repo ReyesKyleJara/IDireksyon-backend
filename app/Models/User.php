@@ -41,6 +41,11 @@ class User extends Authenticatable
             && $this->role === 'super_admin';
     }
 
+    public function canDeleteCatalogRecords(): bool
+    {
+        return $this->canAccessCms() && $this->role === 'super_admin';
+    }
+
     public function setUsernameAttribute(?string $value): void
     {
         $this->attributes['username'] =

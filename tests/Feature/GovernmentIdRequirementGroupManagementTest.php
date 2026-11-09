@@ -210,7 +210,7 @@ it('audits meaningful changes and leaves no-op saves out of edit history', funct
     expect(ContentChangeLog::count())->toBe($before + 3);
 });
 
-it('protects referenced IDs and Documents from CMS and direct database deletion', function () {
+it('protects referenced IDs and Documents from direct database deletion', function () {
     $document = Document::create(['name' => 'Referenced Document']);
     $accepted = GovernmentId::create(['name' => 'Referenced ID']);
     $this->post($this->groupsUrl, requirementGroupPayload([
@@ -219,16 +219,13 @@ it('protects referenced IDs and Documents from CMS and direct database deletion'
             requirementGroupRow(['type' => 'government_id', 'government_id_id' => $accepted->id]),
         ],
     ]))->assertSessionHasNoErrors();
-    $this->delete('/admin/documents/'.$document->id)->assertRedirect('/admin/documents')->assertSessionHas('error');
-    $this->get('/admin/documents')->assertOk()->assertSee('used in requirement items');
-    $this->delete('/admin/government-ids/'.$accepted->id)->assertRedirect('/admin/government-ids/'.$accepted->id)->assertSessionHas('error');
-    $this->get('/admin/government-ids/'.$accepted->id)->assertOk()->assertSee('used in requirement items');
     expect(fn () => $document->delete())->toThrow(QueryException::class);
     expect(fn () => $accepted->delete())->toThrow(QueryException::class);
     $group = $this->set->groups()->sole();
     $this->delete($this->groupsUrl.'/'.$group->id)->assertRedirect($this->groupsUrl);
     $this->assertModelExists($document);
     $this->assertModelExists($accepted);
+    $this->actingAs(User::factory()->create(['role' => 'super_admin']));
     $this->delete('/admin/documents/'.$document->id)->assertSessionHas('success');
     $this->delete('/admin/government-ids/'.$accepted->id)->assertSessionHas('success');
 });
@@ -239,8 +236,6 @@ it('allows the same ID as a renewal item without evaluating a dependency', funct
         'items' => [requirementGroupRow(['type' => 'government_id', 'government_id_id' => $this->targetId->id])],
     ]))->assertSessionHasNoErrors();
     $this->get($this->groupsUrl)->assertOk()->assertSee('Target ID');
-    $this->delete('/admin/government-ids/'.$this->targetId->id)->assertSessionHas('error');
-    $this->assertModelExists($this->targetId);
 });
 
 it('cascades set and parent deletion without deleting selected documents', function () {
@@ -256,6 +251,7 @@ it('cascades set and parent deletion without deleting selected documents', funct
     $set = $this->targetId->requirementSets()->create(['application_type' => 'new', 'applicant_type' => 'all']);
     $group = $set->groups()->create(['rule' => 'all']);
     $group->items()->create(requirementGroupRow());
+    $this->actingAs(User::factory()->create(['role' => 'super_admin']));
     $this->delete('/admin/government-ids/'.$this->targetId->id)->assertSessionHas('success');
     expect(GovernmentIdRequirementGroup::count())->toBe(0)->and(GovernmentIdRequirementItem::count())->toBe(0);
 });

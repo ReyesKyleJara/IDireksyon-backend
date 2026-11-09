@@ -211,12 +211,15 @@ Route::prefix('admin')
         // Documents
         Route::resource('documents', DocumentController::class);
 
+        // Permanent catalog deletion: the warning modal reads this first.
+        Route::get('government-ids/{governmentId}/delete-impact', [GovernmentIdController::class, 'deleteImpact'])->name('government-ids.delete-impact');
+        Route::get('documents/{document}/delete-impact', [DocumentController::class, 'deleteImpact'])->name('documents.delete-impact');
+
         // ID and document images
         Route::controller(\App\Http\Controllers\Admin\CatalogImageController::class)
             ->prefix('images')
             ->name('images.')
             ->group(function () {
-                Route::get('/', 'index')->name('index');
                 Route::post('{type}/{id}', 'update')->whereIn('type', ['government-ids', 'documents'])->whereNumber('id')->name('update');
                 Route::delete('{type}/{id}', 'destroy')->whereIn('type', ['government-ids', 'documents'])->whereNumber('id')->name('destroy');
                 Route::get('{type}/{id}/original', 'original')->whereIn('type', ['government-ids', 'documents'])->whereNumber('id')->name('original');

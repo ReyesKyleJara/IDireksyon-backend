@@ -1,0 +1,191 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Catalog cropper check</title>
+<link rel="stylesheet" href="/node_modules/cropperjs/dist/cropper.css">
+<script type="importmap">
+{ "imports": {
+    "cropperjs": "/node_modules/cropperjs/dist/cropper.esm.js",
+    "cropperjs/dist/cropper.css": "/tests/browser/empty-module.js"
+} }
+</script>
+
+<div id="c" x-data="catalogImage({ item })">
+    <input x-ref="file" type="file">
+    <div style="width: 500px; height: 400px"><img x-ref="cropImage" alt="" style="display: block; max-width: 100%"></div>
+    <div data-crop-preview style="width: 100px; height: 100px; overflow: hidden"></div>
+</div>
+
+<!-- Holds the page's load event open until the checks finish. -->
+<img src="/__hold" alt="" width="1" height="1">
+
+<script type="module">
+import Alpine from '/node_modules/alpinejs/dist/module.esm.js';
+import catalogImage from '/resources/js/catalog-images.js';
+
+let captured = null;
+window.axios = {
+    post: async (url, form) => {
+        captured = form;
+        return { data: { item: { image_url: '/saved.png', can_recrop: true }, message: 'Saved' } };
+    },
+};
+window.item = { name: 'Test', image_url: null, can_recrop: false, broken: false, save_url: '/save', original_url: '' };
+Alpine.data('catalogImage', catalogImage);
+Alpine.start();
+
+const results = [];
+const check = (name, passed, detail = '') => results.push({ name, passed: Boolean(passed), detail: String(detail) });
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function until(test, label) {
+    for (let i = 0; i < 400; i++) {
+        if (test()) return;
+        await sleep(25);
+    }
+    throw new Error('Timed out waiting for ' + label);
+}
+
+/** A circle on a canvas; a stretched crop would make its bounds non-square. */
+function art(width, height, background) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (background) {
+        context.fillStyle = background;
+        context.fillRect(0, 0, width, height);
+    }
+    context.fillStyle = '#c81e1e';
+    context.beginPath();
+    context.arc(width / 2, height / 2, Math.min(width, height) / 5, 0, Math.PI * 2);
+    context.fill();
+    return canvas;
+}
+
+const blobOf = (canvas, type) => new Promise(resolve => canvas.toBlob(resolve, type, 0.95));
+
+async function pixels(blob) {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d');
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const at = (x, y) => [...data.slice((y * canvas.width + x) * 4, (y * canvas.width + x) * 4 + 4)];
+    let left = canvas.width, right = -1, top = canvas.height, bottom = -1;
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            const [red, green, blue, alpha] = at(x, y);
+            if (alpha > 128 && red > 150 && green < 90 && blue < 90) {
+                left = Math.min(left, x);
+                right = Math.max(right, x);
+                top = Math.min(top, y);
+                bottom = Math.max(bottom, y);
+            }
+        }
+    }
+    return {
+        width: canvas.width,
+        height: canvas.height,
+        at,
+        circle: { width: right - left + 1, height: bottom - top + 1, centerX: (left + right) / 2, centerY: (top + bottom) / 2 },
+    };
+}
+
+const element = document.getElementById('c');
+const component = () => Alpine.$data(element);
+
+async function cropReady() {
+    await until(() => component().$refs.cropImage.cropper?.ready, 'cropper');
+    await sleep(50);
+}
+
+async function pick(blob, name, type) {
+    captured = null;
+    await component().fileChosen({ target: { files: [new File([blob], name, { type })] } });
+    await cropReady();
+}
+
+async function confirm() {
+    await component().saveCrop();
+    if (component().error) throw new Error(component().error);
+    return captured;
+}
+
+try {
+    const transparent = await blobOf(art(800, 600), 'image/png');
+
+    await pick(transparent, 'art.png', 'image/png');
+    check('nothing is saved before the crop is confirmed', captured === null && component().step === 'crop');
+    const form = await confirm();
+    const image = form.get('image');
+    const original = form.get('original');
+    const output = await pixels(image);
+    check('transparent PNG stays PNG', image.type === 'image/png' && image.name === 'image.png', image.type);
+    check('crop output is exactly 1:1', output.width === output.height, output.width + 'x' + output.height);
+    check('crop output is 512 pixels', output.width === 512, output.width);
+    check('transparent corner stays transparent', output.at(0, 0)[3] === 0, output.at(0, 0));
+    check('artwork stays opaque', output.at(256, 256)[3] === 255, output.at(256, 256));
+    check('original stays a transparent PNG', original.type === 'image/png' && (await pixels(original)).at(0, 0)[3] === 0);
+    check('the circle is not stretched', Math.abs(output.circle.width - output.circle.height) <= 3, output.circle.width + 'x' + output.circle.height);
+
+    await pick(transparent, 'art.png', 'image/png');
+    const target = component().$refs.cropImage.cropper;
+    component().setZoom(1.5);
+    await sleep(50);
+    target.move(-25, 15);
+    await sleep(50);
+    const moved = await pixels((await confirm()).get('image'));
+    const share = result => result.circle.width / result.width;
+    check('zoom enlarges the artwork', share(moved) > share(output) * 1.3, share(output).toFixed(2) + ' to ' + share(moved).toFixed(2));
+    const offset = (result, axis) => result.circle[axis] / result.width;
+    check('dragging repositions the artwork', Math.abs(offset(moved, 'centerX') - offset(output, 'centerX')) > 0.03 && Math.abs(offset(moved, 'centerY') - offset(output, 'centerY')) > 0.02, JSON.stringify(moved.circle));
+    check('zoomed and moved output stays 1:1', moved.width === moved.height, moved.width + 'x' + moved.height);
+    check('zoomed artwork is not stretched', Math.abs(moved.circle.width - moved.circle.height) <= 4, moved.circle.width + 'x' + moved.circle.height);
+
+    await pick(await blobOf(art(700, 700, '#ffffff'), 'image/jpeg'), 'photo.jpg', 'image/jpeg');
+    const jpeg = (await confirm()).get('image');
+    check('JPEG stays JPEG', jpeg.type === 'image/jpeg' && jpeg.name === 'image.jpg', jpeg.type);
+    check('JPEG output is 1:1', (await pixels(jpeg)).width === (await pixels(jpeg)).height);
+
+    await pick(await blobOf(art(700, 700, '#2563eb'), 'image/png'), 'opaque.png', 'image/png');
+    const opaque = (await confirm()).get('image');
+    const opaquePixels = await pixels(opaque);
+    check('opaque PNG is accepted as PNG', opaque.type === 'image/png', opaque.type);
+    check('opaque background is kept', opaquePixels.at(0, 0)[3] === 255 && opaquePixels.at(0, 0)[2] > 200, opaquePixels.at(0, 0));
+
+    await pick(await blobOf(art(800, 600), 'image/webp'), 'art.webp', 'image/webp');
+    const webp = (await confirm()).get('image');
+    check('WebP is saved as PNG with transparency', webp.type === 'image/png' && (await pixels(webp)).at(0, 0)[3] === 0, webp.type);
+
+    await pick(await blobOf(art(320, 320), 'image/png'), 'small.png', 'image/png');
+    const small = await pixels((await confirm()).get('image'));
+    check('small crops are not enlarged to 512', small.width >= 300 && small.width < 512, small.width);
+
+    captured = null;
+    component().item.original_url = URL.createObjectURL(transparent);
+    await component().recrop();
+    await cropReady();
+    const recropped = await confirm();
+    check('re-crop does not replace the original', !recropped.has('original'));
+    check('re-crop keeps PNG transparency', recropped.get('image').type === 'image/png' && (await pixels(recropped.get('image'))).at(0, 0)[3] === 0);
+
+    await pick(await blobOf(art(700, 700, '#ffffff'), 'image/jpeg'), 'photo.jpg', 'image/jpeg');
+    component().cancelCrop();
+    check('cancel leaves the crop without saving', captured === null && component().step === 'manage');
+
+    component().error = '';
+    await component().fileChosen({ target: { files: [new File(['x'], 'notes.txt', { type: 'text/plain' })] } });
+    check('other file types show a clear error', component().error.includes('JPG, PNG, or WebP'), component().error);
+
+    const tiny = await blobOf(art(200, 200), 'image/png');
+    component().error = '';
+    await component().fileChosen({ target: { files: [new File([tiny], 'tiny.png', { type: 'image/png' })] } });
+    check('too-small pictures show a clear error', component().error.includes('too small'), component().error);
+} catch (error) {
+    check('browser check finished', false, error.stack || error);
+}
+
+await fetch('/__results', { method: 'POST', body: JSON.stringify(results) });
+</script>

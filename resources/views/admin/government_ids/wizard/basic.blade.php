@@ -1,5 +1,6 @@
 <section class="admin-panel space-y-6 bg-white p-6" aria-labelledby="wizard-basic-heading">
     <h3 id="wizard-basic-heading" class="text-lg font-semibold text-slate-900">General Information</h3>
+    @include('admin.catalog.partials.image-field')
     <div>
         <label for="name" class="mb-2 block text-sm font-medium">{{ $recordKind === 'document' ? 'Document' : 'ID' }} Name <span aria-hidden="true">*</span></label>
         <input id="name" name="name" value="{{ $value('name') }}" maxlength="255" required class="admin-input" placeholder="{{ $recordKind === 'document' ? 'e.g. PSA Birth Certificate' : 'e.g. Philippine Passport' }}" aria-describedby="name-help @error('name') name-error @enderror" @error('name') aria-invalid="true" @enderror>

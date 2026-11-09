@@ -38,6 +38,21 @@ class CatalogImages
         return route('catalog-images.show', ['file' => basename($path)], false);
     }
 
+    /** What the image control in Basic Information needs to know about a record. */
+    public static function item(string $type, Model $record): array
+    {
+        $key = ['type' => $type, 'id' => $record->getKey()];
+
+        return [
+            'name' => $record->name,
+            'image_url' => $record->image_url,
+            'can_recrop' => (bool) $record->image_original_path,
+            'broken' => false,
+            'save_url' => route('admin.images.update', $key, false),
+            'original_url' => route('admin.images.original', $key, false),
+        ];
+    }
+
     /**
      * Saves the new files first and removes the replaced ones only after the
      * record points at the new files, so a failure never leaves a broken link.

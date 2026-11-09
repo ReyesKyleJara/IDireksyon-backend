@@ -32,5 +32,6 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('access-cms', fn (User $user) => $user->canAccessCms());
         Gate::define('manage-admins', fn (User $user) => $user->canManageAdmins());
+        Gate::define('delete-catalog-records', fn (User $user) => $user->canDeleteCatalogRecords());
     }
 }

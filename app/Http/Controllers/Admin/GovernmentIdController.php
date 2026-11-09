@@ -8,12 +8,13 @@ use App\Services\GovernmentIdApplicationGuide;
 use App\Services\GovernmentIdChecklists;
 use App\Models\GovernmentId;
 use App\Models\Document;
-use App\Models\GovernmentIdRequirementItem;
-use Illuminate\Database\QueryException;
 use App\Models\GovernmentIdOffice;
 use App\Models\Office;
 use App\Models\ContentChangeLog;
+use App\Services\CatalogRecordDeletion;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -286,48 +287,18 @@ class GovernmentIdController extends Controller
             );
     }
 
-    public function destroy(
-        GovernmentId $governmentId
-    ) {
-        $hasGuide = fn () => $governmentId->requirementSets()->whereHas('applicationSteps')->exists();
-        if ($hasGuide()) {
-            return redirect()->route('admin.government-ids.show', $governmentId)
-                ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
-        }
-        $isPrerequisiteReferenced = fn () => \App\Models\GovernmentIdPrerequisite::where('government_id_id', $governmentId->id)->exists()
-            || \App\Models\DocumentPrerequisite::where('government_id_id', $governmentId->id)->exists();
-        if ($isPrerequisiteReferenced()) {
-            return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
-        }
-        $isReferenced = fn () => GovernmentIdRequirementItem::where('government_id_id', $governmentId->id)->exists()
-            || \App\Models\DocumentRequirementItem::where('government_id_id', $governmentId->id)->exists();
-        if ($isReferenced()) {
-            return redirect()->route('admin.government-ids.show', $governmentId)->with('error', 'This Government ID is used in requirement items. Remove those references before deleting it.');
-        }
-        try {
-            DB::transaction(fn () => $governmentId->delete());
-        } catch (QueryException $exception) {
-            if ($isPrerequisiteReferenced()) {
-                return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
-            }
-            if ($hasGuide()) {
-                return redirect()->route('admin.government-ids.show', $governmentId)
-                    ->with('error', 'This Government ID has Application Guide steps. Remove those steps before deleting it.');
-            }
-            if (! $isReferenced()) {
-                throw $exception;
-            }
-            return redirect()->route('admin.government-ids.show', $governmentId)->with('error', 'This Government ID is used in requirement items. Remove those references before deleting it.');
-        }
+    public function deleteImpact(GovernmentId $governmentId, CatalogRecordDeletion $deletion): JsonResponse
+    {
+        Gate::authorize('delete-catalog-records');
 
-        return redirect()
-            ->route(
-                'admin.government-ids.index'
-            )
-            ->with(
-                'success',
-                'ID or credential deleted successfully.'
-            );
+        return response()->json(['data' => $deletion->impact($governmentId)]);
+    }
+
+    public function destroy(GovernmentId $governmentId, CatalogRecordDeletion $deletion)
+    {
+        Gate::authorize('delete-catalog-records');
+
+        return redirect()->route('admin.government-ids.index')->with('success', $deletion->delete($governmentId));
     }
 
 }

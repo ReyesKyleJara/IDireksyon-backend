@@ -95,13 +95,11 @@ it('rejects self links mixed sources duplicates missing targets forged IDs and i
     ]])->assertSessionHasNoErrors();
 })->with('prerequisite owners');
 
-it('protects linked records from deletion and cascades only owned prerequisite rows', function ($model, $resource) {
+it('protects linked records from direct deletion and cascades only owned prerequisite rows', function ($model, $resource) {
     $owner = $model::create(['name' => 'Owner']);
     $target = $model::create(['name' => 'Target']);
     $type = $owner instanceof Document ? 'document' : 'government_id';
     app(CatalogPrerequisites::class)->save($owner, [['type' => $type, $type.'_id' => $target->id]]);
-    $this->delete(route('admin.'.$resource.'.destroy', $target))->assertRedirect()->assertSessionHas('error');
-    expect($target->fresh())->not->toBeNull();
     try { $target->delete(); test()->fail('Expected foreign key protection'); } catch (\Illuminate\Database\QueryException) {}
     $owner->delete();
     expect($target->fresh())->not->toBeNull()->and($owner->prerequisites()->count())->toBe(0);

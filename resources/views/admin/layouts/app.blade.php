@@ -208,19 +208,6 @@
 
 </a>
 
-    {{-- Images --}}
-    <a href="{{ route('admin.images.index') }}"
-        @if(request()->routeIs('admin.images.*')) aria-current="page" @endif
-        class="mt-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition
-        {{ request()->routeIs('admin.images.*') ? 'bg-[#012877] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-[#012877]' }}">
-        <svg aria-hidden="true" class="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-            <circle cx="9" cy="10" r="2"></circle>
-            <path d="m4 18 5-4 4 3 3-2 4 3"></path>
-        </svg>
-        Images
-    </a>
-
     {{-- Offices --}}
     <a href="{{ route('admin.offices.index') }}"
         @if(request()->routeIs('admin.offices.*')) aria-current="page" @endif

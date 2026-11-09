@@ -8,11 +8,12 @@ use App\Services\GovernmentIdApplicationGuide;
 use App\Services\GovernmentIdChecklists;
 use App\Models\GovernmentId;
 use App\Models\Document;
-use App\Models\GovernmentIdRequirementItem;
-use Illuminate\Database\QueryException;
 use App\Models\Office;
 use App\Models\ContentChangeLog;
+use App\Services\CatalogRecordDeletion;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
 
 class DocumentController extends Controller
@@ -217,48 +218,18 @@ class DocumentController extends Controller
             );
     }
 
-    public function destroy(
-        Document $document
-    ) {
-        $hasGuide = fn () => $document->requirementSets()->whereHas('applicationSteps')->exists();
-        if ($hasGuide()) {
-            return redirect()->route('admin.documents.show', $document)
-                ->with('error', 'This document has Application Guide steps. Remove those steps before deleting it.');
-        }
-        $isPrerequisiteReferenced = fn () => \App\Models\GovernmentIdPrerequisite::where('document_id', $document->id)->exists()
-            || \App\Models\DocumentPrerequisite::where('document_id', $document->id)->exists();
-        if ($isPrerequisiteReferenced()) {
-            return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
-        }
-        $isReferenced = fn () => GovernmentIdRequirementItem::where('document_id', $document->id)->exists()
-            || \App\Models\DocumentRequirementItem::where('document_id', $document->id)->exists();
-        if ($isReferenced()) {
-            return redirect()->route('admin.documents.index')->with('error', 'This document is used in requirement items. Remove those references before deleting it.');
-        }
-        try {
-            DB::transaction(fn () => $document->delete());
-        } catch (QueryException $exception) {
-            if ($isPrerequisiteReferenced()) {
-                return back()->with('error', 'This entry is used in prerequisites. Remove those references before deleting it.');
-            }
-            if ($hasGuide()) {
-                return redirect()->route('admin.documents.show', $document)
-                    ->with('error', 'This document has Application Guide steps. Remove those steps before deleting it.');
-            }
-            if (! $isReferenced()) {
-                throw $exception;
-            }
-            return redirect()->route('admin.documents.index')->with('error', 'This document is used in requirement items. Remove those references before deleting it.');
-        }
+    public function deleteImpact(Document $document, CatalogRecordDeletion $deletion): JsonResponse
+    {
+        Gate::authorize('delete-catalog-records');
 
-        return redirect()
-            ->route(
-                'admin.documents.index'
-            )
-            ->with(
-                'success',
-                'Document deleted successfully.'
-            );
+        return response()->json(['data' => $deletion->impact($document)]);
+    }
+
+    public function destroy(Document $document, CatalogRecordDeletion $deletion)
+    {
+        Gate::authorize('delete-catalog-records');
+
+        return redirect()->route('admin.documents.index')->with('success', $deletion->delete($document));
     }
 
 }

@@ -34,7 +34,7 @@ Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class, '
 Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'show']);
 
 Route::get('/catalog-images/{file}', [\App\Http\Controllers\Api\CatalogImageController::class, 'show'])
-    ->where('file', '[A-Za-z0-9]{40}\.jpg')
+    ->where('file', '[A-Za-z0-9]{40}\.(jpg|png)')
     ->name('catalog-images.show');
 
 Route::get('/government-ids', [GovernmentIdController::class, 'index']);

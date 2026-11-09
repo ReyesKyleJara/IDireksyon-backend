@@ -26,12 +26,11 @@ it('stores ordered steps and information blocks under their scenario without cha
     expect(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->idRecord->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($before);
 });
 
-it('protects guides through both scenario deletion endpoints and parent ID deletion', function () {
+it('protects guides through both scenario deletion endpoints', function () {
     $step = $this->scenario->applicationSteps()->create(['title' => 'Keep this step']);
     $base = '/admin/government-ids/'.$this->idRecord->id;
     $this->deleteJson($base.'/checklists/'.$this->scenario->id)->assertUnprocessable()->assertJsonValidationErrors('application_guide');
     $this->deleteJson($base.'/requirement-sets/'.$this->scenario->id)->assertUnprocessable()->assertJsonValidationErrors('application_guide');
-    $this->delete($base)->assertRedirect($base)->assertSessionHas('error');
     $this->assertModelExists($step);
     $this->assertModelExists($this->scenario);
     $this->assertModelExists($this->idRecord);

@@ -142,7 +142,7 @@ it('rolls back the entire Add Document form when a guide references another docu
     expect(Document::count())->toBe(1)->and(DocumentRequirementSet::count())->toBe(1)->and(DB::table('document_fees')->count())->toBe(0);
 });
 
-it('blocks parent and scenario deletion with guides and blocks deletion of referenced IDs and documents', function () {
+it('blocks scenario deletion while a guide exists', function () {
     $document = Document::create(['name' => 'Guide parent']);
     $reference = Document::create(['name' => 'Referenced certificate']);
     $id = GovernmentId::create(['name' => 'Referenced ID']);
@@ -154,9 +154,6 @@ it('blocks parent and scenario deletion with guides and blocks deletion of refer
     $set = $this->postJson($url, $payload)->assertCreated()->json('checklist');
     $this->put(route('admin.documents.update', $document), ['name' => $document->name, 'application_guide_payload' => json_encode([documentGuide(['id' => $set['id']])])])->assertSessionHasNoErrors();
     $this->deleteJson($url.'/'.$set['id'])->assertUnprocessable();
-    foreach ([route('admin.documents.destroy', $document), route('admin.documents.destroy', $reference), route('admin.government-ids.destroy', $id)] as $target) {
-        $this->delete($target)->assertSessionHas('error');
-    }
     expect(Document::count())->toBe(2)->and(GovernmentId::count())->toBe(1)->and(DocumentApplicationStep::count())->toBe(1);
 });
 

@@ -80,18 +80,11 @@
         <a href="{{ route($recordRoutes.'.index', $directoryQuery) }}" class="text-sm text-slate-600 hover:underline">← Back to directory</a>
         <div class="record-actions">
             <a href="{{ route($recordRoutes.'.edit', $governmentId) }}" class="admin-primary">Edit details</a>
-            <details class="relative">
-                <summary aria-label="More actions for this {{ strtolower($recordLabel) }}" class="admin-secondary cursor-pointer list-none">⋮</summary>
-                <div class="absolute right-0 z-40 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                    <form method="POST" action="{{ route($recordRoutes.'.destroy', $governmentId) }}" onsubmit="return confirm('Delete this {{ strtolower($recordLabel) }}? This cannot be undone.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="block w-full rounded-lg px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50">Delete {{ $recordLabel }}</button>
-                    </form>
-                </div>
-            </details>
+            @include('admin.catalog.partials.delete-modal')
         </div>
     </div>
+
+    @error('_catalog_revision')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
 
     <div class="record-sheet">
         <header class="record-header">
@@ -111,11 +104,11 @@
                 <h2>Image</h2>
                 <div class="flex items-center gap-4">
                     @if($governmentId->image_url)
-                        <img src="{{ $governmentId->image_url }}" alt="" class="h-28 w-28 shrink-0 rounded-lg object-cover">
+                        <img src="{{ $governmentId->image_url }}" alt="" class="h-28 w-28 shrink-0 rounded-lg bg-slate-100 object-contain">
                     @else
                         <div class="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-center text-xs text-slate-400">No image yet</div>
                     @endif
-                    <a href="{{ route('admin.images.index', ['open' => ($recordKind === 'document' ? 'documents' : 'government-ids').':'.$governmentId->id]) }}" class="admin-secondary">Manage image</a>
+                    <a href="{{ route($recordRoutes.'.edit', $governmentId) }}" class="admin-secondary">Manage image</a>
                 </div>
             </section>
 

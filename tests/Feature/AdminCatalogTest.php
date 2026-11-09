@@ -22,6 +22,7 @@ it('creates edits and deletes an unreferenced directory entry', function ($resou
     if ($resource === 'government-ids') {
         $this->get('/admin/'.$resource.'/'.$record->id)->assertOk()->assertSee('Revised description');
     }
+    $this->actingAs(User::factory()->create(['role' => 'super_admin']));
     $this->delete('/admin/'.$resource.'/'.$record->id)->assertRedirect('/admin/'.$resource);
     $this->assertModelMissing($record);
 })->with([['documents', Document::class], ['government-ids', GovernmentId::class]]);
