@@ -105,6 +105,17 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        // Sign-in events. Always stderr, so hosting logs keep them whatever LOG_CHANNEL is.
+        'security' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_SECURITY_LEVEL', 'info'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+        ],
+
         'syslog' => [
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),

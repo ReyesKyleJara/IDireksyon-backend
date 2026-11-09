@@ -21,6 +21,19 @@ return Application::configure(basePath: dirname(__DIR__))
                 Request::HEADER_X_FORWARDED_PROTO,
         );
 
+        // A closure because config is not loaded yet. Laravel treats each host as a
+        // pattern, and skips this check in the local environment and in tests.
+        $middleware->trustHosts(
+            at: fn () => array_map(
+                fn (string $host) => '^'.preg_quote($host).'$',
+                config('security.trusted_hosts'),
+            ),
+            subdomains: false,
+        );
+
+        // Outermost, so responses rejected by other middleware carry the headers too.
+        $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
+
         // First in the group so login redirects carry the header too.
         $middleware->web(prepend: \App\Http\Middleware\NoIndexPrivatePages::class);
     })
