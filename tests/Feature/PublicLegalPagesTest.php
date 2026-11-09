@@ -14,7 +14,10 @@ it('covers the information the app actually handles', function () {
         ->assertSee('birth date')
         ->assertSee('barangay')
         ->assertSee('IDs and documents you own')
-        ->assertSee('Roadmap and journey progress')
+        ->assertSee('Roadmap progress:')
+        ->assertSee('saved roadmap progress')
+        ->assertSee('save your inventory and roadmap progress')
+        ->assertDontSee('journey')
         ->assertSee('Location')
         ->assertSee('Profile photo')
         ->assertSee('Railway')
@@ -29,7 +32,7 @@ it('explains the in-app deletion path and what is deleted', function () {
         ->assertSee('Password &amp; security', false)
         ->assertSee('Delete account')
         ->assertSee('inventory')
-        ->assertSee('Roadmap journeys')
+        ->assertSee('Roadmap progress, choices, and completed steps')
         ->assertSee('If you cannot log in');
 });
 

@@ -15,12 +15,12 @@
     <li><strong>Account details:</strong> your email address or mobile number, and your password. Passwords are stored in hashed form, not as readable text.</li>
     <li><strong>Profile details:</strong> your name, birth date, and barangay.</li>
     <li><strong>IDs and documents you own:</strong> the items you mark as already having in your inventory.</li>
-    <li><strong>Roadmap and journey progress:</strong> your selected target IDs, your journey plan, the choices you make, the steps you complete, and the requirements you mark as prepared.</li>
+    <li><strong>Roadmap progress:</strong> your selected target IDs, saved roadmap progress, completed steps, choices you make, and requirements you mark as prepared.</li>
 </ul>
 <p>The app does not ask you to upload copies of your IDs or documents, and does not ask for their ID numbers.</p>
 
 <h2>How we use your information</h2>
-<p>We use this information to run your account, save your inventory and journey progress, and show guidance based on what you enter. We also use your email address to send sign-up verification codes and password reset links.</p>
+<p>We use this information to run your account, save your inventory and roadmap progress, and show guidance based on what you enter. We also use your email address to send sign-up verification codes and password reset links.</p>
 
 <h2>Location</h2>
 <p>Office Finder can use your device's location to show offices near you and to get directions. The app asks for permission first, and only uses location while you are using the app. It may ask when you tap "Use my current location", request directions, or start typing in the Office Finder search. You can decline and still browse offices.</p>

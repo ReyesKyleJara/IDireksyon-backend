@@ -19,7 +19,7 @@
 <ul>
     <li>Your account: name, email address or mobile number, password, birth date, and barangay</li>
     <li>The IDs and documents saved in your inventory</li>
-    <li>Your Roadmap journeys, choices, and completed steps</li>
+    <li>Your Roadmap progress, choices, and completed steps</li>
     <li>The requirements you marked as prepared</li>
     <li>Your sign-in sessions, plus any pending password reset or email verification records</li>
     <li>The profile photo saved on the device you used to delete your account</li>
