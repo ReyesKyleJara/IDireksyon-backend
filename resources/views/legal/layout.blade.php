@@ -27,7 +27,9 @@
             @yield('content')
         </article>
         <footer>
+            <a href="{{ route('home', [], false) }}">Home</a> ·
             <a href="{{ route('privacy', [], false) }}">Privacy Policy</a> ·
+            <a href="{{ route('terms', [], false) }}">Terms of Service</a> ·
             <a href="{{ route('account-deletion', [], false) }}">Account Deletion</a>
         </footer>
     </main>

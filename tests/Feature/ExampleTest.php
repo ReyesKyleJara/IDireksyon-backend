@@ -3,5 +3,5 @@
 it('returns a successful response', function () {
     $response = $this->get('/');
 
-    $response->assertRedirect('/login');
+    $response->assertOk()->assertSee('Your Guide to Government IDs');
 });
