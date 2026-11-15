@@ -21,7 +21,8 @@ class DocumentController extends Controller
 
     public function show(Document $document)
     {
-        return response()->json(['data' => [
+        // Resident-friendly wording is applied last, to the response only.
+        return response()->json(['data' => \App\Services\ResidentWording::apply([
             ...$document->only(['id', 'name', 'description', 'purpose', 'level', 'category', 'eligibility', 'validity', 'validity_type',
                 'processing_time', 'processing_time_note', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing', 'requirements', 'fee']),
             ...CatalogEncoding::detail($document),
@@ -34,6 +35,6 @@ class DocumentController extends Controller
             'requirement_sets' => ResidentRequirements::generalForId($document),
             'fee' => $document->fees->isNotEmpty() && CatalogEncoding::generalFees($document)->isEmpty() ? null : $document->fee,
             'fees' => CatalogEncoding::generalFees($document)->map(fn ($fee) => CatalogEncoding::fee($fee))->values(),
-        ]]);
+        ], $document)]);
     }
 }

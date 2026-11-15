@@ -26,7 +26,9 @@ it('saves structured eligibility and exposes the same readable string in both AP
     $this->get('/admin/government-ids/'.$id->id.'/edit')->assertOk()
         ->assertSee('Age Requirement')->assertSee('First-time applicants only.');
     $this->getJson('/api/government-ids')->assertOk()->assertJsonPath('data.0.eligibility', $summary);
-    $this->getJson('/api/government-ids/'.$id->id)->assertOk()->assertJsonPath('data.eligibility', $summary);
+    // The resident app gets one natural sentence; the CMS keeps the stored summary above.
+    $this->getJson('/api/government-ids/'.$id->id)->assertOk()->assertJsonPath('data.eligibility',
+        "Filipino citizens aged 18 or older living in Santa Maria, Bulacan.\nFirst-time applicants only.");
 });
 
 it('rejects incomplete or invalid eligibility without creating a record', function (array $fields, string $error) {

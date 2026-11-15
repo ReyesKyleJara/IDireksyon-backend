@@ -149,8 +149,9 @@ class GovernmentIdController extends Controller
                 ->orderBy('id'),
         ]);
 
+        // Resident-friendly wording is applied last, to the response only.
         return response()->json([
-            'data' => [
+            'data' => \App\Services\ResidentWording::apply([
                 ...\App\Services\CatalogEncoding::detail($governmentId),
                 // Added after detail(): the fingerprint reads detail(), so it must not depend on this.
                 'agency_verification' => app(\App\Services\CatalogAgencyValidation::class)->publicSummary($governmentId),
@@ -347,7 +348,7 @@ class GovernmentIdController extends Controller
                     $governmentId
                         ->last_verified_at
                         ?->toISOString(),
-            ],
+            ], $governmentId),
         ]);
     }
 
