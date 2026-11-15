@@ -244,13 +244,9 @@ class ResidentAuthController extends Controller
             /*
              * Save the resident's current inventory.
              */
-            $user->ownedGovernmentIds()->sync(
-                $data['government_id_ids']
-            );
-
-            $user->ownedDocuments()->sync(
-                $data['document_ids']
-            );
+            // Items saved for a hidden record are kept, so they return when it is shown again.
+            \App\Support\ResidentVisibility::syncOwned($user->ownedGovernmentIds(), $data['government_id_ids'], 'government_id');
+            \App\Support\ResidentVisibility::syncOwned($user->ownedDocuments(), $data['document_ids'], 'document');
 
             /*
              * Keep the legacy JSON fields synchronized temporarily.

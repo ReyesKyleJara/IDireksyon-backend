@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GovernmentIdPrerequisite extends Model
 {
+    use \App\Models\Concerns\PlainTextWhenLinkedRecordHidden;
+
     protected $table = 'catalog_government_id_prerequisites';
 
     protected $fillable = ['owner_id', 'type', 'government_id_id', 'document_id', 'custom_name', 'condition', 'sort_order'];

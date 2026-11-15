@@ -79,10 +79,18 @@
     <div class="record-toolbar">
         <a href="{{ route($recordRoutes.'.index', $directoryQuery) }}" class="text-sm text-slate-600 hover:underline">← Back to directory</a>
         <div class="record-actions">
+            @include('admin.catalog.partials.visibility')
             <a href="{{ route($recordRoutes.'.edit', $governmentId) }}" class="admin-primary">Edit details</a>
             @include('admin.catalog.partials.delete-modal')
         </div>
     </div>
+
+    @if($governmentId->isHidden())
+        <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status" data-hidden-banner>
+            <strong>Hidden from residents</strong> since {{ $governmentId->hidden_at->copy()->timezone('Asia/Manila')->format('j M Y') }}@if($governmentId->hiddenBy) by {{ $governmentId->hiddenBy->name }}@endif.
+            It does not appear anywhere in the app. You can still edit everything here; choose “Show entry” to bring it back.
+        </p>
+    @endif
 
     @error('_catalog_revision')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
 

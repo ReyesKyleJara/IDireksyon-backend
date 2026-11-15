@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title') | IDireksyon</title>
+    @yield('head')
     <style>
         body { margin: 0; background: #f3f8ff; color: #1f2d3d; font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
         main { max-width: 720px; margin: 0 auto; padding: 32px 20px 56px; }

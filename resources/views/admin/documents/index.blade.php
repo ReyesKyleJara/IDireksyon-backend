@@ -317,7 +317,7 @@
                                 <td class="px-5 py-4">
 
                                     <a href="{{ route('admin.documents.show', $document) }}" class="font-semibold text-slate-900 hover:underline">
-                                        {{ $document->name }}
+                                        {{ $document->name }}@if($document->hidden_at)<span class="ml-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700" data-hidden-badge>Hidden</span>@endif
                                     </a>
 
                                 </td>

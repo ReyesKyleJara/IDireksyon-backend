@@ -19,6 +19,10 @@ Route::view('/privacy', 'legal.privacy')->name('privacy');
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/account-deletion', 'legal.account-deletion')->name('account-deletion');
 
+// Public, read-only previews opened from the app's Share button.
+Route::get('/ids/{governmentId}', [\App\Http\Controllers\PublicRecordController::class, 'governmentId'])->whereNumber('governmentId')->middleware(\App\Http\Middleware\ResidentCatalogVisibility::class)->name('share.government-id');
+Route::get('/documents/{document}', [\App\Http\Controllers\PublicRecordController::class, 'document'])->whereNumber('document')->middleware(\App\Http\Middleware\ResidentCatalogVisibility::class)->name('share.document');
+
 Route::get('/dashboard', fn () => redirect()->route(auth()->user()->cmsHomeRoute()))
     ->middleware(['auth', 'can:access-cms'])
     ->name('dashboard');
@@ -54,6 +58,10 @@ Route::prefix('admin')
                     }
                 });
         }
+
+        // Hide Entry / Show Entry: whether residents can see the record. Nothing is deleted.
+        Route::post('documents/{document}/visibility', [\App\Http\Controllers\Admin\CatalogVisibilityController::class, 'document'])->name('documents.visibility');
+        Route::post('government-ids/{governmentId}/visibility', [\App\Http\Controllers\Admin\CatalogVisibilityController::class, 'governmentId'])->name('government-ids.visibility');
 
         // "Mark as reviewed" (Last Reviewed). Requires the page's _catalog_revision, so stale pages are refused.
         Route::post('documents/{document}/review', [\App\Http\Controllers\Admin\CatalogReviewController::class, 'document'])->name('documents.review');

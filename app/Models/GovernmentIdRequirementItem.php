@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GovernmentIdRequirementItem extends Model
 {
+    use \App\Models\Concerns\PlainTextWhenLinkedRecordHidden;
+
     public const TYPES = [
         'government_id' => 'Government ID',
         'document' => 'Document',

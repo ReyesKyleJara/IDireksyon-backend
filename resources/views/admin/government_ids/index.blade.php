@@ -494,7 +494,7 @@
                     <div class="p-5">
 
                         <h2 class="break-words text-lg font-bold text-slate-900">
-                            {{ $governmentId->name }}
+                            {{ $governmentId->name }}@if($governmentId->hidden_at)<span class="ml-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700" data-hidden-badge>Hidden</span>@endif
                         </h2>
 
 
@@ -688,7 +688,7 @@
                                         ) }}"
                                         class="font-semibold text-slate-900 hover:text-[#012877]"
                                     >
-                                        {{ $governmentId->name }}
+                                        {{ $governmentId->name }}@if($governmentId->hidden_at)<span class="ml-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700" data-hidden-badge>Hidden</span>@endif
                                     </a>
 
                                 </td>

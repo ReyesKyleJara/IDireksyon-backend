@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Document extends Model
 {
+    use \App\Models\Concerns\HidesFromResidents;
+
     use \App\Models\Concerns\HasCatalogImage;
 
     /** Storage locations stay private; residents receive image_url instead. */
@@ -84,6 +86,7 @@ class Document extends Model
             'research_metadata' => 'array',            'include_in_smart_sequencing' => 'boolean',
             'content_updated_at' => 'datetime',
             'last_reviewed_at' => 'datetime',
+            'hidden_at' => 'datetime',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',
             'validity_value' => 'integer',

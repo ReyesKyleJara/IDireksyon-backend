@@ -34,6 +34,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Outermost, so responses rejected by other middleware carry the headers too.
         $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
 
+        // The app API never returns hidden IDs or documents. It must run before route model
+        // binding, so a hidden record's own address is a 404.
+        $middleware->api(prepend: \App\Http\Middleware\ResidentCatalogVisibility::class);
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\ResidentCatalogVisibility::class,
+        );
+
         // First in the group so login redirects carry the header too.
         $middleware->web(prepend: \App\Http\Middleware\NoIndexPrivatePages::class);
     })
