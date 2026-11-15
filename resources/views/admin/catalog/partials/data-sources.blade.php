@@ -69,7 +69,8 @@
         $formData = compact('agencyErrors', 'agencies', 'offices', 'pathLabels');
     }
 @endphp
-<section id="data-sources" class="admin-panel space-y-5 p-6" aria-label="Data Sources" x-data="{ tab: @js($tab) }">
+@include('admin.catalog.partials.source-app-preview-assets')
+<section id="data-sources"class="admin-panel space-y-5 p-6" aria-label="Data Sources" x-data="{ tab: @js($tab) }">
     <div>
         <h3 class="text-lg font-semibold">Data Sources</h3>
         <p class="text-sm text-slate-600">Where this information came from: official websites, and what a government office told you directly.</p>
@@ -93,13 +94,18 @@
 
     {{-- ONLINE SOURCES: saved with this step. --}}
     <div x-show="tab === 'online'" @if($tab !== 'online') x-cloak @endif class="space-y-4" data-tab="online"
-        x-data="{ sources: @js($sourceRows), blank: @js($blankSource) }">
+        x-data="sourcePreview(@js($sourceRows), @js($blankSource), @js([
+            'name' => $governmentId?->name ?? '',
+            'issuedBy' => $recordKind === 'document' ? ($governmentId?->issued_by ?? '') : '',
+            'agencies' => \App\Models\Agency::pluck('name', 'id'),
+        ]))" @input.window="syncRecord()" @change.window="syncRecord()">
         <input type="hidden" name="research_sources_present" value="1">
         <p class="text-sm text-slate-600">Official government websites you used as references. Residents see these links in the app. A website link is not an agency confirmation.</p>
         @if($sourceError)<p class="text-sm text-red-700" role="alert">{{ $sourceError }}</p>@endif
         <template x-for="(source, index) in sources" :key="index">
-            <fieldset class="space-y-3 rounded-lg border border-slate-200 p-4 text-sm">
+            <fieldset class="ds-source-row rounded-lg border border-slate-200 p-4 text-sm">
                 <legend class="px-1 font-semibold" x-text="'Online source ' + (index + 1)"></legend>
+                <div class="space-y-3">
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="block font-medium">Website or agency name
                         <input class="admin-input mt-1" :name="`research_metadata[sources][${index}][title]`" x-model="source.title" maxlength="255" placeholder="e.g. DFA – Passport requirements"></label>
@@ -115,6 +121,8 @@
                 {{-- No longer asked for, but a date saved earlier is kept. --}}
                 <input type="hidden" :name="`research_metadata[sources][${index}][published_on]`" :value="source.published_on">
                 <button type="button" class="text-red-700 hover:underline" @click="sources.splice(index, 1)">Remove this source</button>
+                </div>
+                @include('admin.catalog.partials.source-app-preview')
             </fieldset>
         </template>
         <p class="text-sm text-slate-600" x-show="sources.length === 0">No online sources yet.</p>

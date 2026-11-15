@@ -142,3 +142,21 @@ it('never words a draft as if the agency was contacted', function () {
 
     expect($html)->toContain('Entered so far: contact date 1 Feb 2026')->not->toContain('Agency contacted on');
 });
+
+it('shows a live resident app preview for each online source, for both record types', function (Closure $makeRecord) {
+    $record = $makeRecord();
+    $record->update(['research_metadata' => ['sources' => [['title' => 'Public reference: DFA – Passport requirements',
+        'url' => 'https://passport.gov.ph/requirements', 'checked_on' => '2026-11-10', 'scope' => 'Requirements for first-time applicants']]]]);
+    $html = rvPage($record);
+
+    // The card is drawn in the browser from the fields being edited, so it needs no save.
+    expect($html)->toContain('x-data="sourcePreview(')->toContain('data-app-preview')->toContain('Resident app preview')
+        ->toContain('function sourcePreview(')->toContain('Public reference')->toContain('Checked date not recorded')
+        ->toContain('passport.gov.ph')
+        // Display only: the preview adds no form fields of its own (5 fields + the kept publication date).
+        ->and(substr_count($html, 'research_metadata[sources][${index}]['))->toBe(6)
+        ->and(substr_count($html, 'function sourcePreview('))->toBe(1);
+})->with([
+    'government id' => [fn () => avRecord()],
+    'document' => [fn () => Document::create(['name' => 'Fixture document'])],
+]);
