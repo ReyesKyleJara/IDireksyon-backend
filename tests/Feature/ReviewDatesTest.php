@@ -97,20 +97,32 @@ it('marks a record as reviewed without changing Last Updated, and records who di
         ->and($fresh->agencyVerifications()->count())->toBe(0);
 });
 
-it('refuses Mark as reviewed without an online source checked date, a page revision, or CMS access', function () {
+it('marks any record as reviewed, with or without online sources, and never touches sources or agency records', function (Closure $makeRecord) {
+    Carbon::setTestNow('2026-11-01 08:00:00');
+    $record = $makeRecord();
+    $sourcesBefore = $record->research_metadata['sources'] ?? null;
+    Carbon::setTestNow('2026-11-05 09:30:00');
+    rdReview($record)->assertSessionHasNoErrors();
+
+    $fresh = $record->fresh();
+    expect($fresh->last_reviewed_at->toDateTimeString())->toBe('2026-11-05 09:30:00')
+        ->and($fresh->research_metadata['sources'] ?? null)->toBe($sourcesBefore)
+        ->and($fresh->content_updated_at->toDateTimeString())->toBe('2026-11-01 08:00:00')
+        ->and($fresh->agencyVerifications()->count())->toBe(0);
+})->with([
+    'ID without sources' => [fn () => avRecord()],
+    'ID with an undated source' => [fn () => tap(avRecord(), fn ($r) => $r->update(['research_metadata' => ['sources' => [rdSource(['checked_on' => ''])]]]))->fresh()],
+    'document without sources' => [fn () => Document::create(['name' => 'Fixture document'])],
+]);
+
+it('refuses Mark as reviewed without a current page revision or CMS access', function () {
     $record = avRecord();
-    rdReview($record)->assertSessionHasErrors('review');
-
-    $record->update(['research_metadata' => ['sources' => [rdSource(['checked_on' => ''])]]]);
-    rdReview($record->fresh())->assertSessionHasErrors('review');
-
-    $ready = rdWithSource();
-    test()->actingAs(avResearcher())->post(route('admin.government-ids.review', $ready))->assertSessionHasErrors('_catalog_revision');
-    rdReview($ready, null, 'stale-revision')->assertSessionHasErrors('_catalog_revision');
+    test()->actingAs(avResearcher())->post(route('admin.government-ids.review', $record))->assertSessionHasErrors('_catalog_revision');
+    rdReview($record, null, 'stale-revision')->assertSessionHasErrors('_catalog_revision');
 
     $resident = avResearcher();
     $resident->forceFill(['role' => 'resident'])->save();
-    rdReview($ready, $resident)->assertForbidden();
+    rdReview($record, $resident)->assertForbidden();
 
     expect(GovernmentId::whereNotNull('last_reviewed_at')->count())->toBe(0);
 });
@@ -136,14 +148,15 @@ it('keeps the review date when information changes later and shows it may need r
     expect(\App\Services\CatalogReviewDates::state($record->fresh())['updated_since_review'])->toBeFalse();
 });
 
-it('shows both dates on the record page, with a hint instead of the button when there is no checked source', function () {
+it('always shows the Mark as reviewed button on the record page, even without online sources', function () {
     $record = avRecord();
     $html = test()->actingAs(avSuperAdmin())->get(route('admin.government-ids.show', $record))->assertOk()->getContent();
 
-    expect($html)->toContain('data-review-dates')->toContain('Not reviewed yet')
-        ->toContain('Add an online source with its checked date to mark this as reviewed.')
-        ->not->toContain('data-updated-since-review')
-        ->not->toContain(route('admin.government-ids.review', $record));
+    expect($html)->toContain('data-review-dates')->toContain('Not reviewed yet')->toContain('Mark as reviewed')
+        ->toContain(route('admin.government-ids.review', $record))
+        ->toContain('Mark this whole ID as reviewed today?')->not->toContain('online sources. This is not')
+        ->not->toContain('Add an online source with its checked date')
+        ->not->toContain('data-updated-since-review');
 });
 
 it('sends both dates to the app without the reviewer, for IDs and documents', function () {

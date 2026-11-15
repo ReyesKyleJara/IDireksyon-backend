@@ -8,13 +8,12 @@ use App\Models\GovernmentId;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 
 /**
  * "Last Updated" and "Last Reviewed" for IDs and documents. They are kept separate:
  * - Last Updated changes automatically whenever resident-facing information changes.
- * - Last Reviewed is set only by "Mark as reviewed": a team member checked the record
- *   against its sources. It is never an agency confirmation, and a later change does not
+ * - Last Reviewed is set only by "Mark as reviewed": a team member reviewed the whole record.
+ *   It does not depend on online sources and is never an agency confirmation. A later change does not
  *   erase it; the record is shown as "updated since the last review" instead.
  */
 class CatalogReviewDates
@@ -61,15 +60,9 @@ class CatalogReviewDates
         return $strip($before) != $strip($record->research_metadata);
     }
 
-    /** "Mark as reviewed": needs at least one online source with a link and the date it was checked. */
+    /** "Mark as reviewed": records when the whole record was last reviewed and by whom. No other conditions. */
     public function markReviewed(User $user, GovernmentId|Document $record): void
     {
-        $sources = collect($record->research_metadata['sources'] ?? [])
-            ->filter(fn ($source) => is_array($source) && filled($source['url'] ?? null) && filled($source['checked_on'] ?? null));
-        if ($sources->isEmpty()) {
-            throw ValidationException::withMessages(['review' =>
-                'Add at least one online source with the date you checked it (Edit details → Basic Information → Data Sources) before marking this as reviewed.']);
-        }
         $now = now();
         $record->newQueryWithoutScopes()->whereKey($record->getKey())->toBase()
             ->update(['last_reviewed_at' => $now, 'last_reviewed_by' => $user->getKey()]);

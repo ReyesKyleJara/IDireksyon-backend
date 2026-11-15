@@ -10,7 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * "Mark as reviewed": a team member checked this record against its sources.
+ * "Mark as reviewed": a team member reviewed this whole ID or document record.
  * The route group already requires CMS access and, through CheckCatalogRevision, rejects the click
  * when someone changed the record after the page was opened.
  */
