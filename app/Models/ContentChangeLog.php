@@ -23,6 +23,8 @@ class ContentChangeLog extends Model
 
     public static function record(Model $record, string $action, array $fields = []): void
     {
+        // "Last Updated" follows every real information change, including imports without a CMS user.
+        \App\Services\CatalogReviewDates::noteChange($record, $action, $fields);
         if (! auth()->user()?->canAccessCms()) {
             return;
         }

@@ -27,6 +27,8 @@ class DocumentController extends Controller
             ...CatalogEncoding::detail($document),
             // Added after detail(): the fingerprint reads detail(), so it must not depend on this.
             'agency_verification' => app(\App\Services\CatalogAgencyValidation::class)->publicSummary($document),
+            // Last Updated / Last Reviewed by the IDireksyon team (not an agency confirmation).
+            'review_dates' => \App\Services\CatalogReviewDates::publicSummary($document),
             'image_url' => $document->image_url,
             'issued_by' => $document->agency?->name ?? $document->issued_by,
             'requirement_sets' => ResidentRequirements::generalForId($document),

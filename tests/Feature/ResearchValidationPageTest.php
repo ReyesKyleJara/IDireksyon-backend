@@ -117,12 +117,11 @@ it('never uses verification or endorsement wording', function () {
     expect(preg_match('/\\b(verified|endorsed|endorsement|government[\\s-]+approved|approved\\s+by|official\\s+partner)\\b/i', $text))->toBe(0);
 });
 
-it('shows a read-only Data Sources summary on the record page, with no separate page button', function () {
+it('keeps the record page free of a Data Sources card or separate page button', function () {
     $record = avRecord();
     $html = $this->actingAs(avSuperAdmin())->get(route('admin.government-ids.show', $record))->assertOk()->getContent();
 
-    expect($html)->toContain('Data Sources')->toContain('Not Yet Confirmed')->toContain('0 online sources · 0 agency records')
-        ->toContain('Basic Information → Data Sources')
+    expect($html)->not->toContain('aria-label="Data Sources summary"')->not->toContain('Basic Information → Data Sources')
         ->not->toContain(route('admin.government-ids.research-validation.show', $record));
 });
 

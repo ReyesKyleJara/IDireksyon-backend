@@ -86,8 +86,6 @@
 
     @error('_catalog_revision')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
 
-    @include('admin.catalog.partials.research-validation-summary')
-
     <div class="record-sheet">
         <header class="record-header">
             @if(filled($governmentId->category) || filled($governmentId->level))
@@ -100,6 +98,7 @@
             @if($governmentId->agency)
                 <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</p>
             @endif
+            @include('admin.catalog.partials.review-dates')
         </header>
 
             <section class="admin-panel">

@@ -82,6 +82,8 @@ class Document extends Model
     {
         return [
             'research_metadata' => 'array',            'include_in_smart_sequencing' => 'boolean',
+            'content_updated_at' => 'datetime',
+            'last_reviewed_at' => 'datetime',
             'eligibility_min_age' => 'integer',
             'eligibility_max_age' => 'integer',
             'validity_value' => 'integer',
@@ -96,6 +98,12 @@ class Document extends Model
     public function prerequisites(): HasMany
     {
         return $this->hasMany(DocumentPrerequisite::class, 'owner_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Who last clicked "Mark as reviewed" (CMS only; never sent to residents). */
+    public function lastReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'last_reviewed_by');
     }
 
     public function agency(): BelongsTo

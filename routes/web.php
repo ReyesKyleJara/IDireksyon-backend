@@ -55,6 +55,10 @@ Route::prefix('admin')
                 });
         }
 
+        // "Mark as reviewed" (Last Reviewed). Requires the page's _catalog_revision, so stale pages are refused.
+        Route::post('documents/{document}/review', [\App\Http\Controllers\Admin\CatalogReviewController::class, 'document'])->name('documents.review');
+        Route::post('government-ids/{governmentId}/review', [\App\Http\Controllers\Admin\CatalogReviewController::class, 'governmentId'])->name('government-ids.review');
+
         Route::post('documents/{document}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'document'])->name('documents.channels');
         Route::post('government-ids/{governmentId}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'governmentId'])->name('government-ids.channels');
         foreach (['documents' => 'document', 'government-ids' => 'governmentId'] as $resource => $parameter) {
