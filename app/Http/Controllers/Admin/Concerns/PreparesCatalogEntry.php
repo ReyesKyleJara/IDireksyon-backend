@@ -73,7 +73,9 @@ trait PreparesCatalogEntry
             $visibilityOwner = $request->route('document') ?? $request->route('governmentId');
             $savedHidden = ($visibilityOwner instanceof Document || $visibilityOwner instanceof GovernmentId)
                 ? ($visibilityOwner->research_metadata['hidden_sections'] ?? []) : [];
-            $request->merge(['research_metadata' => array_replace(['sources' => [], 'hidden_sections' => $savedHidden], $request->input('research_metadata', []))]);
+            // Basic Information now sends only the validity note; sources live in Data Sources.
+            // Edits restore the saved status and sources afterwards (EditsCatalogWizard::editBasicData).
+            $request->merge(['research_metadata' => array_replace(['status' => 'draft', 'sources' => [], 'hidden_sections' => $savedHidden], $request->input('research_metadata', []))]);
         }
         $validated = $request->validate([
             ...\App\Services\CatalogEncoding::researchRules(),

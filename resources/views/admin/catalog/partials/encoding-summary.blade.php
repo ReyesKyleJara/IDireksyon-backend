@@ -1,16 +1,10 @@
 @php($metadata = $governmentId->research_metadata ?? [])
 <section class="admin-panel space-y-4 p-6" aria-label="Saved research and request channels">
     <h2 class="font-semibold">Saved research and request channels</h2>
-    <p>Research status: {{ ucfirst(str_replace('_', ' ', $metadata['status'] ?? 'not reviewed')) }}</p>
     @if(filled($metadata['validity_note'] ?? null))<p>{{ $metadata['validity_note'] }}</p>@endif
     @if(!empty($metadata['hidden_sections']))<p>Hidden resident sections (content retained): {{ implode(', ', $metadata['hidden_sections']) }}</p>@endif
-    @foreach($metadata['sources'] ?? [] as $source)
-        <div class="rounded border p-3">
-            <p class="font-medium">{{ $source['title'] }}</p>
-            @if(\App\Support\GuideRichText::safeUrl($source['url'] ?? null))<a class="break-all text-blue-800 underline" href="{{ $source['url'] }}" target="_blank" rel="noopener noreferrer">{{ $source['url'] }}</a>@endif
-            <p>Checked: {{ $source['checked_on'] ?? 'Not recorded' }} · {{ $source['scope'] ?? '' }}</p>
-        </div>
-    @endforeach
+    @php($sourceCount = count($metadata['sources'] ?? []))
+    <p>Online sources: {{ $sourceCount === 0 ? 'none yet' : $sourceCount }} · managed on the Data Sources page.</p>
     @foreach($governmentId->requirementSets as $set)
         @if($set->request_channel)
             @php($channel = $set->request_channel)

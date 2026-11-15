@@ -86,6 +86,8 @@
 
     @error('_catalog_revision')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
 
+    @include('admin.catalog.partials.research-validation-summary')
+
     <div class="record-sheet">
         <header class="record-header">
             @if(filled($governmentId->category) || filled($governmentId->level))

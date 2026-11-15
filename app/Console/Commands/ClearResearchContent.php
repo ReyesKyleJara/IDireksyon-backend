@@ -45,6 +45,11 @@ class ClearResearchContent extends Command
             }
 
             CatalogResidentReferences::transaction(function () use (&$backupPath) {
+                // Agency verification history must survive: refuse instead of orphaning it.
+                if (\Illuminate\Support\Facades\Schema::hasTable('catalog_agency_verifications')
+                    && DB::table('catalog_agency_verifications')->where('verifiable_type', GovernmentId::class)->lockForUpdate()->exists()) {
+                    throw new RuntimeException(CatalogRecordDeletion::VERIFICATION_BLOCKED_MESSAGE);
+                }
                 foreach (GovernmentId::orderBy('id')->lockForUpdate()->get() as $record) {
                     if (app(CatalogResidentReferences::class)->exists($record, lock: true)) {
                         throw new RuntimeException(CatalogRecordDeletion::BLOCKED_MESSAGE);

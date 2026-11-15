@@ -152,6 +152,8 @@ class GovernmentIdController extends Controller
         return response()->json([
             'data' => [
                 ...\App\Services\CatalogEncoding::detail($governmentId),
+                // Added after detail(): the fingerprint reads detail(), so it must not depend on this.
+                'agency_verification' => app(\App\Services\CatalogAgencyValidation::class)->publicSummary($governmentId),
                 'id' => $governmentId->id,
                 'image_url' => $governmentId->image_url,
                 'name' => $governmentId->name,

@@ -50,6 +50,13 @@
             'selectedValidityValue' => $governmentId?->validity_value,
             'selectedValidityUnit' => $governmentId?->validity_unit,
         ])
+        @php($validityNote = old('research_metadata.validity_note', $governmentId?->research_metadata['validity_note'] ?? ''))
+        <div>
+            <label for="validity_note" class="mb-2 block text-sm font-medium">Validity or recency note <span class="font-normal text-slate-500">(optional)</span></label>
+            <textarea id="validity_note" name="research_metadata[validity_note]" maxlength="2000" class="admin-input" aria-describedby="validity-note-help @error('research_metadata.validity_note') validity-note-error @enderror" placeholder="e.g. The record does not expire; the receiving agency may require a recently issued copy.">{{ $validityNote }}</textarea>
+            <p id="validity-note-help" class="mt-1 text-xs text-slate-500">Shown to residents under Validity.</p>
+            @error('research_metadata.validity_note')<p id="validity-note-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
+        </div>
     </div>
 
     <div class="space-y-5 border-t border-slate-200 pt-5" aria-labelledby="wizard-processing-heading">
@@ -130,4 +137,4 @@
     </div>
 </section>
 
-@include('admin.catalog.partials.research-fields')
+@include('admin.catalog.partials.data-sources')

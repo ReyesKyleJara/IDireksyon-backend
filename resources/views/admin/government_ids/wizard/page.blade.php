@@ -390,6 +390,8 @@
         </footer>
 
     </form>
+    {{-- Standalone forms for sections that save on their own (Data Sources → Agency Confirmation). --}}
+    @stack('outside-step-form')
     @if($governmentId && $step === 'guide')
         @include('admin.catalog.partials.special-cases')
     @endif

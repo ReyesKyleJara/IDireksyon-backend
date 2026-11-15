@@ -25,6 +25,8 @@ class DocumentController extends Controller
             ...$document->only(['id', 'name', 'description', 'purpose', 'level', 'category', 'eligibility', 'validity', 'validity_type',
                 'processing_time', 'processing_time_note', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing', 'requirements', 'fee']),
             ...CatalogEncoding::detail($document),
+            // Added after detail(): the fingerprint reads detail(), so it must not depend on this.
+            'agency_verification' => app(\App\Services\CatalogAgencyValidation::class)->publicSummary($document),
             'image_url' => $document->image_url,
             'issued_by' => $document->agency?->name ?? $document->issued_by,
             'requirement_sets' => ResidentRequirements::generalForId($document),

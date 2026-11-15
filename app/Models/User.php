@@ -46,6 +46,12 @@ class User extends Authenticatable
         return $this->canAccessCms() && $this->role === 'super_admin';
     }
 
+    /** Approving also requires not being the recorder; see CatalogAgencyVerificationPolicy. */
+    public function canApproveAgencyVerifications(): bool
+    {
+        return $this->canAccessCms() && $this->role === 'super_admin';
+    }
+
     public function setUsernameAttribute(?string $value): void
     {
         $this->attributes['username'] =

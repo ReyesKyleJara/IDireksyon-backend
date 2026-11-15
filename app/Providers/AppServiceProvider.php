@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\CatalogAgencyVerification;
 use App\Models\GovernmentId;
+use App\Policies\CatalogAgencyVerificationPolicy;
 use App\Models\User;
 use App\Models\Document;
 use App\Models\Office;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('access-cms', fn (User $user) => $user->canAccessCms());
         Gate::define('manage-admins', fn (User $user) => $user->canManageAdmins());
         Gate::define('delete-catalog-records', fn (User $user) => $user->canDeleteCatalogRecords());
+        Gate::policy(CatalogAgencyVerification::class, CatalogAgencyVerificationPolicy::class);
 
         // Only CMS forms use the default; resident forms set their own rule.
         Password::defaults(fn () => Password::min(12));

@@ -19,6 +19,8 @@ class CatalogRecordDeletion
 {
     public const BLOCKED_MESSAGE = 'Permanent deletion is blocked because resident inventory, preparation progress, or roadmap data depends on this entry. Keep this catalog entry to preserve resident data.';
 
+    public const VERIFICATION_BLOCKED_MESSAGE = 'Permanent deletion is blocked because this entry has agency verification history. Research verification records must be preserved, so keep this catalog entry.';
+
     private const TABLES = [
         GovernmentId::class => [
             'label' => 'Government ID',
@@ -53,7 +55,9 @@ class CatalogRecordDeletion
             'prerequisite_entries' => count($this->owners($prerequisites)),
             'offices' => $record->offices()->count(),
         ];
-        $blocked = app(CatalogResidentReferences::class)->exists($record);
+        $residentBlocked = app(CatalogResidentReferences::class)->exists($record);
+        $verificationBlocked = $record->agencyVerifications()->exists();
+        $blocked = $residentBlocked || $verificationBlocked;
 
         return [
             'name' => $record->name,
@@ -61,7 +65,10 @@ class CatalogRecordDeletion
             'counts' => $counts,
             'can_delete' => ! $blocked,
             'sections' => array_values(array_filter([
-                ...($blocked ? [['title' => 'Deletion blocked.', 'body' => self::BLOCKED_MESSAGE]] : [
+                ...($blocked ? array_values(array_filter([
+                    $residentBlocked ? ['title' => 'Deletion blocked.', 'body' => self::BLOCKED_MESSAGE] : null,
+                    $verificationBlocked ? ['title' => 'Deletion blocked.', 'body' => self::VERIFICATION_BLOCKED_MESSAGE] : null,
+                ])) : [
                     ...$this->referenceSections($requirements, $prerequisites),
                     $this->removedSection($record, $tables, $counts['offices']),
                 ]),
@@ -76,6 +83,10 @@ class CatalogRecordDeletion
             $record = $record->newQuery()->whereKey($record->id)->lockForUpdate()->firstOrFail();
             if (app(CatalogResidentReferences::class)->exists($record, lock: true)) {
                 throw ValidationException::withMessages(['catalog_deletion' => self::BLOCKED_MESSAGE]);
+            }
+            // Verification rows are never deleted, so a record with history is never deleted either.
+            if ($record->agencyVerifications()->lockForUpdate()->exists()) {
+                throw ValidationException::withMessages(['catalog_deletion' => self::VERIFICATION_BLOCKED_MESSAGE]);
             }
             $tables = self::TABLES[$record::class];
             $requirements = $this->requirementUsages($record, lock: true);

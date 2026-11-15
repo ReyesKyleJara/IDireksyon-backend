@@ -99,6 +99,16 @@ trait EditsCatalogWizard
         if (isset($data['research_metadata']) && !$request->has('research_metadata.hidden_sections')) {
             $data['research_metadata']['hidden_sections'] = $record->research_metadata['hidden_sections'] ?? [];
         }
+        // The research status is no longer a form field, so a save keeps the saved value.
+        // Online sources are edited in Data Sources; "research_sources_present" says the list
+        // was on the page, so removing every source clears them. Without it they are kept.
+        $sent = ['status' => $request->has('research_metadata.status'),
+            'sources' => $request->has('research_metadata.sources') || $request->boolean('research_sources_present')];
+        foreach (['sources' => [], 'status' => 'draft'] as $key => $default) {
+            if (isset($data['research_metadata']) && ! $sent[$key]) {
+                $data['research_metadata'][$key] = $record->research_metadata[$key] ?? $default;
+            }
+        }
         // Dedicated guides are managed separately; a Basic Info save must retain them.
         if (isset($data['research_metadata']) && array_key_exists('special_cases', $record->research_metadata ?? [])) {
             $data['research_metadata']['special_cases'] = $record->research_metadata['special_cases'];

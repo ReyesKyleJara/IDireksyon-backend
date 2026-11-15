@@ -36,6 +36,25 @@ Route::prefix('admin')
             Route::post($resource.'/{'.$parameter.'}/special-cases/action', [$controller, $parameter.'Action'])->name($resource.'.special-cases.action');
         }
 
+        // Agency Confirmation actions. The form lives in Data Sources (Basic Information step);
+        // every action returns there and is authorized again in CatalogAgencyValidation on the locked row.
+        foreach (['documents' => 'document', 'government-ids' => 'governmentId'] as $resource => $parameter) {
+            Route::controller(\App\Http\Controllers\Admin\CatalogVerificationController::class)
+                ->prefix($resource.'/{'.$parameter.'}/data-sources')
+                ->name($resource.'.research-validation.')
+                ->group(function () {
+                    Route::get('/', 'show')->name('show');
+                    Route::get('create', 'create')->name('create');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('{verification}/edit', 'edit')->whereNumber('verification')->name('edit');
+                    Route::put('{verification}', 'update')->whereNumber('verification')->name('update');
+                    foreach (['submit' => 'submit', 'reopen' => 'reopen', 'return' => 'returnToDraft', 'approve' => 'approve',
+                        'corrections-applied' => 'correctionsApplied', 'revoke' => 'revoke'] as $path => $action) {
+                        Route::post('{verification}/'.$path, $action)->whereNumber('verification')->name($path);
+                    }
+                });
+        }
+
         Route::post('documents/{document}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'document'])->name('documents.channels');
         Route::post('government-ids/{governmentId}/channels', [\App\Http\Controllers\Admin\CatalogChannelController::class, 'governmentId'])->name('government-ids.channels');
         foreach (['documents' => 'document', 'government-ids' => 'governmentId'] as $resource => $parameter) {
