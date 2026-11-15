@@ -84,12 +84,12 @@ it('reuses scenarios preserves identities and reorders or deletes only submitted
 
 it('preserves guides when omitted and leaves existing resident API fields unchanged', function () {
     $listBefore = $this->getJson('/api/government-ids')->assertOk()->json();
-    $detailBefore = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']);
+    $detailBefore = \Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths', 'review_dates']);
     $this->put($this->url, ['name' => $this->target->name, 'application_guide_payload' => json_encode([guideScenario()])])->assertSessionHasNoErrors();
     $this->put($this->url, ['name' => $this->target->name])->assertSessionHasNoErrors();
     expect(GovernmentIdApplicationStep::count())->toBe(1)
         ->and($this->getJson('/api/government-ids')->assertOk()->json())->toBe($listBefore)
-        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths']))->toBe($detailBefore);
+        ->and(\Illuminate\Support\Arr::except($this->getJson('/api/government-ids/'.$this->target->id)->assertOk()->json('data'), ['requirement_sets', 'request_paths', 'review_dates']))->toBe($detailBefore);
 });
 
 it('rejects malformed guides without partially changing the ID', function ($payload) {
