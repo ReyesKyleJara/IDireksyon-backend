@@ -35,8 +35,11 @@ final class CatalogVerificationFingerprint
     private const PROCESS_PATH_FIELDS = ['label', 'is_request_method', 'channel', 'provider', 'portal_url', 'fulfillment',
         'appointment', 'applicability', 'preparation', 'application_guide_text', 'guide', 'troubleshooting'];
 
-    /** Keys that only identify database rows. */
-    private const IGNORED_KEYS = ['id', 'created_at', 'updated_at', 'fee_ids'];
+    /**
+     * Keys that only identify database rows, plus an office's barangay coverage: that is
+     * IDireksyon's own matching data, not something an agency confirms.
+     */
+    private const IGNORED_KEYS = ['id', 'created_at', 'updated_at', 'fee_ids', 'coverage', 'barangay'];
 
     public function snapshot(GovernmentId|Document $record, array $aspects, ?array $pathIds): array
     {

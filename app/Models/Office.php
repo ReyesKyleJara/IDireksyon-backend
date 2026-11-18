@@ -12,7 +12,14 @@ class Office extends Model
     protected $fillable = [
         'name', 'agency_id', 'address', 'municipality', 'province',
         'latitude', 'longitude', 'status', 'source_url', 'notes',
+        'coverage', 'barangay_id',
     ];
+
+    /** Serves one barangay only (barangay_id says which). */
+    public const COVERAGE_BARANGAY = 'barangay';
+
+    /** Serves residents of every barangay, e.g. a municipal office. */
+    public const COVERAGE_SHARED = 'shared';
 
     protected $attributes = ['status' => 'draft'];
 
@@ -47,6 +54,11 @@ class Office extends Model
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    public function barangay(): BelongsTo
+    {
+        return $this->belongsTo(Barangay::class);
     }
 
     public function lastVerifier(): BelongsTo

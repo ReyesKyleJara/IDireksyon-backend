@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OfficeRequest;
 use App\Models\Agency;
+use App\Models\Barangay;
 use App\Models\ContentChangeLog;
 use App\Models\Office;
 use Illuminate\Http\Request;
@@ -55,6 +56,7 @@ class OfficeController extends Controller
             'office' => $office,
             'embedded' => $embedded,
             'agencies' => Agency::orderBy('name')->get(),
+            'barangays' => Barangay::orderBy('name')->get(['id', 'name']),
         ]);
     }
 

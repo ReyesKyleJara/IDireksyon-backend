@@ -183,7 +183,12 @@
 
             <section class="card" id="in-app">
                 <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 1.01 7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>See the full guide in the IDireksyon app</h2>
-                <p>The app has the complete requirements checklist, @if($waysToApply > 1){{ $waysToApply }} ways to apply, @endif the step-by-step guide and nearby offices for {{ $record['name'] }}.</p>
+                {{-- Barangay records are issued per barangay: the app shows each resident only the offices that serve their barangay. --}}
+                @if(strcasecmp(trim((string) ($record['level'] ?? '')), 'Barangay') === 0)
+                    <p>The app has the complete requirements checklist, @if($waysToApply > 1){{ $waysToApply }} ways to apply, @endif and the step-by-step guide for {{ $record['name'] }}, plus the offices that serve your barangay.</p>
+                @else
+                    <p>The app has the complete requirements checklist, @if($waysToApply > 1){{ $waysToApply }} ways to apply, @endif the step-by-step guide and nearby offices for {{ $record['name'] }}.</p>
+                @endif
                 <p><a href="{{ route('home', [], false) }}">About IDireksyon</a></p>
             </section>
 

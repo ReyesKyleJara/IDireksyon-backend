@@ -45,6 +45,28 @@
                     </select>
                     @error('agency_id')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
                 </div>
+                @php
+                    $coverageChoice = old('barangay_coverage', match ($office->coverage) {
+                        'shared' => 'shared',
+                        'barangay' => $office->barangay_id ? 'barangay:'.$office->barangay_id : '',
+                        default => '',
+                    });
+                @endphp
+                <div>
+                    <label for="barangay_coverage" class="mb-2 block text-sm font-medium">Barangay coverage</label>
+                    <select id="barangay_coverage" name="barangay_coverage" class="admin-input">
+                        <option value="">Not set</option>
+                        <option value="shared" @selected($coverageChoice === 'shared')>Shared: serves residents of every barangay</option>
+                        <optgroup label="Barangay-specific: serves one barangay only">
+                            @foreach($barangays as $barangay)
+                                <option value="barangay:{{ $barangay->id }}" @selected($coverageChoice === 'barangay:'.$barangay->id)>{{ $barangay->name }}</option>
+                            @endforeach
+                        </optgroup>
+                    </select>
+                    <p class="mt-2 text-xs text-slate-500">Used on Barangay-level IDs and documents. Residents see a barangay-specific office only if it is their barangay, and a shared office always. Offices left "Not set" are not shown on Barangay-level records.</p>
+                    @error('coverage')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+                    @error('barangay_id')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+                </div>
             </div>
         </section>
         <section class="admin-panel p-6">

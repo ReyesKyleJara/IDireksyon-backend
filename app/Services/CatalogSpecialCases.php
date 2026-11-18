@@ -114,7 +114,7 @@ class CatalogSpecialCases
 
     public static function present(Document|GovernmentId $owner): array
     {
-        $owner->loadMissing(['fees.options', 'offices.schedules.intervals']);
+        $owner->loadMissing(['fees.options', 'offices.schedules.intervals', 'offices.barangay']);
         return array_map(fn ($case) => [
             ...$case,
             'requirement_sets' => ResidentRequirements::fromDraft($case['requirements'] ?? [], $case['title']),

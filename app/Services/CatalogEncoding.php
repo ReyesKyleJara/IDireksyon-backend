@@ -104,6 +104,9 @@ class CatalogEncoding
         return [...$office->only(['id', 'name', 'address', 'municipality', 'province', 'source_url']),
             'latitude' => $usable ? $office->latitude : null,
             'longitude' => $usable ? $office->longitude : null,
+            // Who the office serves, so the app can show each resident their own barangay's office.
+            'coverage' => in_array($office->coverage, ['barangay', 'shared'], true) ? $office->coverage : null,
+            'barangay' => $office->coverage === 'barangay' ? $office->barangay?->only(['id', 'name']) : null,
             'service_notes' => $office->pivot?->service_notes,
             'services' => $office->pivot?->only(['new_application_status', 'renewal_status', 'replacement_status']),
             'schedules' => $office->schedules->map(fn ($schedule) => [...$schedule->only(['day_of_week', 'status']),
@@ -114,7 +117,7 @@ class CatalogEncoding
     {
         $owner->loadMissing(['agency', 'requirementSets.groups.items.governmentId', 'requirementSets.groups.items.document',
             'requirementSets.groups.ways.items.governmentId', 'requirementSets.groups.ways.items.document',
-            'requirementSets.applicationSteps.blocks', 'fees.options', 'offices.schedules.intervals']);
+            'requirementSets.applicationSteps.blocks', 'fees.options', 'offices.schedules.intervals', 'offices.barangay']);
         $research = $owner->research_metadata ?? [];
         $hidden = $research['hidden_sections'] ?? [];
         $requirements = ResidentRequirements::forId($owner);

@@ -18,6 +18,7 @@ class OfficeController extends Controller
         $offices = Office::query()
             ->with([
                 'agency',
+                'barangay',
                 'schedules.intervals',
                 'governmentIds:government_ids.id,name,research_metadata',
                 'documents:documents.id,name,research_metadata',

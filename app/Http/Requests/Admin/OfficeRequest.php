@@ -12,6 +12,24 @@ class OfficeRequest extends FormRequest
         return $this->user()?->canAccessCms() ?? false;
     }
 
+    /**
+     * The form sends one "Barangay coverage" choice: "" (not set), "shared", or "barangay:{id}".
+     * It is stored as two columns: coverage and barangay_id.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('barangay_coverage')) {
+            return;
+        }
+
+        $choice = (string) $this->input('barangay_coverage');
+        if (preg_match('/^barangay:(\d+)$/', $choice, $match)) {
+            $this->merge(['coverage' => 'barangay', 'barangay_id' => (int) $match[1]]);
+        } else {
+            $this->merge(['coverage' => $choice === '' ? null : $choice, 'barangay_id' => null]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -22,6 +40,10 @@ class OfficeRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:5000'],
             'municipality' => ['nullable', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],
+            'coverage' => ['sometimes', 'nullable', 'in:barangay,shared'],
+            // A barangay is chosen only for barangay-specific offices, and must then be chosen.
+            'barangay_id' => ['sometimes', 'nullable', 'integer', 'exists:barangays,id',
+                'required_if:coverage,barangay', 'prohibited_unless:coverage,barangay'],
             'status' => ['sometimes', 'required', 'in:draft,active,inactive'],
             'source_url' => ['nullable', 'url:http,https', 'max:2048'],
             'notes' => ['nullable', 'string', 'max:10000'],
