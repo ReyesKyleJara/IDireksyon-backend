@@ -365,3 +365,18 @@ it('shortlists distinct acquisitions while retaining alternative combinations fo
     expect($options)->toHaveCount(6)
         ->and(array_column($recommended, 'name'))->toBe(['A', 'B', 'C']);
 });
+
+it('includes each suggested option\'s catalog image so the app can show it', function () {
+    $resident = User::factory()->create();
+    $target = GovernmentId::create(['name' => 'Target needing an ID']);
+    $pictured = GovernmentId::create(['name' => 'Accepted ID with picture']);
+    $plain = GovernmentId::create(['name' => 'Accepted ID without picture']);
+    $pictured->forceFill(['image_path' => 'catalog-images/pictured.png'])->save();
+    suggestionGroup(suggestionSet($target), [['items' => [$pictured, $plain]]]);
+
+    $plan = app(RoadmapPlanner::class)->build($resident, [$target->id]);
+    $options = collect(suggestionPending($plan)['suggestions'])->keyBy('name');
+
+    expect($options['Accepted ID with picture']['image_url'])->toBe($pictured->fresh()->image_url)->not->toBeNull()
+        ->and($options['Accepted ID without picture']['image_url'])->toBeNull();
+});

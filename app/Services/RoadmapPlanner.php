@@ -162,6 +162,8 @@ class RoadmapPlanner
                     'type' => $type,
                     'id' => $record->id,
                     'name' => $record->name,
+                    // Same CMS picture the ID Directory shows, so option cards can use it.
+                    'image_url' => $record->image_url,
                     'processing_time' => $record->processing_time,
                     '_option_facts' => RoadmapOptionFacts::forRecord($record),
                     'application_availability' => $record->application_availability,
@@ -422,7 +424,7 @@ class RoadmapPlanner
                         continue;
                     } // Never offer a path back to its dependent target.
                     // Already planned here, so using it adds no extra acquisition.
-                    $options[] = [...$option, ...$metrics, 'in_journey' => isset($included[$option['type'].':'.$option['id']]), 'already_owned' => isset($owned[$option['type'].':'.$option['id']])];
+                    $options[] = [...$option, ...$metrics, 'image_url' => $catalog[$option['type'].':'.$option['id']]['image_url'] ?? null, 'in_journey' => isset($included[$option['type'].':'.$option['id']]), 'already_owned' => isset($owned[$option['type'].':'.$option['id']])];
                 }
                 if ($pending['kind'] !== 'path') {
                     $options = $this->rankOptions($options);
