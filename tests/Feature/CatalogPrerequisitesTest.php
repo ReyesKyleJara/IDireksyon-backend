@@ -25,7 +25,8 @@ it('starts empty and saves all source types through Add and Edit without changin
     $owner = $model::where('name', 'Owner')->sole();
     expect($owner->prerequisites)->toHaveCount(0)->and(CatalogPrerequisites::present($owner))->toBe([]);
     $this->get(route('admin.'.$resource.'.wizard.show', [$owner, 'requirements']))->assertOk()
-        ->assertSeeInOrder(['Prerequisites / Dependencies', 'Application Requirements']);
+        ->assertSee('+ Add requirement')->assertDontSee('Prerequisites / Dependencies')
+        ->assertDontSee('name="prerequisites_present"', false);
     foreach (['review'] as $step) $this->get(route('admin.'.$resource.'.wizard.show', [$owner, $step]))->assertOk()->assertDontSee('Prerequisites / Dependencies');
     $id = GovernmentId::create(['name' => 'Linked ID']);
     $doc = Document::create(['name' => 'Linked document']);
@@ -44,7 +45,8 @@ it('starts empty and saves all source types through Add and Edit without changin
         ->and($owner->prerequisites[1]->condition)->toBeNull()->and($owner->prerequisites->pluck('sort_order')->all())->toBe([0, 1, 2]);
     $id->update(['name' => 'Renamed linked ID']);
     foreach (['wizard', 'edit-wizard'] as $mode) {
-        $this->get(route('admin.'.$resource.'.'.$mode.'.show', [$owner, 'requirements']))->assertOk()->assertSee('Complete training')->assertSee('Under 18');
+        $this->get(route('admin.'.$resource.'.'.$mode.'.show', [$owner, 'requirements']))->assertOk()
+            ->assertDontSee('Prerequisites / Dependencies')->assertDontSee('name="prerequisites_present"', false);
         $this->get(route('admin.'.$resource.'.'.$mode.'.show', [$owner, 'review']))->assertOk()
             ->assertSeeInOrder(['Renamed linked ID', 'Linked document', 'Complete training'])->assertSee('Applies when: Under 18');
     }

@@ -1,3 +1,53 @@
+<div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]"
+    x-data="{
+        overview: {},
+        refresh() {
+            const form = $el.closest('form');
+            const field = name => form.elements.namedItem(name);
+            const value = name => field(name)?.value.trim() || '';
+            const label = name => value(name) ? field(name).selectedOptions[0]?.textContent.trim() : '';
+            const duration = (amount, unit, last = amount) =>
+                amount && unit && last ? amount + (amount !== last ? '–' + last : '') + ' ' + unit + (Number(last) === 1 ? '' : 's') : '';
+            const validityType = value('validity_type');
+            const validityValue = value('validity_value');
+            let validity = label('validity_type');
+            if (validityType === 'fixed') validity = duration(validityValue, value('validity_unit'));
+            if (validityType === 'until_age') validity = validityValue ? 'Until age ' + validityValue : '';
+
+            const processingType = value('processing_time_type');
+            const processingMin = value('processing_time_min');
+            const processingUnit = value('processing_time_unit').replaceAll('_', ' ');
+            let processing = label('processing_time_type');
+            if (processingType === 'fixed') processing = duration(processingMin, processingUnit);
+            if (processingType === 'range') processing = duration(processingMin, processingUnit, value('processing_time_max'));
+
+            const ageType = value('eligibility_age_type');
+            const minAge = value('eligibility_min_age');
+            const maxAge = value('eligibility_max_age');
+            let age = label('eligibility_age_type');
+            if (ageType === 'minimum') age = minAge && Number(minAge) + (Number(minAge) === 1 ? ' year' : ' years') + ' old and above';
+            if (ageType === 'range') age = minAge && maxAge && Number(minAge) + '–' + Number(maxAge) + ' years old (inclusive)';
+            const residency = value('eligibility_residency') === 'custom'
+                ? value('eligibility_residency_custom') : label('eligibility_residency');
+            const eligibility = [
+                age && 'Age: ' + age,
+                label('eligibility_citizenship') && 'Citizenship: ' + label('eligibility_citizenship'),
+                residency && 'Residency: ' + residency,
+                ...value('eligibility_other_conditions').split(/\r?\n/).map(line => line.trim()),
+            ].filter(Boolean);
+            this.overview = {
+                name: value('name'), description: value('description'),
+                agency: value('issued_by') || label('agency_id'),
+                target: value('target_group'),
+                validityNote: value('research_metadata[validity_note]'),
+                processingNote: value('processing_time_note'),
+                informational: value('guidance_mode') === 'informational_only',
+                validity, processing, eligibility,
+            };
+        },
+    }"
+    x-init="$nextTick(() => refresh())" @input="refresh()" @change="refresh()">
+<div class="min-w-0 space-y-5">
 <section class="admin-panel space-y-6 bg-white p-6" aria-labelledby="wizard-basic-heading">
     <h3 id="wizard-basic-heading" class="text-lg font-semibold text-slate-900">General Information</h3>
     @include('admin.catalog.partials.image-field')
@@ -138,3 +188,52 @@
 </section>
 
 @include('admin.catalog.partials.data-sources')
+</div>
+
+    <x-admin.app-preview section="Overview" class="lg:sticky lg:top-6" x-cloak>
+        <div class="rounded-xl bg-[#012877] p-4 text-white">
+            <h4 class="text-lg font-semibold" x-text="overview.name || @js($wizardLabel)"></h4>
+            <div x-show="overview.agency" class="mt-3">
+                <p class="text-xs text-blue-100">Issued by</p>
+                <p class="text-sm" x-text="overview.agency"></p>
+            </div>
+            <div x-show="overview.description" class="mt-3">
+                <h5 class="text-xs text-blue-100">About</h5>
+                <p class="whitespace-pre-line text-sm" x-text="overview.description"></p>
+            </div>
+        </div>
+        <article x-show="overview.informational" class="rounded-xl bg-white p-4">
+            <h4 class="font-semibold">Informational Record</h4>
+            <p class="mt-1 text-sm text-slate-700">IDireksyon provides reference information for this credential but does not currently provide step-by-step acquisition guidance.</p>
+        </article>
+        <article x-show="overview.processing || overview.processingNote || overview.validity || overview.validityNote"
+            class="space-y-3 rounded-xl bg-white p-4">
+            <div x-show="overview.processing || overview.processingNote">
+                <h4 class="text-sm font-semibold">Processing Time</h4>
+                <p x-show="overview.processing" class="text-sm" x-text="overview.processing"></p>
+                <p x-show="overview.processingNote" class="whitespace-pre-line text-sm text-slate-700" x-text="overview.processingNote"></p>
+            </div>
+            <div x-show="overview.validity">
+                <h4 class="text-sm font-semibold">Validity</h4>
+                <p class="text-sm" x-text="overview.validity"></p>
+            </div>
+            <div x-show="overview.validityNote">
+                <h4 class="text-sm font-semibold">Validity / recency</h4>
+                <p class="whitespace-pre-line text-sm text-slate-700" x-text="overview.validityNote"></p>
+            </div>
+        </article>
+        <article x-show="overview.eligibility?.length" class="rounded-xl bg-white p-4">
+            <h4 class="font-semibold">Eligibility</h4>
+            <ul class="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                <template x-for="(line, index) in overview.eligibility" :key="index">
+                    <li x-text="line"></li>
+                </template>
+            </ul>
+        </article>
+        <article x-show="overview.target" class="rounded-xl bg-white p-4">
+            <h4 class="font-semibold">More details</h4>
+            <p class="mt-2 text-sm font-medium">Who it's for</p>
+            <p class="whitespace-pre-line text-sm text-slate-700" x-text="overview.target"></p>
+        </article>
+    </x-admin.app-preview>
+</div>

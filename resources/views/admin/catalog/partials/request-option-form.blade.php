@@ -84,6 +84,16 @@
                 <label class="text-sm"><input type="checkbox" value="{{ $key }}" x-model="draft.channel.fulfillment"> {{ $label }}</label>
             @endforeach
         </div></fieldset>
+        <x-admin.app-preview section="Request option">
+            <article class="space-y-2 rounded-xl bg-white p-4 text-sm">
+                <h4 class="font-semibold" x-text="draft.channel.provider || 'Provider name'"></h4>
+                <p x-show="draft.channel.processing" x-text="draft.channel.processing"></p>
+                <p x-show="draft.channel.preparation" class="whitespace-pre-line text-slate-600" x-text="draft.channel.preparation"></p>
+                <p x-show="draft.channel.application_guide_text" class="whitespace-pre-line text-slate-600" x-text="draft.channel.application_guide_text"></p>
+                <p x-show="draft.channel.portal_url" class="break-all text-blue-800" x-text="draft.channel.portal_url"></p>
+                <p x-show="draft.fees.length" x-text="feeSummary()"></p>
+            </article>
+        </x-admin.app-preview>
         <div class="request-method-actions">
             <button type="submit" class="admin-primary" :disabled="saving" x-text="saving ? 'Saving…' : 'Save Method'">Save Method</button>
             <button type="button" class="admin-secondary" @click="cancel()">Cancel</button>

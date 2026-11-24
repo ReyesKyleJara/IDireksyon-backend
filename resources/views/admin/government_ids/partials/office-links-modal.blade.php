@@ -46,6 +46,19 @@
                     <button type="button" class="text-2xl text-slate-500" aria-label="Close offices" @click="cancel()">×</button>
                 </header>
                 <div x-show="!creatingOffice" class="min-h-0 space-y-4 overflow-y-auto px-6 py-5">
+                    @if($liveAppPreview ?? false)
+                        <x-admin.app-preview section="Offices">
+                            <p x-show="!draft.length" class="text-sm text-slate-500">No offices linked.</p>
+                            <template x-for="link in draft" :key="link.office_id">
+                                <article class="space-y-1 rounded-xl bg-white p-4 text-sm">
+                                    <h4 class="font-semibold" x-text="officeFor(link.office_id)?.name"></h4>
+                                    <p class="text-slate-600" x-text="officeFor(link.office_id)?.location"></p>
+                                    <p x-show="services(link)" x-text="services(link)"></p>
+                                    <p x-show="link.service_notes" class="whitespace-pre-line text-slate-600" x-text="link.service_notes"></p>
+                                </article>
+                            </template>
+                        </x-admin.app-preview>
+                    @endif
                     <p x-ref="error" x-show="error" x-text="error" tabindex="-1" role="alert" class="rounded-lg bg-red-50 p-3 text-sm text-red-700"></p>
                     @if($offices->isEmpty())
                         <p class="text-sm text-slate-600">No offices yet. Create a branch first, then return here to link it.</p>

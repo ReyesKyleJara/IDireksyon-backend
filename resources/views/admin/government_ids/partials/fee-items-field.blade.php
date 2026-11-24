@@ -5,7 +5,8 @@
     ])->values()->all());
 @endphp
 <input type="hidden" name="fees_present" value="1">
-<div x-data="governmentIdFeeEditor(@js($existingFees))" class="space-y-4" aria-label="Fee editor">
+<div x-data="governmentIdFeeEditor(@js($existingFees))" class="{{ ($liveAppPreview ?? false) ? 'grid items-start gap-5 lg:grid-cols-2' : '' }}" aria-label="Fee editor">
+<div class="min-w-0 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div><h3 class="font-semibold">Application Fees / Costs</h3><p class="text-xs text-slate-500">Add each fee or charge separately. Options within a fee mean choose one.</p></div>
         <button type="button" class="admin-secondary" @click="addFee()">+ Add Fee</button>
@@ -87,4 +88,36 @@
             <label class="flex items-center gap-2 text-sm"><input type="checkbox" value="1" :name="`fees[${index}][is_optional]`" x-model="fee.is_optional">This fee is optional</label>
         </section>
     </template>
+</div>
+
+@if($liveAppPreview ?? false)
+    <x-admin.app-preview section="Fees" class="lg:sticky lg:top-6" x-cloak
+        x-data="{
+            amount(fee) {
+                const money = amount => amount === '' || amount == null ? '' : new Intl.NumberFormat('en-PH', { style: 'currency', currency: fee.currency || 'PHP' }).format(amount);
+                if (fee.type === 'free') return 'Free';
+                if (fee.type === 'varies') return 'Varies';
+                if (fee.type === 'range') return [money(fee.amount_min), money(fee.amount_max)].filter(Boolean).join(' – ');
+                if (fee.type === 'fixed') return money(fee.amount_min);
+                return fee.type === 'options' ? 'Choose an option' : '';
+            },
+        }">
+        <p x-show="!fees.length" class="text-sm text-slate-500">No fees added yet.</p>
+        <template x-for="fee in fees" :key="fee.key">
+            <article class="space-y-2 rounded-xl bg-white p-4 text-sm">
+                <h4 class="font-semibold" x-text="fee.label || 'Unnamed fee'"></h4>
+                <p x-show="fee.is_optional" class="text-xs text-slate-500">Optional</p>
+                <p class="font-medium text-[#012877]" x-text="amount(fee)"></p>
+                <p x-show="fee.notes" class="whitespace-pre-line text-slate-600" x-text="fee.notes"></p>
+                <template x-for="option in fee.options" :key="option.key">
+                    <div x-show="fee.type === 'options'" class="space-y-1 border-t border-slate-100 pt-2">
+                        <p class="font-medium" x-text="[option.label, amount(option)].filter(Boolean).join(' · ')"></p>
+                        <p class="whitespace-pre-line text-slate-600" x-text="option.description"></p>
+                        <p class="whitespace-pre-line text-slate-600" x-text="option.notes"></p>
+                    </div>
+                </template>
+            </article>
+        </template>
+    </x-admin.app-preview>
+@endif
 </div>

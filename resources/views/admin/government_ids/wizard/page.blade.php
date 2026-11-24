@@ -160,53 +160,6 @@
     @endif
 
 
-    @if($step !== 'channels')
-    {{-- CURRENT SECTION --}}
-    <div class="pb-1 pt-2">
-        <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
-            {{ $step === 'basic' ? 'Basic Information' : $steps[$step] }}
-        </h2>
-
-        <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            @if($governmentId && in_array($step, ['requirements', 'fees', 'guide', 'offices']))
-            @include('admin.catalog.partials.section-visibility', ['visibilitySection' => $step, 'visibilityLabel' => $steps[$step]])
-        @endif
-
-        @switch($step)
-                @case('basic')
-                    Add the main information about this {{ $itemLabel }}.
-                    @break
-
-                @case('channels')
-                    Set up the ways residents can request this {{ $itemLabel }}.
-                    @break
-
-                @case('requirements')
-                    Add the documents and other requirements needed to apply for this {{ $itemLabel }}.
-                    @break
-
-                @case('fees')
-                    Add the fees applicants may need to pay.
-                    @break
-
-                @case('guide')
-                    Build the application process step by step.
-                    @break
-
-                @case('offices')
-                    Choose where applicants can process this {{ $itemLabel }}.
-                    @break
-
-                @case('review')
-                    {{ $editing ? 'Review changes to the saved information before finishing.' : 'Review the saved information before finishing.' }}
-                    @break
-            @endswitch
-        </p>
-    </div>
-
-
-    @endif
-
     @if($governmentId && $step === 'channels')
         @include('admin.catalog.partials.channels')
     @elseif($governmentId && in_array($step, ['requirements', 'fees', 'guide']))
@@ -229,6 +182,9 @@
         @endif
     >
         @csrf
+        @if($governmentId && in_array($step, ['requirements', 'fees', 'guide', 'offices']))
+            @include('admin.catalog.partials.section-visibility', ['visibilitySection' => $step, 'visibilityLabel' => $steps[$step]])
+        @endif
         @if($step === 'fees')<input type="hidden" name="option_content" value="1">@endif
         @if($step !== 'offices' && ($selectedPath ?? null))<input type="hidden" name="path" value="{{ $selectedPath }}">@endif
         @if($governmentId)<input type="hidden" name="_catalog_revision" value="{{ old('_catalog_revision', \App\Services\CatalogRevision::token($governmentId)) }}">@endif
@@ -253,7 +209,6 @@
             {{-- REQUIREMENTS --}}
             @case('requirements')
 
-                @include('admin.catalog.partials.prerequisites-editor')
                 @include(
                     'admin.government_ids.partials.checklists',
                     [
@@ -275,6 +230,7 @@
                     @include(
                         'admin.government_ids.partials.fee-items-field',
                         [
+                            'liveAppPreview' => true,
                             'selectedFees' => $governmentId->fees->filter(fn ($fee) => !isset($activePath->request_channel['fee_ids']) || in_array($fee->id, $activePath->request_channel['fee_ids'], true))->sortBy('sort_order')
                         ]
                     )
@@ -326,7 +282,8 @@
                     'admin.government_ids.partials.office-links-field',
                     [
                         'selectedOffices' => $governmentId->offices,
-                        'officeModal' => true
+                        'officeModal' => true,
+                        'liveAppPreview' => true
                     ]
                 )
 
