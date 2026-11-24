@@ -44,7 +44,9 @@ it('saves reloads edits reorders and removes child options without replacing the
     $this->post($url, ['fees' => [$payload]])->assertSessionHasNoErrors();
     expect($parent->options()->count())->toBe(2)->and($parent->options()->whereKey($ids[1])->exists())->toBeFalse()
         ->and($record->fees()->sole()->id)->toBe($parent->id);
-    $this->get(route('admin.'.$resource.'.edit-wizard.show', [$record, 'review']))->assertOk()->assertSee('Choose one:')->assertSee('Regular Processing');
+    $this->get(route('admin.'.$resource.'.edit-wizard.show', [$record, 'review']))->assertOk()
+        ->assertSee('1 fee')->assertDontSee('Saved fees')->assertDontSee('Regular Processing')
+        ->assertDontSee('Saved research and request channels');
     $this->get(route('admin.'.$resource.'.show', $record))->assertOk()->assertSee('Choose one:')->assertSee('Regular Processing');
     $parent->delete();
     expect($parent->options()->count())->toBe(0);

@@ -52,7 +52,11 @@
     ];
 @endphp
 
-<section class="admin-panel divide-y divide-slate-200 px-6">
+<section class="admin-panel divide-y divide-slate-200 px-6" aria-labelledby="catalog-review-heading">
+    <header class="py-5">
+        <h2 id="catalog-review-heading" class="font-semibold">{{ $editing ? 'Review changes' : 'Review saved content' }}</h2>
+        <p class="mt-1 text-sm text-slate-600">Counts include all saved request options.</p>
+    </header>
 
     @foreach($summary as $key => [$label, $status])
 
@@ -94,19 +98,9 @@
 
 </section>
 
-<p class="text-sm text-slate-600">
-    These totals cover all saved request options. Review / change opens the selected option. Empty sections are allowed.
-    {{ $editing ? 'Finish Editing' : 'Finish' }} opens the current {{ $wizardLabel }} details page.
-</p>
-@if($governmentId->fees->isNotEmpty())
-<section class="space-y-3" aria-label="Fee review">
-    <h3 class="font-semibold">Saved fees</h3>
-    @foreach($governmentId->fees->sortBy('sort_order') as $fee)
-        @include('admin.government_ids.partials.fee-display')
-    @endforeach
-</section>
+@php($hiddenSections = $governmentId->research_metadata['hidden_sections'] ?? [])
+@if($hiddenSections)
+    <p class="text-sm text-slate-600">Hidden from residents: {{ implode(', ', array_map(fn ($section) => $steps[$section] ?? ucfirst($section), $hiddenSections)) }}.</p>
 @endif
 
 @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
-
-@include('admin.catalog.partials.encoding-summary')
