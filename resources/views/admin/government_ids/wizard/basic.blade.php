@@ -35,8 +35,12 @@
                 residency && 'Residency: ' + residency,
                 ...value('eligibility_other_conditions').split(/\r?\n/).map(line => line.trim()),
             ].filter(Boolean);
+            const name = value('name');
+            const acronym = value('acronym');
+            const suffix = acronym && ' (' + acronym + ')';
             this.overview = {
-                name: value('name'), description: value('description'),
+                name: name && suffix && !name.toLowerCase().endsWith(suffix.toLowerCase()) ? name + suffix : name,
+                description: value('description'),
                 agency: value('issued_by') || label('agency_id'),
                 target: value('target_group'),
                 validityNote: value('research_metadata[validity_note]'),
@@ -53,9 +57,17 @@
     @include('admin.catalog.partials.image-field')
     <div>
         <label for="name" class="mb-2 block text-sm font-medium">{{ $recordKind === 'document' ? 'Document' : 'ID' }} Name <span aria-hidden="true">*</span></label>
-        <input id="name" name="name" value="{{ $value('name') }}" maxlength="255" required class="admin-input" placeholder="{{ $recordKind === 'document' ? 'e.g. PSA Birth Certificate' : 'e.g. Philippine Passport' }}" aria-describedby="name-help @error('name') name-error @enderror" @error('name') aria-invalid="true" @enderror>
-        <p id="name-help" class="mt-1 text-xs text-slate-500">The only required basic field. Use the official name.</p>
+        <input id="name" name="name" value="{{ $value('name') }}" maxlength="255" required class="admin-input" placeholder="{{ $recordKind === 'document' ? 'e.g. PSA Birth Certificate' : 'e.g. Alien Certificate of Registration Identity Card' }}" aria-describedby="name-help @error('name') name-error @enderror" @error('name') aria-invalid="true" @enderror>
+        <p id="name-help" class="mt-1 text-xs text-slate-500">Enter the full official name. Add its abbreviation in Acronym below.</p>
         @error('name')<p id="name-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
+    </div>
+    <div>
+        <label for="acronym" class="mb-2 block text-sm font-medium">Acronym <span class="font-normal text-slate-500">(optional)</span></label>
+        <input id="acronym" name="acronym" value="{{ $value('acronym') }}" maxlength="40" class="admin-input"
+            placeholder="{{ $recordKind === 'document' ? 'e.g. CENOMAR' : 'e.g. ACR I-Card' }}"
+            aria-describedby="acronym-help @error('acronym') acronym-error @enderror" @error('acronym') aria-invalid="true" @enderror>
+        <p id="acronym-help" class="mt-1 text-xs text-slate-500">Use the record’s usual abbreviation, without parentheses. It appears after the name and is searchable.</p>
+        @error('acronym')<p id="acronym-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
     </div>
     <div class="grid gap-5 sm:grid-cols-2">
         <div>
@@ -90,7 +102,7 @@
     @endif
     <div>
         <label for="description" class="mb-2 block text-sm font-medium">About this {{ $recordKind === 'document' ? 'Document' : 'ID' }}</label>
-        <textarea id="description" name="description" rows="3" class="admin-input" placeholder="Briefly explain what this {{ $itemLabel }} is and what it is used for.">{{ $value('description') }}</textarea>
+        <textarea id="description" name="description" rows="3" class="admin-input" placeholder="Briefly explain what this {{ $itemLabel }} is used for.">{{ $value('description') }}</textarea>
     </div>
 
     <div class="space-y-5 border-t border-slate-200 pt-5" aria-labelledby="wizard-validity-heading">

@@ -33,10 +33,11 @@ class ResidentInventoryController extends Controller
                 'government_ids' => GovernmentId::query()
                     ->with(['prerequisites.governmentId', 'prerequisites.document'])
                     ->orderBy('name')
-                    ->get(['id', 'name', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
+                    ->get(['id', 'name', 'acronym', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
                     ->map(fn (GovernmentId $governmentId) => [
                         'id' => $governmentId->id,
                         'name' => $governmentId->name,
+                        'acronym' => $governmentId->acronym,
                         'application_availability' => $governmentId->application_availability,
                         'acquisition_type' => $governmentId->acquisition_type,
                         'target_group' => $governmentId->target_group,
@@ -54,10 +55,11 @@ class ResidentInventoryController extends Controller
                 'documents' => Document::query()
                     ->with(['prerequisites.governmentId', 'prerequisites.document'])
                     ->orderBy('name')
-                    ->get(['id', 'name', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
+                    ->get(['id', 'name', 'acronym', 'application_availability', 'acquisition_type', 'target_group', 'guidance_mode', 'include_in_smart_sequencing'])
                     ->map(fn (Document $document) => [
                         'id' => $document->id,
                         'name' => $document->name,
+                        'acronym' => $document->acronym,
                         'application_availability' => $document->application_availability,
                         'acquisition_type' => $document->acquisition_type,
                         'target_group' => $document->target_group,

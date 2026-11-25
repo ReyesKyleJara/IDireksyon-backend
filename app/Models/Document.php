@@ -32,6 +32,7 @@ class Document extends Model
         'guidance_mode',
         'include_in_smart_sequencing',
         'name',
+        'acronym',
         'level',
         'category',
         'agency_id',

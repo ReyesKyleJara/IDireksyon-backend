@@ -16,6 +16,18 @@ class CatalogEncoding
     public const FULFILLMENT = ['pickup', 'delivery', 'download', 'email', 'view_online'];
     public const SECTIONS = ['requirements', 'fees', 'guide', 'offices', 'troubleshooting'];
 
+    public static function displayName(Document|GovernmentId $record): string
+    {
+        $name = $record->name;
+        $acronym = trim((string) $record->acronym);
+
+        if ($acronym === '' || str_ends_with(mb_strtolower(rtrim($name)), ' ('.mb_strtolower($acronym).')')) {
+            return $name;
+        }
+
+        return $name.' ('.$acronym.')';
+    }
+
     public static function researchRules(): array
     {
         return [

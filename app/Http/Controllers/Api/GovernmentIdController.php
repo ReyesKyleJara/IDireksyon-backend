@@ -27,6 +27,7 @@ class GovernmentIdController extends Controller
                 return [
                     'id' => $governmentId->id,
                     'name' => $governmentId->name,
+                    'acronym' => $governmentId->acronym,
                     'image_url' => $governmentId->image_url,
 
                     'level' => $governmentId->level,
@@ -160,6 +161,7 @@ class GovernmentIdController extends Controller
                 'id' => $governmentId->id,
                 'image_url' => $governmentId->image_url,
                 'name' => $governmentId->name,
+                'acronym' => $governmentId->acronym,
 
                 'level' => $governmentId->level,
                 'category' => $governmentId->category,

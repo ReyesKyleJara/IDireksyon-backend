@@ -33,6 +33,7 @@ class GovernmentIdController extends Controller
 
                 $query->where(function ($query) use ($search) {
                     $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('acronym', 'like', "%{$search}%")
                         ->orWhereHas('agency', function ($agencyQuery) use ($search) {
                             $agencyQuery
                                 ->where('name', 'like', "%{$search}%")

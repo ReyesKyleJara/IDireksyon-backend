@@ -91,6 +91,8 @@ trait PreparesCatalogEntry
                 'max:255',
             ],
 
+            'acronym' => ['sometimes', 'nullable', 'string', 'max:40'],
+
             'level' => [
                 'nullable',
                 'string',

@@ -12,7 +12,7 @@ class DocumentController extends Controller
     public function index()
     {
         return response()->json(['data' => Document::with('agency')->orderBy('name')->get()->map(fn ($document) => [
-            ...$document->only(['id', 'name', 'description', 'level', 'category', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing']),
+            ...$document->only(['id', 'name', 'acronym', 'description', 'level', 'category', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing']),
             'record_type' => 'document', 'issued_by' => $document->agency?->name ?? $document->issued_by,
             'image_url' => $document->image_url,
             'research_metadata' => $document->research_metadata ?? [],
@@ -23,7 +23,7 @@ class DocumentController extends Controller
     {
         // Resident-friendly wording is applied last, to the response only.
         return response()->json(['data' => \App\Services\ResidentWording::apply([
-            ...$document->only(['id', 'name', 'description', 'purpose', 'level', 'category', 'eligibility', 'validity', 'validity_type',
+            ...$document->only(['id', 'name', 'acronym', 'description', 'purpose', 'level', 'category', 'eligibility', 'validity', 'validity_type',
                 'processing_time', 'processing_time_note', 'guidance_mode', 'application_availability', 'acquisition_type', 'target_group', 'include_in_smart_sequencing', 'requirements', 'fee']),
             ...CatalogEncoding::detail($document),
             // Added after detail(): the fingerprint reads detail(), so it must not depend on this.

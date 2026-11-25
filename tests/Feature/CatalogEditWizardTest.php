@@ -172,3 +172,33 @@ it('protects Edit steps and keeps Add resume state separate', function ($resourc
         $this->postJson(editWizardRoute($resource, $record, 'review', 'save'), [])->assertForbidden();
     }
 })->with('catalog entities');
+
+it('stores optional acronyms and finds them in the CMS and resident catalog', function ($resource, $model, $label) {
+    $name = $label.' full name';
+    $acronym = 'Sample-ID';
+    $create = $this->get(route('admin.'.$resource.'.create'))->assertOk()
+        ->assertSee('name="acronym"', false);
+    $this->post(route('admin.'.$resource.'.wizard.store'), [
+        'creation_key' => $create->viewData('creationKey'),
+        'name' => $name,
+        'acronym' => $acronym,
+    ])->assertSessionHasNoErrors();
+    $record = $model::sole();
+    expect($record->name)->toBe($name)->and($record->acronym)->toBe($acronym);
+
+    $this->get(route('admin.'.$resource.'.index', ['q' => $acronym]))
+        ->assertOk()->assertSee($name.' ('.$acronym.')');
+    $this->getJson('/api/'.$resource)->assertOk()
+        ->assertJsonPath('data.0.acronym', $acronym);
+    $this->getJson('/api/'.$resource.'/'.$record->id)->assertOk()
+        ->assertJsonPath('data.name', $name)->assertJsonPath('data.acronym', $acronym);
+
+    $save = editWizardRoute($resource, $record, 'basic', 'save');
+    $this->post($save, ['name' => $name.' ('.$acronym.')'])->assertSessionHasNoErrors();
+    expect($record->fresh()->acronym)->toBe($acronym);
+    $this->get(route('admin.'.$resource.'.index', ['q' => $acronym]))
+        ->assertSee($name.' ('.$acronym.')')->assertDontSee('('.$acronym.') ('.$acronym.')');
+
+    $this->post($save, ['name' => $name, 'acronym' => ''])->assertSessionHasNoErrors();
+    expect($record->fresh()->acronym)->toBeNull();
+})->with('catalog entities');

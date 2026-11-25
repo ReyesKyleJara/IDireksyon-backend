@@ -161,7 +161,7 @@ class RoadmapPlanner
                 $catalog[$type.':'.$record->id] = [
                     'type' => $type,
                     'id' => $record->id,
-                    'name' => $record->name,
+                    'name' => CatalogEncoding::displayName($record),
                     // Same CMS picture the ID Directory shows, so option cards can use it.
                     'image_url' => $record->image_url,
                     'processing_time' => $record->processing_time,

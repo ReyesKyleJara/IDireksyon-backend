@@ -30,6 +30,7 @@ class DocumentController extends Controller
 
                 $query->where(function ($query) use ($search) {
                     $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('acronym', 'like', "%{$search}%")
                         ->orWhere('issued_by', 'like', "%{$search}%")
                         ->orWhereHas('agency', fn ($agency) => $agency->where('name', 'like', "%{$search}%")->orWhere('acronym', 'like', "%{$search}%"));
                 });
