@@ -8,8 +8,10 @@ use App\Models\Agency;
 use App\Models\Barangay;
 use App\Models\ContentChangeLog;
 use App\Models\Office;
+use App\Services\OfficeDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class OfficeController extends Controller
 {
@@ -20,6 +22,8 @@ class OfficeController extends Controller
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
         ]);
         $offices = Office::with('agency')
+            ->withCount(['governmentIds', 'documents'])
+            ->withExists(['agencyVerifications'])
             ->when(filled($filters['q'] ?? null), function ($query) use ($filters) {
                 $term = '%'.trim($filters['q']).'%';
                 $query->where(function ($query) use ($term) {
@@ -44,10 +48,17 @@ class OfficeController extends Controller
         return $this->form(new Office(), $request->boolean('embedded'));
     }
 
-    public function edit(Office $office)
+    public function edit(Office $office, OfficeDeletion $deletion)
     {
         $office->load('schedules.intervals');
-        return $this->form($office);
+        return $this->form($office)->with('deletion', $deletion->blockers($office));
+    }
+
+    public function destroy(Office $office, OfficeDeletion $deletion)
+    {
+        Gate::authorize('delete-catalog-records');
+
+        return redirect()->route('admin.offices.index')->with('success', $deletion->delete($office));
     }
 
     private function form(Office $office, bool $embedded = false)

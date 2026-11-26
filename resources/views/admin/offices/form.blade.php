@@ -22,7 +22,8 @@
         <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $office->exists ? 'Edit Office' : 'Add Office' }}</h1>
         <p class="mt-2 text-sm text-slate-500">Only the branch name is required to begin. Offices appear for residents when linked to an ID or document. Saved edits appear when residents reload the record.</p>
     </div>
-    @if($errors->any())
+    @error('office_deletion')<p role="alert" class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $message }}</p>@enderror
+    @if($errors->any() && ! $errors->has('office_deletion'))
         <div role="alert" class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <p class="mb-2 font-semibold">Please check the following:</p>
             <ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
@@ -116,5 +117,28 @@
             <button type="submit" class="admin-primary">{{ $office->exists ? 'Save Changes' : 'Save Office' }}</button>
         </div>
     </form>
+    {{-- Outside the edit form: a form inside a form is not allowed. --}}
+    @if($office->exists && ! ($embedded ?? false) && isset($deletion))
+        @can('delete-catalog-records')
+        <section class="admin-panel mt-6 flex flex-col gap-3 border-red-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-slate-900">Delete Office</h2>
+                <p class="mt-1 text-sm text-slate-500">
+                    @if($deletion['can_delete'])
+                        Permanently removes this office and its opening hours.
+                    @elseif($deletion['records'] !== [])
+                        Linked to {{ count($deletion['records']) === 1 ? '1 ID or document' : count($deletion['records']).' IDs or documents' }}. Remove those links first.
+                    @else
+                        Kept because it is part of agency verification history.
+                    @endif
+                </p>
+            </div>
+            @include('admin.offices.partials.delete', [
+                'blocked' => $deletion['can_delete'] ? null : ($deletion['records'] !== [] ? \App\Services\OfficeDeletion::LINKED_MESSAGE : \App\Services\OfficeDeletion::VERIFICATION_MESSAGE),
+                'records' => $deletion['records'],
+            ])
+        </section>
+        @endcan
+    @endif
 </div>
 @endsection

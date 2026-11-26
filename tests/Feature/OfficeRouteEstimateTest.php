@@ -24,7 +24,7 @@ function routePath(Office $office): string
     return "/api/auth/offices/{$office->id}/route";
 }
 
-function fakeGoogleRoute(array $body = ['routes' => [['distanceMeters' => 8400, 'duration' => '1200s']]], int $status = 200): void
+function fakeGoogleRoute(array $body = ['routes' => [['distanceMeters' => 8400, 'duration' => '1200s', 'polyline' => ['encodedPolyline' => '_p~iF~ps|U_ulLnnqC']]]], int $status = 200): void
 {
     Http::fake(['routes.googleapis.com/*' => Http::response($body, $status)]);
 }
@@ -43,15 +43,38 @@ it('stays off until it is deliberately enabled', function () {
     expect($this->enabledByDefault)->toBeFalse();
 });
 
-it('returns road distance and driving time without exposing the key', function () {
+it('returns road distance, driving time and the route line without exposing the key', function () {
     fakeGoogleRoute();
     Sanctum::actingAs(User::factory()->create());
 
     $this->postJson(routePath(routeOffice()), ROUTE_ORIGIN)
         ->assertOk()
-        ->assertExactJson(['data' => ['distance_meters' => 8400, 'duration_seconds' => 1200]])
+        ->assertExactJson(['data' => ['distance_meters' => 8400, 'duration_seconds' => 1200, 'polyline' => '_p~iF~ps|U_ulLnnqC']])
         ->assertDontSee('test-server-key');
 });
+
+it('still returns the time and distance when Google sends no route line', function (array $route) {
+    fakeGoogleRoute(['routes' => [['distanceMeters' => 8400, 'duration' => '1200s', ...$route]]]);
+    Sanctum::actingAs(User::factory()->create());
+
+    $this->postJson(routePath(routeOffice()), ROUTE_ORIGIN)
+        ->assertOk()
+        ->assertJsonPath('data.duration_seconds', 1200)
+        ->assertJsonPath('data.polyline', null);
+})->with([
+    'missing' => [[]],
+    'empty' => [['polyline' => ['encodedPolyline' => '']]],
+    'not text' => [['polyline' => ['encodedPolyline' => 42]]],
+]);
+
+it('tells the app whether travel times are switched on', function (bool $enabled) {
+    config(['services.google_maps.routes_enabled' => $enabled]);
+
+    $this->getJson('/api/offices')
+        ->assertOk()
+        ->assertJsonPath('meta.travel_times', $enabled)
+        ->assertDontSee('test-server-key');
+})->with(['on' => true, 'off' => false]);
 
 it('makes an Essentials request with only distance and duration', function () {
     fakeGoogleRoute();
@@ -64,7 +87,7 @@ it('makes an Essentials request with only distance and duration', function () {
 
         return $request->url() === 'https://routes.googleapis.com/directions/v2:computeRoutes'
             && $request->hasHeader('X-Goog-Api-Key', 'test-server-key')
-            && $request->hasHeader('X-Goog-FieldMask', 'routes.distanceMeters,routes.duration')
+            && $request->hasHeader('X-Goog-FieldMask', 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline')
             && array_keys($body) === ['origin', 'destination', 'travelMode', 'routingPreference']
             && array_keys($body['origin']['location']) === ['latLng']
             && $body['travelMode'] === 'DRIVE'

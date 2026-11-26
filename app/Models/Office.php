@@ -66,6 +66,12 @@ class Office extends Model
         return $this->belongsTo(User::class, 'last_verified_by');
     }
 
+    /** Agency verification rows that name this office. */
+    public function agencyVerifications(): HasMany
+    {
+        return $this->hasMany(CatalogAgencyVerification::class);
+    }
+
     public function schedules(): HasMany
     {
         return $this->hasMany(OfficeSchedule::class)->orderBy('day_of_week');

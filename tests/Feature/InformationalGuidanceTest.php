@@ -79,6 +79,7 @@ it('retains the sequencing toggle and complete catalog API content across guidan
         $after = $this->getJson('/api/government-ids/'.$record->id)->assertOk()->json('data');
         unset($after['guidance_mode']); $expected = $before; unset($expected['guidance_mode']);
         expect($after)->toBe($expected)->and($record->fresh()->include_in_smart_sequencing)->toBeTrue();
-        $this->get(route('admin.government-ids.edit-wizard.show', [$record, 'requirements']))->assertOk()->assertSee('Retained preparation');
+        // Prerequisites are no longer edited on the requirements step; the review step lists them.
+        $this->get(route('admin.government-ids.edit-wizard.show', [$record, 'review']))->assertOk()->assertSee('Retained preparation');
     }
 });

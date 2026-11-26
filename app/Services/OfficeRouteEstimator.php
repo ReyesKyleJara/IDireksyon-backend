@@ -10,17 +10,17 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Road distance and driving time from a resident to an office.
+ * Road distance, driving time and the route's shape from a resident to an office.
  *
  * Stays on the Routes API Essentials tier: no traffic-aware routing, and the
- * field mask asks only for distance and duration. The resident's location is
+ * field mask asks only for distance, duration and the overview polyline. The resident's location is
  * used for this one call and is never stored, cached, or logged.
  */
 class OfficeRouteEstimator
 {
     private const ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 
-    private const FIELD_MASK = 'routes.distanceMeters,routes.duration';
+    private const FIELD_MASK = 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline';
 
     public function isEnabled(): bool
     {
@@ -29,7 +29,7 @@ class OfficeRouteEstimator
     }
 
     /**
-     * @return array{status: string, distance_meters?: int, duration_seconds?: int}
+     * @return array{status: string, distance_meters?: int, duration_seconds?: int, polyline?: string|null}
      */
     public function estimate(Office $office, float $latitude, float $longitude): array
     {
@@ -104,6 +104,14 @@ class OfficeRouteEstimator
             return ['status' => 'failed'];
         }
 
-        return ['status' => 'found', 'distance_meters' => $meters, 'duration_seconds' => (int) $parts[1]];
+        // The line on the map is extra: without it the time and distance still show.
+        $polyline = $routes[0]['polyline']['encodedPolyline'] ?? null;
+
+        return [
+            'status' => 'found',
+            'distance_meters' => $meters,
+            'duration_seconds' => (int) $parts[1],
+            'polyline' => is_string($polyline) && $polyline !== '' ? $polyline : null,
+        ];
     }
 }

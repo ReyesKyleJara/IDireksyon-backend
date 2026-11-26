@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Office;
 use App\Services\CatalogEncoding;
+use App\Services\OfficeRouteEstimator;
 use Illuminate\Http\JsonResponse;
 
 class OfficeController extends Controller
@@ -44,6 +45,11 @@ class OfficeController extends Controller
             ->filter(fn (array $office) => $office['records'] !== [])
             ->values();
 
-        return response()->json(['data' => $offices]);
+        return response()->json([
+            'data' => $offices,
+            // Tells the app whether to offer travel times, so the paid Routes
+            // API has one on/off switch: GOOGLE_MAPS_ROUTES_ENABLED.
+            'meta' => ['travel_times' => app(OfficeRouteEstimator::class)->isEnabled()],
+        ]);
     }
 }

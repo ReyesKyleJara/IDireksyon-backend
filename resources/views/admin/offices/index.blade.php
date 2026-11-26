@@ -11,6 +11,7 @@
         </div>
         <a href="{{ route('admin.offices.create') }}" class="admin-primary">Add Office</a>
     </div>
+    @error('office_deletion')<p role="alert" class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <form method="GET" action="{{ route('admin.offices.index') }}" class="admin-panel mb-5 grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <div>
             <label for="office-search" class="mb-2 block text-sm font-medium">Search</label>
@@ -46,7 +47,18 @@
                             <td class="px-5 py-4 font-semibold text-slate-900">{{ $office->name }}</td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $office->agency?->name ?? 'Not yet assigned' }}</td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ collect([$office->municipality, $office->province])->filter()->implode(', ') ?: 'Not yet researched' }}</td>
-                            <td class="px-5 py-4"><a href="{{ route('admin.offices.edit', $office) }}" class="admin-secondary" aria-label="Edit {{ $office->name }}">Edit</a></td>
+                            <td class="px-5 py-4">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <a href="{{ route('admin.offices.edit', $office) }}" class="admin-secondary" aria-label="Edit {{ $office->name }}">Edit</a>
+                                    @php($links = $office->government_ids_count + $office->documents_count)
+                                    @include('admin.offices.partials.delete', [
+                                        'blocked' => $links > 0
+                                            ? 'Linked to '.($links === 1 ? '1 ID or document' : $links.' IDs or documents').'. Open Edit to see them and remove the links first.'
+                                            : ($office->agency_verifications_exists ? \App\Services\OfficeDeletion::VERIFICATION_MESSAGE : null),
+                                        'records' => [],
+                                    ])
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="px-6 py-16 text-center">

@@ -266,6 +266,7 @@ Route::prefix('admin')
                 'store',
                 'edit',
                 'update',
+                'destroy',
             ]);
 
 

@@ -35,6 +35,8 @@ class OfficeRouteController extends Controller
             'found' => response()->json(['data' => [
                 'distance_meters' => $route['distance_meters'],
                 'duration_seconds' => $route['duration_seconds'],
+                // Google's encoded polyline, drawn as the route line on the map.
+                'polyline' => $route['polyline'],
             ]]),
             'no_route' => $this->problem('no_route', 'No driving route was found to this office.', 422),
             default => $this->problem('routes_unavailable', self::UNAVAILABLE, 503),
