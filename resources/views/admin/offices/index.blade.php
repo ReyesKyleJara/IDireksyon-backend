@@ -52,10 +52,8 @@
                                     <a href="{{ route('admin.offices.edit', $office) }}" class="admin-secondary" aria-label="Edit {{ $office->name }}">Edit</a>
                                     @php($links = $office->government_ids_count + $office->documents_count)
                                     @include('admin.offices.partials.delete', [
-                                        'blocked' => $links > 0
-                                            ? 'Linked to '.($links === 1 ? '1 ID or document' : $links.' IDs or documents').'. Open Edit to see them and remove the links first.'
-                                            : ($office->agency_verifications_exists ? \App\Services\OfficeDeletion::VERIFICATION_MESSAGE : null),
-                                        'records' => [],
+                                        'blocked' => $office->agency_verifications_exists ? \App\Services\OfficeDeletion::VERIFICATION_MESSAGE : null,
+                                        'linkedCount' => $links,
                                     ])
                                 </div>
                             </td>

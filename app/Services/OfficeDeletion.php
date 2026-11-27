@@ -7,51 +7,47 @@ use App\Models\Office;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Permanently deletes an office that nothing else depends on.
- *
- * Linked IDs and documents block deletion: their request methods and special
- * cases keep office IDs inside JSON, which a database cascade would leave
- * pointing at nothing. Agency verification history blocks it too, because the
- * database would otherwise blank the office on approved, unchangeable rows.
- * Schedules belong to the office and go with it.
- */
+/** Deletes an office and removes its catalog selections in one transaction. */
 class OfficeDeletion
 {
-    public const LINKED_MESSAGE = 'This office is still linked to IDs or documents. Remove it from them first, then delete it.';
-
     public const VERIFICATION_MESSAGE = 'This office is part of agency verification history, which must be kept. It cannot be deleted.';
 
-    /**
-     * What stops deletion, for the CMS to show before anyone tries.
-     *
-     * @return array{records: list<array{name: string, type: string, url: string}>, verified: bool, can_delete: bool}
-     */
+    /** @return array{linked_count: int, can_delete: bool} */
     public function blockers(Office $office): array
     {
-        $records = [
-            ...$office->governmentIds()->orderBy('name')->get(['government_ids.id', 'name'])
-                ->map(fn ($id) => ['name' => $id->name, 'type' => 'ID', 'url' => route('admin.government-ids.edit', $id)]),
-            ...$office->documents()->orderBy('name')->get(['documents.id', 'name'])
-                ->map(fn ($document) => ['name' => $document->name, 'type' => 'Document', 'url' => route('admin.documents.edit', $document)]),
+        return [
+            'linked_count' => $office->governmentIds()->count() + $office->documents()->count(),
+            'can_delete' => ! CatalogAgencyVerification::where('office_id', $office->id)->exists(),
         ];
-        $verified = CatalogAgencyVerification::where('office_id', $office->id)->exists();
-
-        return ['records' => $records, 'verified' => $verified, 'can_delete' => $records === [] && ! $verified];
     }
 
-    /** Checks again inside the transaction, so a link added meanwhile still blocks. */
+    /** Keeps catalog references and office deletion in the same transaction. */
     public function delete(Office $office): string
     {
         return DB::transaction(function () use ($office) {
             $office = Office::whereKey($office->id)->lockForUpdate()->firstOrFail();
-            $linked = DB::table('government_id_office')->where('office_id', $office->id)->lockForUpdate()->exists()
-                || DB::table('document_office')->where('office_id', $office->id)->lockForUpdate()->exists();
-            if ($linked) {
-                throw ValidationException::withMessages(['office_deletion' => self::LINKED_MESSAGE]);
-            }
             if (CatalogAgencyVerification::where('office_id', $office->id)->lockForUpdate()->exists()) {
                 throw ValidationException::withMessages(['office_deletion' => self::VERIFICATION_MESSAGE]);
+            }
+
+            foreach ([$office->governmentIds(), $office->documents()] as $records) {
+                foreach ($records->lockForUpdate()->get() as $record) {
+                    foreach ($record->requirementSets()->lockForUpdate()->get() as $set) {
+                        $channel = $this->withoutOffice($set->request_channel ?? [], $office->id);
+                        if ($channel !== ($set->request_channel ?? [])) {
+                            $set->update(['request_channel' => $channel]);
+                        }
+                    }
+
+                    $research = $record->research_metadata ?? [];
+                    if (isset($research['special_cases'])) {
+                        $cases = array_map(fn ($case) => $this->withoutOffice($case, $office->id), $research['special_cases']);
+                        if ($cases !== $research['special_cases']) {
+                            $research['special_cases'] = $cases;
+                            $record->update(['research_metadata' => $research]);
+                        }
+                    }
+                }
             }
 
             $name = $office->name;
@@ -60,5 +56,16 @@ class OfficeDeletion
 
             return $name.' deleted.';
         });
+    }
+
+    private function withoutOffice(array $data, int $officeId): array
+    {
+        if (is_array($data['office_ids'] ?? null)) {
+            $data['office_ids'] = array_values(array_filter(
+                $data['office_ids'], fn ($id) => (int) $id !== $officeId,
+            ));
+        }
+
+        return $data;
     }
 }

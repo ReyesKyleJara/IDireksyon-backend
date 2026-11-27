@@ -88,26 +88,36 @@ it('refuses guests', function () {
     expect(Office::find($office->id))->not->toBeNull();
 });
 
-it('keeps an office still linked to an ID or document', function (string $type) {
+it('deletes a linked office and clears only its catalog references', function (string $type) {
     $office = deletableOffice();
     $record = $type === 'id' ? GovernmentId::create(['name' => 'Postal ID']) : Document::create(['name' => 'Birth Certificate']);
-    $record->offices()->attach($office->id);
+    $other = Office::create(['name' => 'Other branch']);
+    $record->offices()->attach([$office->id, $other->id]);
+    $set = $record->requirementSets()->create([
+        'application_type' => 'new', 'applicant_type' => 'all',
+        'request_channel' => ['office_ids' => [$office->id, $other->id], 'label' => 'Walk in'],
+    ]);
+    $record->update(['research_metadata' => [
+        'status' => 'draft',
+        'special_cases' => [['id' => 'fixture', 'office_ids' => [(string) $office->id]]],
+    ]]);
     $this->actingAs(superAdmin());
 
-    $this->get("/admin/offices/{$office->id}/edit")
-        ->assertOk()
-        ->assertSee('Linked to 1 ID or document. Remove those links first.')
-        ->assertSee($record->name)
-        ->assertSee(route($type === 'id' ? 'admin.government-ids.edit' : 'admin.documents.edit', $record), false)
-        ->assertDontSee('Delete permanently');
-    $this->get('/admin/offices')->assertSee('Linked to 1 ID or document.');
+    foreach (['/admin/offices', "/admin/offices/{$office->id}/edit"] as $page) {
+        $this->get($page)->assertOk()
+            ->assertSee('remove the office from 1 ID or document')
+            ->assertSee('Cancel')
+            ->assertSee('Delete permanently');
+    }
 
-    $this->from('/admin/offices')->delete(route('admin.offices.destroy', $office))
-        ->assertRedirect('/admin/offices')
-        ->assertSessionHasErrors(['office_deletion' => OfficeDeletion::LINKED_MESSAGE]);
+    $this->delete(route('admin.offices.destroy', $office))
+        ->assertRedirect(route('admin.offices.index'))
+        ->assertSessionHasNoErrors();
 
-    expect(Office::find($office->id))->not->toBeNull()
-        ->and($record->offices()->count())->toBe(1);
+    expect(Office::find($office->id))->toBeNull()
+        ->and($record->fresh()->offices()->pluck('offices.id')->all())->toBe([$other->id])
+        ->and($set->fresh()->request_channel)->toBe(['office_ids' => [$other->id], 'label' => 'Walk in'])
+        ->and($record->fresh()->research_metadata['special_cases'][0]['office_ids'])->toBe([]);
 })->with(['ID' => 'id', 'document' => 'document']);
 
 it('keeps an office named in agency verification history', function () {

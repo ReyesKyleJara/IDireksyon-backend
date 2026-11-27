@@ -12,18 +12,11 @@
 
                 @if($blocked)
                     <p role="alert" class="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ $blocked }}</p>
-                    @if(! empty($records))
-                        <ul class="mt-3 space-y-1 text-sm">
-                            @foreach($records as $record)
-                                <li><a href="{{ $record['url'] }}" class="font-semibold text-blue-800 underline">{{ $record['name'] }}</a> <span class="text-slate-500">({{ $record['type'] }})</span></li>
-                            @endforeach
-                        </ul>
-                    @endif
                     <div class="mt-5 flex justify-end">
                         <button type="button" @click="$refs.dialog.close()" class="admin-secondary">Close</button>
                     </div>
                 @else
-                    <p class="mt-4 text-sm text-slate-700">The office and its opening hours will be removed from the CMS. No ID or document uses it, so residents will not notice a change.</p>
+                    <p class="mt-4 text-sm text-slate-700">This removes the office and its opening hours. @if($linkedCount > 0) It will also remove the office from {{ $linkedCount === 1 ? '1 ID or document' : $linkedCount.' IDs or documents' }}. Those records will stay in the catalog. @endif</p>
                     <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">This cannot be undone.</p>
                     <form method="POST" action="{{ route('admin.offices.destroy', $office) }}" class="mt-5 flex flex-wrap justify-end gap-3">
                         @csrf

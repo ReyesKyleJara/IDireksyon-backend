@@ -126,16 +126,14 @@
                 <p class="mt-1 text-sm text-slate-500">
                     @if($deletion['can_delete'])
                         Permanently removes this office and its opening hours.
-                    @elseif($deletion['records'] !== [])
-                        Linked to {{ count($deletion['records']) === 1 ? '1 ID or document' : count($deletion['records']).' IDs or documents' }}. Remove those links first.
                     @else
                         Kept because it is part of agency verification history.
                     @endif
                 </p>
             </div>
             @include('admin.offices.partials.delete', [
-                'blocked' => $deletion['can_delete'] ? null : ($deletion['records'] !== [] ? \App\Services\OfficeDeletion::LINKED_MESSAGE : \App\Services\OfficeDeletion::VERIFICATION_MESSAGE),
-                'records' => $deletion['records'],
+                'blocked' => $deletion['can_delete'] ? null : \App\Services\OfficeDeletion::VERIFICATION_MESSAGE,
+                'linkedCount' => $deletion['linked_count'],
             ])
         </section>
         @endcan
