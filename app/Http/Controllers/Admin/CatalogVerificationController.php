@@ -97,6 +97,9 @@ class CatalogVerificationController extends Controller
      */
     private function afterSave(Request $request, GovernmentId|Document $owner, Verification $row, string $saved): RedirectResponse
     {
+        if ($row->outcome === 'documented') {
+            return $this->toDataSources($owner)->with('success', 'Verification saved. It can now appear in the app.');
+        }
         if (! $request->boolean('submit_now')) {
             return $this->toDataSources($owner)->with('success', $saved);
         }
@@ -142,7 +145,7 @@ class CatalogVerificationController extends Controller
         $row = $this->verification($request, $owner);
         Gate::authorize('approve', $row);
         if (! $request->boolean('reviewed')) {
-            return $this->failed($owner, ['reviewed' => ['Confirm that you reviewed the exact confirmed scope and evidence.']]);
+            return $this->failed($owner, ['reviewed' => ['Confirm that you reviewed the verification and supporting evidence.']]);
         }
 
         return $this->attempt($owner, fn () => $this->validation->approve($request->user(), $row),

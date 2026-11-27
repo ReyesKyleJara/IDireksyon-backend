@@ -38,13 +38,15 @@ class CatalogAgencyVerificationPolicy
 
     public function update(User $user, CatalogAgencyVerification $verification): bool
     {
-        return $this->isRecorder($user, $verification) && $verification->review_state === 'draft';
+        return $this->isRecorder($user, $verification) && ($verification->review_state === 'draft'
+            || ($verification->outcome === 'documented' && ! $verification->isRevoked()
+                && in_array($verification->review_state, ['submitted', 'published'], true)));
     }
 
     /** The recorder submits their own draft; assertComplete() checks the evidence it needs. */
     public function submit(User $user, CatalogAgencyVerification $verification): bool
     {
-        return $this->update($user, $verification);
+        return $verification->outcome !== 'documented' && $this->update($user, $verification);
     }
 
     /** The recorder may reopen their own submitted pending request to add the agency's response. */
@@ -65,7 +67,7 @@ class CatalogAgencyVerificationPolicy
         return $user->canApproveAgencyVerifications()
             && (int) $verification->recorded_by !== (int) $user->id
             && $verification->review_state === 'submitted'
-            && $verification->outcome !== 'pending';
+            && ! in_array($verification->outcome, ['pending', 'documented'], true);
     }
 
     public function markCorrectionsApplied(User $user, CatalogAgencyVerification $verification): bool

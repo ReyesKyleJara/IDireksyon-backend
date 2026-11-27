@@ -71,6 +71,7 @@ final class CatalogAgencyValidation
 
         return DB::transaction(function () use ($actor, $record, $data) {
             $row = new Verification($data);
+            $this->setDocumentedVisibility($row);
             $row->verifiable()->associate($record);
             $row->forceFill(['recorded_by' => $actor->id, 'recorded_by_name' => $actor->username ?? $actor->name])->save();
             $this->audit($actor, $row, 'drafted');
@@ -83,12 +84,25 @@ final class CatalogAgencyValidation
     public function updateDraft(User $actor, Verification $verification, array $input): Verification
     {
         return $this->locked($actor, 'update', $verification, 'updated', function (Verification $row) use ($input) {
+            if (($row->outcome === 'documented') !== (($input['outcome'] ?? null) === 'documented')) {
+                throw ValidationException::withMessages(['outcome' => 'Keep the existing verification record type.']);
+            }
             $row->fill($this->validated($row->verifiable, $input));
+            $this->setDocumentedVisibility($row);
             $changed = array_keys($row->getDirty());
             $row->save();
 
             return $changed;
         });
+    }
+
+    private function setDocumentedVisibility(Verification $row): void
+    {
+        if ($row->outcome === 'documented') {
+            $row->forceFill([
+                'review_state' => 'published',
+            ]);
+        }
     }
 
     public function submit(User $actor, Verification $verification): Verification
@@ -264,6 +278,36 @@ final class CatalogAgencyValidation
         ])->values()->all()];
     }
 
+    /** Resident card allowlist. Historical claim scopes and private evidence stay in the CMS. */
+    public function verifiedInformation(GovernmentId|Document $record): array
+    {
+        $sources = collect($record->research_metadata['sources'] ?? [])
+            ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null)
+                && \App\Support\GuideRichText::safeUrl($row['url'] ?? null)
+                && parse_url($row['url'], PHP_URL_USER) === null && parse_url($row['url'], PHP_URL_PASS) === null)
+            ->map(fn ($row) => ['title' => $row['title'], 'url' => $row['url']])->values();
+        $evaluation = $this->evaluate($record);
+        $legacy = $evaluation['status'] === 'agency_confirmed' ? $evaluation['current'] : collect();
+        $documented = $record->agencyVerifications()->where('outcome', 'documented')->get()
+            ->filter(fn (Verification $row) => $row->isActive());
+        $latest = $documented->concat($legacy)->filter(fn (Verification $row) =>
+            $row->responded_on !== null && ($row->outcome === 'documented' || filled($row->evidence_reference)))
+            ->sortByDesc(fn (Verification $row) => $row->responded_on->format('Y-m-d').sprintf('%020d', $row->id))->first();
+
+        return [
+            'sources' => $sources->all(),
+            'verification' => $latest ? [
+                'office' => $latest->office_label ?: $latest->agency_name,
+                'method' => Verification::DOCUMENTED_METHODS[$latest->method] ?? match ($latest->method) {
+                    'in_person_interview' => 'On-site Verification',
+                    'written_letter' => 'Official Written Verification',
+                    default => 'Agency Verification',
+                },
+                'date' => $latest->responded_on->format('Y-m-d'),
+            ] : null,
+        ];
+    }
+
     /** @return array<int, string> request path id => the name residents see */
     public function pathLabels(GovernmentId|Document $record): array
     {
@@ -284,6 +328,20 @@ final class CatalogAgencyValidation
     /** Structural rules, checked on every save. Completeness for an outcome is checked on submit and approve. */
     public function validated(GovernmentId|Document $record, array $input): array
     {
+        if (($input['outcome'] ?? null) === 'documented') {
+            $data = Validator::make($input, [
+                'office_label' => ['required', 'string', 'max:255'],
+                'method' => ['required', Rule::in(array_keys(Verification::DOCUMENTED_METHODS))],
+                'responded_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+                'scope' => ['nullable', 'string', 'max:1000'],
+                'evidence_location' => ['nullable', 'string', 'max:255'],
+                'notes' => ['nullable', 'string', 'max:5000'],
+            ])->validate();
+
+            return [...array_fill_keys(['evidence_location', 'notes'], null), ...$data, 'agency_name' => $record->agency?->name ?: $data['office_label'],
+                'scope' => $data['scope'] ?? '', 'outcome' => 'documented', 'confirmed_aspects' => []];
+        }
+
         $validator = Validator::make($input, [
             'agency_id' => ['nullable', 'integer', Rule::exists('agencies', 'id')],
             'agency_name' => ['required_without:agency_id', 'nullable', 'string', 'max:255'],
@@ -339,6 +397,13 @@ final class CatalogAgencyValidation
                 $needs[$field] = $message;
             }
         };
+        if ($row->outcome === 'documented') {
+            $require('office_label', 'Enter the office or branch name.');
+            if (! array_key_exists($row->method, Verification::DOCUMENTED_METHODS)) {
+                $needs['method'] = 'Select a verification method.';
+            }
+            $require('responded_on', 'Enter the verification date.');
+        }
         if (in_array($row->outcome, self::RESPONSES, true)) {
             $require('responded_on', 'Record the date the agency responded.');
             $require('evidence_reference', 'A documented evidence reference is required for an agency response.');

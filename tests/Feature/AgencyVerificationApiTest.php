@@ -162,7 +162,7 @@ it('leaves every existing detail field unchanged', function (Closure $makeRecord
     apiApproved($record, ['confirmed_aspects' => ['requirements']]);
     $after = apiDetail($record);
 
-    expect(array_diff_key($after, ['agency_verification' => 1]))->toBe(array_diff_key($before, ['agency_verification' => 1]))
+    expect(array_diff_key($after, ['agency_verification' => 1, 'verified_information' => 1]))->toBe(array_diff_key($before, ['agency_verification' => 1, 'verified_information' => 1]))
         ->and($after['agency_verification']['status'])->toBe('agency_confirmed');
 })->with([
     'government id' => [fn () => avRecord()],

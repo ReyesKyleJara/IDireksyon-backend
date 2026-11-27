@@ -318,13 +318,13 @@ it('gives each person only the actions they may take', function () {
 it('previews exactly what residents see', function () {
     $record = avRecord();
     $show = fn () => rvBasic($record, avSuperAdmin());
-    expect($show())->toContain('No agency confirmation is shown.');
+    expect($show())->toContain('data-resident-preview')->not->toContain('Confirmed: shown to residents');
 
     avApproved($record, ['confirmed_aspects' => ['fees']]);
-    expect($show())->toContain('✓ Information Confirmed with Fixture Agency: Fees');
+    expect($show())->toContain('Confirmed: shown to residents');
 
     $record->fees()->first()->update(['amount_min' => 2000]);
-    expect($show())->toContain('No agency confirmation is shown.')->toContain('Outdated: hidden from residents');
+    expect($show())->not->toContain('Confirmed: shown to residents')->toContain('Outdated: hidden from residents');
 });
 
 it('shows the reason a draft was sent back only to people allowed to see private details', function () {

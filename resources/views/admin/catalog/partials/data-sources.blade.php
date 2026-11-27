@@ -1,7 +1,6 @@
 {{--
-    Data Sources, inside the Basic Information step.
-    Online Sources are part of the step form and save with "Save & Continue".
-    Agency Confirmation records save on their own: their forms are pushed after the main
+    Data Sources & Verification in Basic Information.
+    Official sources save with the step. Agency verifications save independently. Their forms are pushed after the main
     form (stack "outside-step-form") and linked with the form="" attribute.
 --}}
 @use('App\Models\CatalogAgencyVerification', 'Verification')
@@ -19,13 +18,12 @@
     $sourceRows = collect(session()->hasOldInput('research_sources_present') ? old('research_metadata.sources', []) : $savedSources)
         ->filter(fn ($row) => is_array($row))->map(fn ($row) => array_replace($blankSource, array_intersect_key($row, $blankSource)))->values()->all();
     $sourceError = $errors->first('research_metadata.sources') ?: $errors->first('research_metadata.sources.*');
-    $tab = session('data_sources_tab') ?? ($agencyErrors->any() ? 'agency' : 'online');
+    $approvedVerification = null;
 
     if ($dsRecord) {
         $service = app(\App\Services\CatalogAgencyValidation::class);
         $evaluation = $service->evaluate($dsRecord);
-        $progress = $service->progress($dsRecord, $evaluation);
-        $residentView = $service->publicSummary($dsRecord);
+        $approvedVerification = $service->verifiedInformation($dsRecord)['verification'];
         $rows = $dsRecord->agencyVerifications()->reorder()->latest('id')->get();
         $pathLabels = $service->pathLabels($dsRecord);
         $agencies = \App\Models\Agency::orderBy('name')->get(['id', 'name', 'acronym']);
@@ -42,19 +40,15 @@
         $method = fn ($row) => strtolower(Verification::METHOD_LABELS[$row->method] ?? $row->method);
         $toReview = $rows->filter(fn ($row) => $user->can('approve', $row));
         $attention = $evaluation['outdated']->isNotEmpty() || $evaluation['corrections_pending']->isNotEmpty() || $evaluation['not_confirmed_aspects'] !== [];
-        $statusStyle = match (true) {
-            $progress['key'] === 'confirmed' => 'border-slate-200 bg-emerald-50 text-emerald-900',
-            in_array($progress['key'], ['pending_review', 'waiting_for_agency'], true) => 'border-slate-200 bg-blue-50 text-blue-900',
-            $attention => 'border-amber-200 bg-amber-50 text-amber-900',
-            default => 'border-slate-200 bg-white text-slate-900',
-        };
         $chip = function ($row) use ($currentIds, $outdatedIds, $correctionIds, $status) {
             $green = 'bg-emerald-50 text-emerald-900'; $amber = 'bg-amber-50 text-amber-900';
             $blue = 'bg-blue-50 text-blue-900'; $grey = 'bg-slate-100 text-slate-700'; $red = 'bg-red-50 text-red-800';
             if ($row->outcome === 'withdrawn') return ['Cancelled', $grey];
             if ($row->review_state === 'draft') return $row->returned_at ? ['Draft: sent back for changes', $amber] : ['Draft', $grey];
+            if ($row->review_state === 'submitted' && $row->outcome === 'documented') return ['Private · save to update visibility', $grey];
             if ($row->review_state === 'submitted') return $row->outcome === 'pending' ? ['Waiting for agency reply', $blue] : ['Pending review', $blue];
             if ($row->revoked_at) return ['Revoked', $red];
+            if ($row->outcome === 'documented' && $row->isActive()) return ['Saved for the app', $green];
             if (in_array($row->id, $outdatedIds, true)) return ['Outdated: hidden from residents', $amber];
             if (in_array($row->id, $correctionIds, true)) return ['Corrections needed', $amber];
             if (in_array($row->id, $currentIds, true)) return $status === 'agency_confirmed'
@@ -62,43 +56,23 @@
             return match ($row->outcome) { 'not_confirmed' => ['Agency could not confirm', $red], 'no_response' => ['No reply from agency', $grey], default => ['Closed', $grey] };
         };
         $prefill = new Verification();
+        $legacyFollowUp = false;
         if ($openForm === 'new' && session('agency_prefill_from')) {
             $from = $rows->firstWhere('id', (int) session('agency_prefill_from'));
+            $legacyFollowUp = $from !== null && $from->outcome !== 'documented';
             $prefill = new Verification($from?->only(['agency_id', 'agency_name', 'office_id', 'office_label', 'scope_request_paths']) ?? []);
         }
         $formData = compact('agencyErrors', 'agencies', 'offices', 'pathLabels');
     }
 @endphp
 @include('admin.catalog.partials.source-app-preview-assets')
-<section id="data-sources"class="admin-panel space-y-5 p-6" aria-label="Data Sources" x-data="{ tab: @js($tab) }">
-    <div>
-        <h3 class="text-lg font-semibold">Data Sources</h3>
-        <p class="text-sm text-slate-600">Where this information came from: official websites, and what a government office told you directly.</p>
-    </div>
-
-    @if($dsRecord)
-        <div class="rounded-xl border p-4 {{ $statusStyle }}" data-progress="{{ $progress['key'] }}">
-            <p class="text-xs font-semibold uppercase">Confirmation status</p>
-            <p class="text-lg font-semibold">{{ $progress['label'] }}</p>
-            @foreach($progress['reasons'] as $reason)<p class="text-sm">{{ $reason }}</p>@endforeach
-            <p class="mt-1 text-xs">Set automatically. It becomes Confirmed only with documented evidence and a second super admin’s review.</p>
-        </div>
-    @endif
-
-    <div class="flex gap-2 border-b border-slate-200" role="tablist" aria-label="Data source type">
-        <button type="button" role="tab" class="-mb-px border-b-2 px-4 py-2 text-base font-semibold" :aria-selected="tab === 'online'"
-            :class="tab === 'online' ? 'border-[#012877] text-[#012877]' : 'border-transparent text-slate-600'" @click="tab = 'online'">Online Sources ({{ count($sourceRows) }})</button>
-        <button type="button" role="tab" class="-mb-px border-b-2 px-4 py-2 text-base font-semibold" :aria-selected="tab === 'agency'"
-            :class="tab === 'agency' ? 'border-[#012877] text-[#012877]' : 'border-transparent text-slate-600'" @click="tab = 'agency'">Agency Confirmation ({{ $dsRecord ? $rows->count() : 0 }})</button>
-    </div>
-
-    {{-- ONLINE SOURCES: saved with this step. --}}
-    <div x-show="tab === 'online'" @if($tab !== 'online') x-cloak @endif class="space-y-4" data-tab="online"
-        x-data="sourcePreview(@js($sourceRows), @js($blankSource), @js([
-            'name' => $governmentId?->name ?? '',
-            'issuedBy' => $recordKind === 'document' ? ($governmentId?->issued_by ?? '') : '',
-            'agencies' => \App\Models\Agency::pluck('name', 'id'),
-        ]))" @input.window="syncRecord()" @change.window="syncRecord()">
+<section id="data-sources" class="admin-panel space-y-5 p-6" aria-label="Data Sources &amp; Verification"
+    x-data="sourcePreview(@js($sourceRows), @js($blankSource), @js($approvedVerification), @js(Verification::DOCUMENTED_METHODS))">
+    <h3 class="text-lg font-semibold">Data Sources &amp; Verification</h3>
+    <div class="ds-layout">
+    <div class="min-w-0 space-y-6">
+    <div class="space-y-4" data-tab="online">
+        <h4 class="font-semibold">Official Government Sources</h4>
         <input type="hidden" name="research_sources_present" value="1">
         <p class="text-sm text-slate-600">Official government websites you used as references. Residents see these links in the app. A website link is not an agency confirmation.</p>
         @if($sourceError)<p class="text-sm text-red-700" role="alert">{{ $sourceError }}</p>@endif
@@ -108,11 +82,11 @@
                 <div class="space-y-3">
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="block font-medium">Website or agency name
-                        <input class="admin-input mt-1" :name="`research_metadata[sources][${index}][title]`" x-model="source.title" maxlength="255" placeholder="e.g. DFA – Passport requirements"></label>
+                        <input class="admin-input mt-1" :name="`research_metadata[sources][${index}][title]`" x-model="source.title" maxlength="255" required placeholder="e.g. DFA – Passport requirements"></label>
                     <label class="block font-medium">Official website link
-                        <input type="url" class="admin-input mt-1" :name="`research_metadata[sources][${index}][url]`" x-model="source.url" maxlength="2048" placeholder="https://"></label>
+                        <input type="url" class="admin-input mt-1" :name="`research_metadata[sources][${index}][url]`" x-model="source.url" maxlength="2048" required placeholder="https://"></label>
                     <label class="block font-medium">Date you checked the website
-                        <input type="date" class="admin-input mt-1" :name="`research_metadata[sources][${index}][checked_on]`" x-model="source.checked_on" max="{{ now('Asia/Manila')->toDateString() }}"></label>
+                        <input type="date" class="admin-input mt-1" :name="`research_metadata[sources][${index}][checked_on]`" x-model="source.checked_on" required max="{{ now('Asia/Manila')->toDateString() }}"></label>
                     <label class="block font-medium">Page or section <span class="font-normal text-slate-500">(optional)</span>
                         <input class="admin-input mt-1" :name="`research_metadata[sources][${index}][section]`" x-model="source.section" maxlength="255" placeholder="e.g. Requirements"></label>
                 </div>
@@ -122,7 +96,6 @@
                 <input type="hidden" :name="`research_metadata[sources][${index}][published_on]`" :value="source.published_on">
                 <button type="button" class="text-red-700 hover:underline" @click="sources.splice(index, 1)">Remove this source</button>
                 </div>
-                @include('admin.catalog.partials.source-app-preview')
             </fieldset>
         </template>
         <p class="text-sm text-slate-600" x-show="sources.length === 0">No online sources yet.</p>
@@ -132,30 +105,18 @@
         </div>
     </div>
 
-    {{-- AGENCY CONFIRMATION: each record saves on its own. --}}
-    <div x-show="tab === 'agency'" @if($tab !== 'agency') x-cloak @endif class="space-y-4 text-sm" data-tab="agency">
+    <div class="space-y-4 text-sm" data-tab="agency">
+        <h4 class="text-base font-semibold">Agency Verification</h4>
         @unless($dsRecord)
-            <p class="text-slate-600">Save this {{ $recordKind === 'document' ? 'document' : 'ID' }} first. Then you can add agency confirmation here.</p>
+            <p class="text-slate-600">Save this {{ $recordKind === 'document' ? 'document' : 'ID' }} first to add an agency verification.</p>
         @else
-            <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700" data-agency-help>
-                Record what a government office told you directly. Drafts are private and never shown to residents.
-                When it is complete, with supporting evidence, submit it: a different super admin reviews it before residents see anything.
-            </p>
+            <p class="text-slate-600" data-agency-help>Enter the office, method, and date to show the verification in the app.</p>
 
             @if($agencyErrors->any() && ! in_array($openForm, ['new', ...$rows->pluck('id')->map(fn ($id) => (string) $id)->all()], true))
                 <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800" role="alert">
                     @foreach($agencyErrors->all() as $message)<p>{{ $message }}</p>@endforeach
                 </div>
             @endif
-
-            <p class="text-slate-700" data-resident-preview>
-                <span class="font-semibold">Residents see:</span>
-                @forelse($residentView['confirmations'] as $shown)
-                    ✓ Information Confirmed with {{ $shown['agency_name'] }}: {{ $aspects($shown['confirmed_aspects']) }} ({{ $shown['applies_to_all_request_paths'] ? 'all ways to apply' : collect($shown['request_paths'])->pluck('label')->filter()->implode(', ') }}), confirmed on {{ $date($shown['confirmed_on']) }}.
-                @empty
-                    online sources only. <strong>No agency confirmation is shown.</strong>
-                @endforelse
-            </p>
 
             @if($toReview->isNotEmpty() || $attention)
                 <ul class="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900" aria-label="Needs your attention">
@@ -168,11 +129,11 @@
 
             {{-- New record --}}
             @can('create', Verification::class)
-                <div x-data="{ open: @js($openForm === 'new') }" @agency-form-close="open = false">
-                    <button type="button" class="admin-primary" x-show="!open" @click="open = true">+ Add agency confirmation</button>
+                <div x-data="{ open: @js($openForm === 'new') }" @agency-form-close.window="open = false">
+                    <button type="button" class="admin-primary" x-show="!open" @click="draftVerification = null; $dispatch('agency-form-close'); open = true">+ Add agency verification</button>
                     <div x-show="open" @if($openForm !== 'new') x-cloak @endif>
-                        <p class="mb-2 font-semibold">New agency confirmation (draft)</p>
-                        @include('admin.catalog.partials.agency-confirmation-form', [...$formData, 'fid' => 'agency-form-new',
+                        <p class="mb-2 font-semibold">New agency verification</p>
+                        @include($legacyFollowUp ? 'admin.catalog.partials.agency-confirmation-form' : 'admin.catalog.partials.documented-verification-form', [...$formData, 'fid' => 'agency-form-new',
                             'verification' => $prefill, 'useOld' => $openForm === 'new'])
                     </div>
                 </div>
@@ -184,7 +145,7 @@
             {{-- Existing records, newest first. Nothing is ever deleted. --}}
             @forelse($rows as $row)
                 @php [$chipLabel, $chipStyle] = $chip($row); $rid = (string) $row->id; @endphp
-                <article class="rounded-lg border border-slate-200 p-4" data-verification="{{ $row->id }}" x-data="{ open: @js($openForm === $rid) }" @agency-form-close="open = false">
+                <article class="rounded-lg border border-slate-200 p-4" data-verification="{{ $row->id }}" x-data="{ open: @js($openForm === $rid) }" @agency-form-close.window="open = false">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $chipStyle }}">{{ $chipLabel }}</span>
                         <span class="text-base font-semibold">#{{ $row->id }} · {{ $row->agency_name }}</span>
@@ -196,6 +157,8 @@
                         @if($row->outcome === 'pending' && $row->review_state === 'draft')
                             {{-- A draft never implies that the agency was contacted. --}}
                             <p class="text-slate-600">Entered so far: contact date {{ $row->requested_on ? $date($row->requested_on) : 'not recorded yet' }}, {{ $method($row) }}.</p>
+                        @elseif($row->outcome === 'documented')
+                            <p>{{ Verification::DOCUMENTED_METHODS[$row->method] ?? $row->method }} · {{ $date($row->responded_on) }}</p>
                         @elseif($row->outcome === 'pending')
                             <p>Agency contacted on {{ $date($row->requested_on) }} by {{ $method($row) }}.@if($row->submitted_at && $row->review_state === 'submitted') Submitted on {{ $date($row->submitted_at) }}.@endif</p>
                         @elseif(in_array($row->outcome, Verification::CONFIRMING, true))
@@ -212,7 +175,7 @@
                         @if($row->review_state === 'draft' && $row->returned_reason && $user->can('viewPrivate', $row))
                             <p class="text-amber-900"><span class="font-medium">Sent back because:</span> {{ $row->returned_reason }}</p>
                         @endif
-                        @if($row->review_state === 'submitted' && (int) $row->recorded_by === (int) $user->id && $row->outcome !== 'pending')
+                        @if($row->outcome !== 'documented' && $row->review_state === 'submitted' && (int) $row->recorded_by === (int) $user->id && $row->outcome !== 'pending')
                             <p class="text-slate-600">Another super admin must approve this.</p>
                         @endif
                     </div>
@@ -220,7 +183,7 @@
                     @can('update', $row)
                         <div x-show="open" @if($openForm !== $rid) x-cloak @endif class="mt-3">
                             @if($openForm === $rid && session('warning'))<p class="mb-2 text-amber-900">{{ session('warning') }}</p>@endif
-                            @include('admin.catalog.partials.agency-confirmation-form', [...$formData, 'fid' => 'agency-form-'.$rid,
+                            @include($row->outcome === 'documented' ? 'admin.catalog.partials.documented-verification-form' : 'admin.catalog.partials.agency-confirmation-form', [...$formData, 'fid' => 'agency-form-'.$rid,
                                 'verification' => $row, 'useOld' => $openForm === $rid])
                         </div>
                         @push('outside-step-form')
@@ -232,9 +195,11 @@
                         <summary class="cursor-pointer font-medium text-[#012877]">Show details</summary>
                         <dl class="mt-2 grid gap-1 sm:grid-cols-2">
                             <dt class="text-slate-500">Office</dt><dd>{{ $row->office_label ?: 'Not recorded' }}</dd>
+                            @if($row->outcome !== 'documented')
                             <dt class="text-slate-500">Ways to apply</dt><dd>{{ $paths($row) }}</dd>
                             <dt class="text-slate-500">Description</dt><dd>“{{ $row->scope }}”</dd>
                             <dt class="text-slate-500">Contact</dt><dd>{{ Verification::METHOD_LABELS[$row->method] ?? $row->method }} · asked {{ $date($row->requested_on) }} · reply {{ $date($row->responded_on) }}</dd>
+                            @endif
                             <dt class="text-slate-500">Recorded by</dt><dd>{{ $row->recorded_by_name }}</dd>
                             @if($row->approved_by_name)<dt class="text-slate-500">Approved in the CMS by</dt><dd>{{ $row->approved_by_name }}, {{ $date($row->approved_at) }}</dd>@endif
                         </dl>
@@ -242,9 +207,9 @@
                             <div class="mt-3 rounded-lg bg-slate-50 p-3" data-private>
                                 <p class="font-semibold">🔒 Private research details: never shown to residents</p>
                                 <dl class="mt-2 grid gap-1 sm:grid-cols-2">
-                                    <dt class="text-slate-500">Evidence reference</dt><dd>{{ $row->evidence_reference ?: 'Not recorded' }}</dd>
+                                    @if($row->outcome !== 'documented' || filled($row->evidence_reference))<dt class="text-slate-500">Evidence reference</dt><dd>{{ $row->evidence_reference ?: 'Not recorded' }}</dd>@endif
                                     <dt class="text-slate-500">Evidence location</dt><dd>{{ $row->evidence_location ?: 'Not recorded' }}</dd>
-                                    <dt class="text-slate-500">Job title</dt><dd>{{ $row->contact_role ?: 'Not recorded' }}</dd>
+                                    @if($row->outcome === 'documented')<dt class="text-slate-500">Verification summary</dt><dd>{{ $row->scope ?: 'None' }}</dd>@else<dt class="text-slate-500">Job title</dt><dd>{{ $row->contact_role ?: 'Not recorded' }}</dd>@endif
                                     <dt class="text-slate-500">Notes</dt><dd>{{ $row->notes ?: 'None' }}</dd>
                                     @if($row->not_covered_note)<dt class="text-slate-500">What was not confirmed</dt><dd>{{ $row->not_covered_note }}</dd>@endif
                                     @if($row->corrections_summary)<dt class="text-slate-500">Corrections</dt><dd>{{ $row->corrections_summary }}</dd>@endif
@@ -258,15 +223,17 @@
                     {{-- Actions: only those this person may take. The server checks every one again. --}}
                     <div class="mt-3 flex flex-wrap items-center gap-2" x-show="!open">
                         @can('update', $row)
-                            <button type="button" class="admin-secondary" @click="open = true">Edit</button>
+                            <button type="button" class="admin-secondary" @click="draftVerification = null; $dispatch('agency-form-close'); open = true">Edit</button>
+                            @can('submit', $row)
                             <button type="submit" form="agency-submit-{{ $rid }}" class="admin-primary">Submit for review</button>
                             @push('outside-step-form')<form id="agency-submit-{{ $rid }}" method="POST" action="{{ route($base.'submit', [$dsRecord, $row->id]) }}">@csrf</form>@endpush
+                            @endcan
                         @endcan
                         @can('reopen', $row)
                             <button type="submit" form="agency-reopen-{{ $rid }}" class="admin-primary">Add the agency’s reply</button>
                             @push('outside-step-form')<form id="agency-reopen-{{ $rid }}" method="POST" action="{{ route($base.'reopen', [$dsRecord, $row->id]) }}">@csrf</form>@endpush
                         @endcan
-                        @if($row->isApproved() && $user->can('create', Verification::class))
+                        @if($row->outcome !== 'documented' && $row->isApproved() && $user->can('create', Verification::class))
                             <a class="admin-secondary" href="{{ route($base.'create', [$dsRecord, 'from' => $row->id]) }}">Record a new contact for the same scope</a>
                         @endif
                     </div>
@@ -318,8 +285,35 @@
                     @endcan
                 </article>
             @empty
-                <p class="text-slate-600">No agency confirmation recorded yet.</p>
+                <p class="text-slate-600">No agency verification recorded yet.</p>
             @endforelse
         @endunless
+    </div>
+    </div>
+    <aside class="ds-preview" data-resident-preview>
+        <h4 class="mb-2 text-sm font-semibold">Live resident app preview</h4>
+        <p class="mb-2 text-xs text-slate-600" x-show="draftVerification">Preview of your unsaved changes.</p>
+        <p class="text-sm text-slate-600" x-show="!visibleSources.length && !shownVerification">Add an official source or an agency verification to preview this card.</p>
+        <div class="ds-card" x-show="visibleSources.length || shownVerification">
+            <h5 class="ds-heading"><span x-show="shownVerification" class="ds-verified" aria-hidden="true">✓</span>
+                <span x-text="shownVerification ? 'Verified Information' : 'Official References'"></span>
+            </h5>
+            <p class="ds-secondary" x-show="shownVerification" x-text="shownVerification ? 'Last verified: ' + formatDate(shownVerification.date) : ''"></p>
+            <hr class="ds-divider">
+            <div x-show="visibleSources.length">
+                <p class="ds-label">Official Government Source</p>
+                <ul class="space-y-1">
+                    <template x-for="source in visibleSources" :key="source.index">
+                        <li><a class="ds-link" :href="source.url" target="_blank" rel="noopener noreferrer" x-text="source.title"></a></li>
+                    </template>
+                </ul>
+            </div>
+            <div x-show="shownVerification">
+                <p class="ds-label" x-text="shownVerification?.method"></p>
+                <p class="ds-entry" x-text="shownVerification?.office"></p>
+            </div>
+            <p class="ds-secondary">Information reviewed by the IDireksyon research team. Requirements and procedures may change.</p>
+        </div>
+    </aside>
     </div>
 </section>

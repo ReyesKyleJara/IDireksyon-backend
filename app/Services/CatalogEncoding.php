@@ -47,11 +47,16 @@ class CatalogEncoding
         ];
     }
 
-    public static function validateResearch(array $data): void
+    public static function validateResearch(array $data, bool $requireSourceDates = false): void
     {
         $research = $data['research_metadata'] ?? null;
-        if (($research['status'] ?? null) === 'reviewed' && (empty($research['sources']) || collect($research['sources'])->contains(fn ($source) => empty($source['checked_on'])))) {
-            throw ValidationException::withMessages(['research_metadata.sources' => 'Reviewed content needs official sources and an explicit checked date for each source.']);
+        $sources = $research['sources'] ?? [];
+        $reviewed = ($research['status'] ?? null) === 'reviewed';
+        if (($reviewed && $sources === []) || (($reviewed || $requireSourceDates)
+            && collect($sources)->contains(fn ($source) => empty($source['checked_on'])))) {
+            throw ValidationException::withMessages(['research_metadata.sources' => $reviewed
+                ? 'Reviewed content needs official sources and an explicit checked date for each source.'
+                : 'Enter the checked date for each official government source.']);
         }
     }
 
@@ -123,6 +128,17 @@ class CatalogEncoding
             'services' => $office->pivot?->only(['new_application_status', 'renewal_status', 'replacement_status']),
             'schedules' => $office->schedules->map(fn ($schedule) => [...$schedule->only(['day_of_week', 'status']),
                 'intervals' => $schedule->intervals->map->only(['opens_at', 'closes_at'])->values()->all()])->values()->all()];
+    }
+
+    public static function publicResearch(Document|GovernmentId $owner): array
+    {
+        $research = \Illuminate\Support\Arr::except($owner->research_metadata ?? [], ['special_cases']);
+        if (isset($research['sources']) && is_array($research['sources'])) {
+            $research['sources'] = array_map(fn ($source) => is_array($source)
+                ? \Illuminate\Support\Arr::except($source, ['scope']) : $source, $research['sources']);
+        }
+
+        return $research;
     }
 
     public static function detail(Document|GovernmentId $owner): array

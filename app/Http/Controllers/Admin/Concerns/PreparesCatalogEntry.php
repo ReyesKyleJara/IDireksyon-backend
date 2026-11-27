@@ -396,7 +396,7 @@ trait PreparesCatalogEntry
             ],
 
         ]);
-        \App\Services\CatalogEncoding::validateResearch($validated);
+        \App\Services\CatalogEncoding::validateResearch($validated, requireSourceDates: true);
         $owner = $request->route('document') ?? $request->route('governmentId');
         if (isset($validated['research_metadata']) && ($owner instanceof Document || $owner instanceof GovernmentId)
             && array_key_exists('special_cases', $owner->research_metadata ?? [])) {

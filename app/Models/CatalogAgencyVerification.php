@@ -33,7 +33,13 @@ class CatalogAgencyVerification extends Model
     public const METHOD_LABELS = ['written_letter' => 'Written letter', 'email' => 'Email', 'in_person_interview' => 'In-person interview',
         'phone_interview' => 'Phone interview', 'office_visit' => 'Office visit', 'official_reply_document' => 'Reply document from the agency', 'other' => 'Other'];
 
+    public const DOCUMENTED_METHODS = [
+        'office_visit' => 'On-site Verification', 'phone_interview' => 'Phone Verification',
+        'email' => 'Email Verification', 'official_reply_document' => 'Official Written Verification',
+    ];
+
     public const OUTCOME_LABELS = [
+        'documented' => 'Research verification',
         'pending' => 'Request made, awaiting response',
         'confirmed' => 'Confirmed (only the listed aspects)',
         'partially_confirmed' => 'Partially confirmed',
@@ -84,7 +90,8 @@ class CatalogAgencyVerification extends Model
     protected static function booted(): void
     {
         static::creating(function (self $row) {
-            if ($row->review_state !== 'draft' || $row->approved_at || $row->approved_by || $row->revoked_at
+            $published = $row->outcome === 'documented' && $row->review_state === 'published';
+            if ((! $published && $row->review_state !== 'draft') || $row->approved_at || $row->approved_by || $row->revoked_at
                 || $row->content_fingerprint || $row->submitted_at) {
                 throw new DomainException('A verification can only be created as an unapproved draft.');
             }
@@ -96,6 +103,14 @@ class CatalogAgencyVerification extends Model
             $allowed = self::TRANSITIONS["{$from}>{$to}"] ?? null;
             $changed = array_diff(array_keys($row->getDirty()), ['updated_at']);
 
+            if ($row->getOriginal('outcome') === 'documented' && ! $row->getOriginal('revoked_at')) {
+                if (in_array($from, ['draft', 'submitted', 'published'], true) && $to === 'published') {
+                    $allowed = [...array_diff(self::CONTENT, ['outcome']), 'review_state'];
+                }
+                if ($from === 'published' && $to === 'published' && $row->isDirty('revoked_at')) {
+                    $allowed = ['revoked_at', 'revoked_by', 'revocation_reason'];
+                }
+            }
             if ($allowed === null || array_diff($changed, $allowed) !== []) {
                 throw new DomainException("This verification is {$from} and cannot be changed this way.");
             }
@@ -154,6 +169,7 @@ class CatalogAgencyVerification extends Model
     /** Counts toward the record's status: approved and not revoked. */
     public function isActive(): bool
     {
-        return $this->isApproved() && ! $this->isRevoked();
+        return ($this->isApproved() || ($this->outcome === 'documented' && $this->review_state === 'published'))
+            && ! $this->isRevoked();
     }
 }

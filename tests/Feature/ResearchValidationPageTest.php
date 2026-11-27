@@ -15,17 +15,15 @@ function rvPage(GovernmentId|Document $record, $user = null): string
     return test()->actingAs($user ?? avSuperAdmin())->get(route($route, [$record, 'basic']))->assertOk()->getContent();
 }
 
-it('shows Data Sources with both tabs inside Basic Information for both record types', function (Closure $makeRecord) {
+it('shows the unified panel inside Basic Information for both record types', function (Closure $makeRecord) {
     $record = $makeRecord();
     $record->update(['research_metadata' => ['sources' => [['title' => 'Public reference: Fixture page',
         'url' => 'https://example.gov.ph/page', 'checked_on' => '2026-11-13']]]]);
     $html = rvPage($record);
 
-    expect($html)->toContain('id="data-sources"')->toContain('data-progress="not_yet_confirmed"')->toContain('Not Yet Confirmed')
-        ->toContain('Based on online sources only')
-        ->toContain('Online Sources (1)')->toContain('Agency Confirmation (0)')->toContain('A website link is not an agency confirmation')
+    expect($html)->toContain('id="data-sources"')->toContain('Official Government Sources')->toContain('Agency Verification')->toContain('Live resident app preview')
         ->toContain('Public reference: Fixture page')->toContain('name="research_sources_present"')
-        ->toContain('+ Add agency confirmation')
+        ->toContain('+ Add agency verification')
         ->not->toContain('Sources and research review')->not->toContain('research_metadata[status]')
         ->not->toContain('Open Data Sources');
 })->with([
@@ -38,8 +36,8 @@ it('shows a plain form with no UREC field, label or message anywhere', function 
     avDraft($record);
     $html = rvPage($record, avResearcher());
 
-    expect($html)->toContain('+ Add agency confirmation')->toContain('data-agency-form="agency-form-new"')
-        ->toContain('Save and submit for review')->toContain('Evidence reference')
+    expect($html)->toContain('+ Add agency verification')->toContain('data-agency-form="agency-form-new"')
+        ->toContain('Save verification')->not->toContain('Supporting evidence reference')
         ->not->toContain('Recording is locked')->not->toContain('data-lock-notice')
         ->and(preg_match('/\\b(urec|ethics|clearance)\\b/i', strip_tags(substr($html, strpos($html, 'id="data-sources"')))))->toBe(0)
         ->and($html)->not->toContain('ethics_clearance_reference');
@@ -48,7 +46,7 @@ it('shows a plain form with no UREC field, label or message anywhere', function 
 it('asks to save a new record before adding agency confirmation', function () {
     $html = test()->actingAs(avResearcher())->get(route('admin.government-ids.create'))->assertOk()->getContent();
 
-    expect($html)->toContain('id="data-sources"')->toContain('Save this ID first.')
+    expect($html)->toContain('id="data-sources"')->toContain('Save this ID first')
         ->not->toContain('data-agency-form');
 });
 
@@ -58,7 +56,7 @@ it('labels a draft as private and never as pending', function () {
     $html = rvPage($record);
 
     expect($html)->toContain('Draft: private, not submitted, never shown to residents.')
-        ->toContain('Not Yet Confirmed')->not->toContain('Waiting for Agency')->not->toContain('Pending Review');
+        ->not->toContain('Waiting for agency reply')->not->toContain('Pending review</span>');
 });
 
 it('separates the CMS submission from the actual agency contact', function () {
@@ -67,7 +65,7 @@ it('separates the CMS submission from the actual agency contact', function () {
         'requested_on' => '2026-02-01', 'method' => 'email']);
     $html = rvPage($record);
 
-    expect($html)->toContain('data-progress="waiting_for_agency"')->toContain('Waiting for Agency')
+    expect($html)->toContain('Waiting for agency reply')
         ->toContain('Agency contacted on 1 Feb 2026 by email')
         ->toContain('Submitted on');
 });
@@ -79,9 +77,7 @@ it('shows confirmed and not-covered aspects side by side for a partial confirmat
         'scope_request_paths' => [avFirstPath($record)]]);
     $html = rvPage($record);
 
-    expect($html)->toContain('data-progress="confirmed"')
-        ->toContain('✓ Information Confirmed with Fixture Agency: Requirements')
-        ->toContain('Confirmed: shown to residents')->toContain('Partially confirmed on 10 Feb 2026')
+    expect($html)->toContain('data-resident-preview')->toContain('Confirmed: shown to residents')->toContain('Partially confirmed on 10 Feb 2026')
         ->toContain('<span class="font-medium">Confirmed:</span> Requirements')
         ->toContain('Not covered:</span> Eligibility, Fees, Processing time, Validity, Application process, Offices');
 });
@@ -93,7 +89,7 @@ it('flags outdated confirmations and corrections that are not applied yet', func
     $record->fees()->first()->update(['amount_min' => 1400]);
     $html = rvPage($record);
 
-    expect($html)->toContain('Not Yet Confirmed')->toContain('A confirmation is outdated')->toContain('aria-label="Needs your attention"')
+    expect($html)->toContain('aria-label="Needs your attention"')
         ->toContain('data-outdated="'.$old->id.'"')->toContain('Outdated')
         ->toContain('corrections in #'.$corrections->id.' are not applied yet');
 });
@@ -108,13 +104,13 @@ it('tells the recording super_admin that someone else must approve', function ()
         ->toContain('Confirmation date:</span> 10 Feb 2026');
 });
 
-it('never uses verification or endorsement wording', function () {
+it('never implies government endorsement', function () {
     $record = avRecord();
     avApproved($record);
     $start = strpos($html = rvPage($record), 'id="data-sources"');
     $text = strip_tags(substr($html, $start));
 
-    expect(preg_match('/\\b(verified|endorsed|endorsement|government[\\s-]+approved|approved\\s+by|official\\s+partner)\\b/i', $text))->toBe(0);
+    expect(preg_match('/\\b(endorsed|endorsement|government[\\s-]+approved|approved\\s+by|official\\s+partner)\\b/i', $text))->toBe(0);
 });
 
 it('keeps the record page free of a Data Sources card or separate page button', function () {
@@ -142,18 +138,19 @@ it('never words a draft as if the agency was contacted', function () {
     expect($html)->toContain('Entered so far: contact date 1 Feb 2026')->not->toContain('Agency contacted on');
 });
 
-it('shows a live resident app preview for each online source, for both record types', function (Closure $makeRecord) {
+it('shows one live resident app preview, for both record types', function (Closure $makeRecord) {
     $record = $makeRecord();
     $record->update(['research_metadata' => ['sources' => [['title' => 'Public reference: DFA – Passport requirements',
         'url' => 'https://passport.gov.ph/requirements', 'checked_on' => '2026-11-10', 'scope' => 'Requirements for first-time applicants']]]]);
     $html = rvPage($record);
 
     // The card is drawn in the browser from the fields being edited, so it needs no save.
-    expect($html)->toContain('x-data="sourcePreview(')->toContain('data-app-preview')->toContain('Resident app preview')
-        ->toContain('function sourcePreview(')->toContain('Public reference')->toContain('Checked date not recorded')
+    expect($html)->toContain('x-data="sourcePreview(')->toContain('data-resident-preview')->toContain('Live resident app preview')
+        ->toContain('function sourcePreview(')->toContain('Public reference')->toContain('Official References')
         ->toContain('passport.gov.ph')
         // Display only: the preview adds no form fields of its own (5 fields + the kept publication date).
         ->and(substr_count($html, 'research_metadata[sources][${index}]['))->toBe(6)
+        ->and(substr_count($html, 'data-resident-preview'))->toBe(1)
         ->and(substr_count($html, 'function sourcePreview('))->toBe(1);
 })->with([
     'government id' => [fn () => avRecord()],
