@@ -10,7 +10,11 @@
         'allowWizardCreate' => $allowWizardCreate ?? false,
         'qualifications' => \App\Models\GovernmentIdRequirementWay::QUALIFICATIONS,
         'checklists' => $checklists,
-        'options' => $requirementOptions,
+        'options' => [...$requirementOptions, [
+            'type' => \App\Models\GovernmentIdRequirementItem::ANY_VALID_ID,
+            'id' => null,
+            'name' => \App\Models\GovernmentIdRequirementItem::ANY_VALID_ID_LABEL,
+        ]],
         'url' => ($deferred ?? false) ? null : route(($recordRoutes ?? 'admin.government-ids').'.checklists.store', $governmentId),
         'csrf' => csrf_token(),
         'catalogRevision' => isset($governmentId) && $governmentId ? \App\Services\CatalogRevision::token($governmentId) : null,

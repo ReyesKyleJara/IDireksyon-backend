@@ -548,3 +548,44 @@ it('preserves the current PhilSys Birth Certificate plus manual-ID combination a
         ->and(DB::table('resident_journey_resolutions')->count())->toBe(1);
 
 });
+
+it('encodes any valid government ID and matches eligible Inventory without requiring manual confirmation', function (string $model, string $route) {
+    $resident = User::factory()->create();
+    $target = $model::create(['name' => 'PhilHealth membership']);
+    $nationalId = GovernmentId::create(['name' => 'Philippine Identification System (PhilSys National ID)']);
+    $permit = GovernmentId::create(['name' => 'Business Permit']);
+    $birth = Document::create(['name' => 'Birth Certificate']);
+    $editor = User::factory()->create(['role' => 'researcher']);
+
+    $this->actingAs($editor)->postJson("/admin/{$route}/{$target->id}/checklists", [
+        'application_type' => 'new', 'applicant_type' => 'all',
+        'groups' => [[
+            'title' => 'Proof of Identity', 'rule' => 'choose_one', 'condition_type' => 'always',
+            'items' => [
+                ['type' => 'any_valid_id', 'submission_format' => 'photocopy', 'copies' => 1],
+                ['type' => 'document', 'document_id' => $birth->id, 'submission_format' => 'not_specified'],
+            ],
+        ]],
+    ])->assertCreated()->assertJsonPath('checklist.groups.0.items.0.name', 'Any valid government-issued ID');
+
+    $build = fn () => app(RoadmapPlanner::class)->build(
+        $resident, $target instanceof GovernmentId ? [$target->id] : [],
+        $target instanceof Document ? [$target->id] : [],
+    );
+    $resident->ownedGovernmentIds()->attach($permit);
+    expect(journeyPending($build()))->toHaveCount(1);
+
+    $resident->ownedGovernmentIds()->attach($nationalId);
+    $plan = $build();
+    expect(journeyPending($plan))->toBe([])
+        ->and(data_get($plan, 'steps.0.prerequisites.0.status'))->toBe('satisfied')
+        ->and(data_get($plan, 'steps.0.prerequisites.0.name'))->toContain('Use your '.$nationalId->name, 'Photocopy');
+
+    $resident->ownedGovernmentIds()->detach($nationalId);
+    $resident->ownedDocuments()->attach($birth);
+    expect(journeyPending($build()))->toBe([])
+        ->and(data_get($build(), 'steps.0.prerequisites.0.status'))->toBe('satisfied');
+})->with([
+    'government ID' => [GovernmentId::class, 'government-ids'],
+    'document' => [Document::class, 'documents'],
+]);

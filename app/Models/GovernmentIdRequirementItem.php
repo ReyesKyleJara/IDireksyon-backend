@@ -9,10 +9,15 @@ class GovernmentIdRequirementItem extends Model
 {
     use \App\Models\Concerns\PlainTextWhenLinkedRecordHidden;
 
+    public const ANY_VALID_ID = 'any_valid_id';
+
+    public const ANY_VALID_ID_LABEL = 'Any valid government-issued ID';
+
     public const TYPES = [
         'government_id' => 'Government ID',
         'document' => 'Document',
         'custom' => 'Other / Custom Requirement',
+        self::ANY_VALID_ID => self::ANY_VALID_ID_LABEL,
     ];
 
     public const FORMATS = [
@@ -70,6 +75,7 @@ class GovernmentIdRequirementItem extends Model
         return match ($this->type) {
             'government_id' => $this->governmentId?->name ?? '',
             'document' => $this->document?->name ?? '',
+            self::ANY_VALID_ID => self::ANY_VALID_ID_LABEL,
             default => $this->custom_name ?? '',
         };
     }

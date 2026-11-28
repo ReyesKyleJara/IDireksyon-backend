@@ -162,6 +162,7 @@ class RoadmapPlanner
                     'type' => $type,
                     'id' => $record->id,
                     'name' => CatalogEncoding::displayName($record),
+                    '_identity_credential' => $type === 'government_id' && JourneyRequirements::isIdentityCredential($record->name, $record->acronym),
                     // Same CMS picture the ID Directory shows, so option cards can use it.
                     'image_url' => $record->image_url,
                     'processing_time' => $record->processing_time,

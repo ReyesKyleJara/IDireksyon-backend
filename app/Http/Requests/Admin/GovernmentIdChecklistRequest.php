@@ -178,7 +178,8 @@ class GovernmentIdChecklistRequest extends GovernmentIdRequirementSetRequest
                         $reference = match ($item['type']) {
                             'government_id' => 'id:'.$item['government_id_id'],
                             'document' => 'document:'.$item['document_id'],
-                            default => 'custom:'.mb_strtolower(trim($item['custom_name'])),
+                            GovernmentIdRequirementItem::ANY_VALID_ID => GovernmentIdRequirementItem::ANY_VALID_ID,
+                            default => 'custom:'.mb_strtolower(trim($item['custom_name'] ?? '')),
                         };
                         if (isset($group['ways']) && in_array($reference, $references, true)) {
                             $validator->errors()->add("$prefix.items", 'Each accepted item can only be added once per way.');

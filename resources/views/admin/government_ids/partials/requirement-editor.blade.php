@@ -32,7 +32,7 @@
                         <div class="flex items-center justify-between gap-3 rounded px-2 py-1 text-sm">
                             <div class="min-w-0 flex-1">
                                 <p class="break-words text-slate-800" x-text="option.name"></p>
-                                <p class="mt-1 text-xs text-slate-500" x-text="option.type === 'government_id' ? 'Government ID / Permit' : 'Document'"></p>
+                                <p class="mt-1 text-xs text-slate-500" x-text="option.type === 'any_valid_id' ? 'Matches eligible IDs in Inventory' : (option.type === 'government_id' ? 'Government ID / Permit' : 'Document')"></p>
                             </div>
                             <button type="button" @click="addItem(way, option, $event)"
                                 :disabled="isSelected(way, option) || way.items.length >= 50"

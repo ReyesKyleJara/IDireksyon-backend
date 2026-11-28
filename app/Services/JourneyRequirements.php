@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\GovernmentIdRequirementItem;
+
 /** Read-only interpretation of the existing resident Requirements projection. */
 class JourneyRequirements
 {
@@ -26,6 +28,20 @@ class JourneyRequirements
 
         return in_array($type, ['government_id', 'document'], true) && $id
             ? $type.':'.$id : null;
+    }
+
+    /** Exact catalog names and acronyms for the identity credentials we support. */
+    public static function isIdentityCredential(string $name, ?string $acronym): bool
+    {
+        $name = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $name)));
+        return in_array($name, [
+            'national id', 'philsys national id', 'philippine national id',
+            'philippine identification system (philsys national id)', 'philippine identification system',
+            'philippine passport', 'philippine passport (dfa)', 'unified multi-purpose id (umid)',
+            'unified multi-purpose identification (umid) card', 'umid card', 'postal id',
+            'non-professional driver’s license', "non-professional driver's license",
+            'professional driver’s license', "professional driver's license",
+        ], true) || in_array(mb_strtolower(trim($acronym ?? '')), ['philsys', 'umid'], true);
     }
 
     public static function suggestible(array $record): bool
@@ -85,7 +101,7 @@ class JourneyRequirements
             }
 
             $key = $owner.':set:'.$set['id'].':group:'.$group['id'];
-            $ways = array_map(function ($way) use ($owned) {
+            $ways = array_map(function ($way) use ($owned, $catalog, $owner) {
                 $items = [];
                 foreach ($way['items'] as $item) {
                     $identity = self::itemKey($item) ?? 'manual:'.$item['id'];
@@ -93,6 +109,23 @@ class JourneyRequirements
                 }
                 $way['items_by_key'] = $items;
                 $way['owned'] = array_keys(array_intersect_key($items, $owned));
+                foreach ($items as $item) {
+                    if ($item['type'] !== GovernmentIdRequirementItem::ANY_VALID_ID || $way['qualification_type'] !== 'none') {
+                        continue;
+                    }
+                    foreach ($owned as $candidate => $_) {
+                        if ($candidate === $owner || isset($items[$candidate]) || ! ($catalog[$candidate]['_identity_credential'] ?? false)) {
+                            continue;
+                        }
+                        $way['owned'][] = $candidate;
+                        $way['identity_match'] = 'Use your '.$catalog[$candidate]['name'].' (check that it’s still valid)';
+                        if (filled($item['submission_label'] ?? null)) {
+                            $way['identity_match'] .= ' · '.$item['submission_label'];
+                        }
+                        break;
+                    }
+                    break;
+                }
                 $way['verifiable'] = $way['qualification_type'] === 'none';
                 $way['confirmable'] = self::confirmable($way);
 
@@ -108,7 +141,10 @@ class JourneyRequirements
             // OR ways are alternatives: never pool Inventory matches across ways.
             $satisfied = collect($ways)->first(fn ($way) => $way['verifiable'] && $way['required_count'] > 0 && count($way['owned']) >= $way['required_count']);
             if ($satisfied) {
-                $rows[] = ['type' => 'requirement', 'id' => $group['id'], 'name' => $label, 'status' => 'satisfied', 'condition' => null];
+                $name = isset($satisfied['identity_match']) && count($satisfied['owned']) === $satisfied['required_count']
+                    ? $label.' — '.$satisfied['identity_match']
+                    : $label;
+                $rows[] = ['type' => 'requirement', 'id' => $group['id'], 'name' => $name, 'status' => 'satisfied', 'condition' => null];
 
                 continue;
             }
@@ -124,7 +160,9 @@ class JourneyRequirements
             // One way requiring every item is mandatory, even when some items are manual.
             if (count($ways) === 1 && self::usable($ways[0]) && $ways[0]['required_count'] === count($ways[0]['items_by_key'])) {
                 foreach ($ways[0]['items_by_key'] as $itemKey => $item) {
-                    if (self::itemKey($item) === null) {
+                    if ($item['type'] === GovernmentIdRequirementItem::ANY_VALID_ID && isset($ways[0]['identity_match'])) {
+                        $rows[] = ['type' => 'requirement', 'id' => $group['id'], 'name' => $ways[0]['identity_match'], 'status' => 'satisfied', 'condition' => null];
+                    } elseif (self::itemKey($item) === null) {
                         $rows[] = $this->manual($item['name'], $item['instructions'] ?? null, 'task');
                     } else {
                         $rows[] = $this->linked($itemKey, $item['name'], $owned, $catalog);

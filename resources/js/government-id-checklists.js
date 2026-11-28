@@ -201,6 +201,7 @@ export default function governmentIdChecklists(config) {
         },
         itemName(item) {
             if (item.type === 'custom') return item.custom_name || 'Custom requirement';
+            if (item.type === 'any_valid_id') return this.options.find(option => option.type === item.type)?.name;
             const id = item.type === 'government_id' ? item.government_id_id : item.document_id;
             return this.options.find(option => option.type === item.type && String(option.id) === String(id))?.name || item.name || 'Select a requirement';
         },
@@ -398,6 +399,7 @@ export default function governmentIdChecklists(config) {
             }));
         },
         isSelected(way, option) {
+            if (option.type === 'any_valid_id') return way.items.some(item => item.type === option.type);
             const field = option.type === 'government_id' ? 'government_id_id' : 'document_id';
             return way.items.some(item => item.type === option.type
                 && String(item[field]) === String(option.id));
