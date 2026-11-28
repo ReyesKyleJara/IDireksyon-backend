@@ -5,6 +5,11 @@
 @section('page_title', 'Documents & Certifications')
 
 @section('content')
+@php
+    $viewMode = request('view') === 'grid' ? 'grid' : 'table';
+    $directoryQuery = [...request()->only(['q', 'level', 'category', 'sort']), 'view' => $viewMode];
+@endphp
+
 
     <div class="w-full min-w-0">
 
@@ -47,10 +52,11 @@
     {{-- SEARCH --}}
     <form
         method="GET"
-        action="{{ route('admin.documents.index') }}"
+        action="{{ route('admin.documents.index', ['view' => $viewMode]) }}"
         class="min-w-0 flex-1"
     >
 
+        <input type="hidden" name="view" value="{{ $viewMode }}">
         <input type="hidden" name="level" value="{{ request('level') }}">
         <input type="hidden" name="category" value="{{ request('category') }}">
         <input type="hidden" name="sort" value="{{ request('sort', 'name_asc') }}">
@@ -80,6 +86,7 @@
     {{-- SORT --}}
     <form method="GET" action="{{ url()->current() }}">
         <input type="hidden" name="q" value="{{ request('q') }}">
+        <input type="hidden" name="view" value="{{ $viewMode }}">
         <input type="hidden" name="level" value="{{ request('level') }}">
         <input type="hidden" name="category" value="{{ request('category') }}">
 
@@ -159,6 +166,7 @@
 
                     <a
                         href="{{ route('admin.documents.index', array_filter([
+                            'view' => $viewMode,
                             'q' => request('q'),
                                     'category' => request('category'),
                                     'sort' => request('sort', 'name_asc')
@@ -175,6 +183,7 @@
 
                         <a
                             href="{{ route('admin.documents.index', array_filter([
+                            'view' => $viewMode,
                                 'q' => request('q'),
                                 'level' => $level,
                                 'category' => request('category'),
@@ -206,6 +215,7 @@
 
                     <a
                         href="{{ route('admin.documents.index', array_filter([
+                            'view' => $viewMode,
                             'q' => request('q'),
                             'level' => request('level'),
                             'sort' => request('sort', 'name_asc')
@@ -228,6 +238,7 @@
 ] as $category)
                         <a
                             href="{{ route('admin.documents.index', array_filter([
+                            'view' => $viewMode,
                                 'q' => request('q'),
                                 'level' => request('level'),
                                 'category' => $category
@@ -253,7 +264,7 @@
                 <div class="mt-5 border-t border-slate-100 pt-4">
 
                     <a
-                        href="{{ route('admin.documents.index') }}"
+                        href="{{ route('admin.documents.index', ['view' => $viewMode]) }}"
                         class="text-xs font-medium text-red-600 hover:underline"
                     >
                         Clear all filters
@@ -271,6 +282,26 @@
 
 
 
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-slate-600">{{ $documents->count() }} {{ \Illuminate\Support\Str::plural('record', $documents->count()) }}</p>
+            <nav class="flex gap-2" aria-label="Document directory layout">
+                @foreach(['grid' => 'Grid', 'table' => 'Table'] as $mode => $label)
+                    <a href="{{ route('admin.documents.index', [...$directoryQuery, 'view' => $mode]) }}"
+                        @if($viewMode === $mode) aria-current="true" @endif
+                        class="{{ $viewMode === $mode ? 'admin-primary' : 'admin-secondary' }}">{{ $label }}</a>
+                @endforeach
+            </nav>
+        </div>
+        @if($viewMode === 'grid')
+            @include('admin.catalog.partials.directory-grid', [
+                'records' => $documents,
+                'directoryRoute' => 'admin.documents',
+                'directoryFiltered' => request()->anyFilled(['q', 'level', 'category']),
+                'directoryEmptyFiltered' => 'No matching documents found.',
+                'directoryEmpty' => 'No documents yet.',
+                'directoryCreateLabel' => 'Add Document or Certification',
+            ])
+        @else
         <div class="admin-panel overflow-hidden">
 
             <div class="overflow-x-auto">
@@ -286,16 +317,14 @@
                             </th>
 
                             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                Level
-                            </th>
-
-                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                Category
+                                Guidance mode
                             </th>
 
                             <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 Issued By
                             </th>
+
+                            <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Updated / Reviewed</th>
 
                             <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 Actions
@@ -316,22 +345,15 @@
                                 {{-- NAME --}}
                                 <td class="px-5 py-4">
 
-                                    <a href="{{ route('admin.documents.show', $document) }}" class="font-semibold text-slate-900 hover:underline">
+                                    <a href="{{ route('admin.documents.show', [$document, ...request()->only(['q', 'level', 'category', 'sort', 'view'])]) }}" class="font-semibold text-slate-900 hover:underline">
                                         {{ \App\Services\CatalogEncoding::displayName($document) }}@if($document->hidden_at)<span class="ml-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700" data-hidden-badge>Hidden</span>@endif
                                     </a>
 
                                 </td>
 
 
-                                {{-- LEVEL --}}
-                                <td class="px-5 py-4 text-sm text-slate-600">
-                                    {{ $document->level ?: '—' }}
-                                </td>
-
-
-                                {{-- CATEGORY --}}
-                                <td class="px-5 py-4 text-sm text-slate-600">
-                                    {{ $document->category ?: '—' }}
+                                <td class="px-5 py-4 text-sm font-medium text-slate-700">
+                                    {{ \App\Support\GuidanceMode::label($document->guidance_mode) }}
                                 </td>
 
 
@@ -341,12 +363,14 @@
                                 </td>
 
 
+                                <td class="px-5 py-4">@include('admin.catalog.partials.directory-dates', ['record' => $document])</td>
+
                                 {{-- ACTIONS --}}
                                 <td class="px-5 py-4">
 
                                     <div class="flex justify-end gap-2">
 
-                                        <a href="{{ route('admin.documents.show', $document) }}" class="admin-secondary">View</a>
+                                        <a href="{{ route('admin.documents.show', [$document, ...request()->only(['q', 'level', 'category', 'sort', 'view'])]) }}" class="admin-secondary">View</a>
 
                                         <a
                                             href="{{ route('admin.documents.edit', $document) }}"
@@ -379,7 +403,7 @@
                                         </p>
 
                                         <a
-                                            href="{{ route('admin.documents.index') }}"
+                                            href="{{ route('admin.documents.index', ['view' => $viewMode]) }}"
                                             class="admin-secondary mt-5"
                                         >
                                             Clear Search & Filters
@@ -416,6 +440,8 @@
             </div>
 
         </div>
+
+        @endif
 
     </div>
 

@@ -152,7 +152,7 @@ it('always shows the Mark as reviewed button on the record page, even without on
     $record = avRecord();
     $html = test()->actingAs(avSuperAdmin())->get(route('admin.government-ids.show', $record))->assertOk()->getContent();
 
-    expect($html)->toContain('data-review-dates')->toContain('Not reviewed yet')->toContain('Mark as reviewed')
+    expect($html)->toContain('data-review-dates')->not->toContain('Not reviewed yet')->toContain('Mark as reviewed')
         ->toContain(route('admin.government-ids.review', $record))
         ->toContain('Mark this whole ID as reviewed today?')->not->toContain('online sources. This is not')
         ->not->toContain('Add an online source with its checked date')
@@ -199,4 +199,31 @@ it('fills Last Updated for existing records from the change history, marks nothi
         ->and($rows->whereNotNull('last_reviewed_at')->count())->toBe(0)
         ->and($rows->map(fn ($row) => array_diff_key((array) $row, array_flip(['content_updated_at', 'last_reviewed_at', 'last_reviewed_by'])))->values()->all())
         ->toBe($before);
+});
+
+
+it('shows real dates and shared grid cards in both catalog directories', function () {
+    Carbon::setTestNow('2026-11-01 08:00:00');
+    $records = [avRecord(), Document::create(['name' => 'Fixture document', 'guidance_mode' => 'informational_only'])];
+
+    Carbon::setTestNow('2026-11-05 08:00:00');
+    foreach ($records as $record) {
+        rdReview($record);
+        $resource = $record instanceof Document ? 'documents' : 'government-ids';
+        $editor = test()->actingAs(avSuperAdmin());
+        foreach (['grid', 'table'] as $layout) {
+            $page = $editor->get(route("admin.{$resource}.index", ['view' => $layout, 'q' => $record->name]))->assertOk()
+                ->assertSee($record->name)
+                ->assertSee($record instanceof Document ? 'Informational Only' : 'Guided Acquisition')
+                ->assertSee('Last updated:')->assertSee('1 Nov 2026')
+                ->assertSee('Last reviewed:')->assertSee('5 Nov 2026')->assertDontSee('Not yet verified');
+            if ($layout === 'grid') {
+                $page->assertSee('data-catalog-grid', false);
+            }
+        }
+
+        $editor->get(route("admin.{$resource}.show", [$record, 'view' => 'grid']))->assertOk()
+            ->assertSee('data-record-sections', false)->assertSee('href="#record-basics"', false)
+            ->assertSee('Last reviewed:')->assertSee('Mark as reviewed');
+    }
 });

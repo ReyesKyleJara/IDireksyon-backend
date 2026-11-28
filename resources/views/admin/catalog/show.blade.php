@@ -27,10 +27,8 @@
         'sort',
     ]);
 
-    $directoryQuery['view'] =
-        request('view') === 'table'
-            ? 'table'
-            : 'grid';
+    $directoryQuery['view'] = in_array(request('view'), ['grid', 'table'], true)
+        ? request('view') : ($recordKind === 'document' ? 'table' : 'grid');
     $hasStructuredRequirements = $governmentId->requirementSets->contains(fn ($set) => $set->groups->isNotEmpty());
     $structuredGuideTypes = $governmentId->requirementSets
         ->filter(fn ($set) => $set->applicationSteps->isNotEmpty())
@@ -54,7 +52,7 @@
     .id-record .record-meta { margin-bottom: 8px; color: #64748b; font-size: 13px; }
     .id-record .record-sheet > .admin-panel { margin: 0; padding: 26px 0; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; box-shadow: none; }
     .id-record .record-sheet h2 { font-size: 16px; line-height: 1.5; font-weight: 600; margin-bottom: 14px; }
-    .id-record .record-facts { display: grid; gap: 20px; }
+    .id-record .record-facts { display: grid; gap: 14px; }
     .id-record .record-fact { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; font-size: 14px; line-height: 1.75; }
     .id-record .record-fact dt { color: #64748b; }
     .id-record .record-fact dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
@@ -62,6 +60,7 @@
     .id-record .record-offices > article:last-child { border-bottom: 0; padding-bottom: 0; }
     .id-record .record-history { color: #64748b; }
     .id-record .record-history h2 { font-size: 14px; }
+    .id-record [id^="record-"] { scroll-margin-top: 5rem; }
     @media (max-width: 640px) {
         .id-record .record-sheet { padding: 20px; }
         .id-record .record-header h1 { font-size: 23px; }
@@ -95,33 +94,48 @@
     @error('_catalog_revision')<p role="alert" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ $message }}</p>@enderror
 
     <div class="record-sheet">
-        <header class="record-header">
-            @if(filled($governmentId->category) || filled($governmentId->level))
-                <p class="record-meta">{{ collect([$governmentId->category, $governmentId->level])->filter(fn ($value) => filled($value))->implode(' · ') }}</p>
-            @endif
-            <h1>{{ $governmentId->name }}</h1>
-            @if($recordKind === 'document' && filled($governmentId->issued_by) && $governmentId->issued_by !== $governmentId->agency?->name)
-                <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->issued_by }}</p>
-            @endif
-            @if($governmentId->agency)
-                <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</p>
-            @endif
-            @include('admin.catalog.partials.review-dates')
-        </header>
-
-            <section class="admin-panel">
-                <h2>Image</h2>
-                <div class="flex items-center gap-4">
+        <header class="record-header flex flex-col gap-5 sm:flex-row sm:justify-between">
+            <div class="min-w-0">
+                @if(filled($governmentId->category) || filled($governmentId->level))
+                    <p class="record-meta">{{ collect([$governmentId->category, $governmentId->level])->filter(fn ($value) => filled($value))->implode(' · ') }}</p>
+                @endif
+                <h1>{{ \App\Services\CatalogEncoding::displayName($governmentId) }}</h1>
+                @if($recordKind === 'document' && filled($governmentId->issued_by) && $governmentId->issued_by !== $governmentId->agency?->name)
+                    <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->issued_by }}</p>
+                @endif
+                @if($governmentId->agency)
+                    <p class="mt-3 break-words text-sm text-slate-600">{{ $governmentId->agency->name }}@if(filled($governmentId->agency->acronym)) ({{ $governmentId->agency->acronym }})@endif</p>
+                @endif
+                @include('admin.catalog.partials.review-dates')
+            </div>
+            <div class="flex shrink-0 flex-col items-start gap-2 sm:items-center">
                     @if($governmentId->image_url)
-                        <img src="{{ $governmentId->image_url }}" alt="" class="h-28 w-28 shrink-0 rounded-lg bg-slate-100 object-contain">
+                        <img src="{{ $governmentId->image_url }}" alt="" class="h-24 w-28 rounded-lg bg-slate-100 object-contain">
                     @else
-                        <div class="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-center text-xs text-slate-400">No image yet</div>
+                        <div class="flex h-24 w-28 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-center text-xs text-slate-400">No image yet</div>
                     @endif
                     <a href="{{ route($recordRoutes.'.edit', $governmentId) }}" class="admin-secondary">Manage image</a>
-                </div>
-            </section>
+            </div>
+        </header>
 
-            <section class="admin-panel">
+        <nav aria-label="Record sections" class="mb-5 flex flex-wrap gap-2 border-y border-slate-200 py-3 text-sm" data-record-sections>
+            @php
+                $recordSections = array_filter([
+                    'record-basics' => 'Basic information',
+                    'record-requirements' => $hasStructuredRequirements || filled($governmentId->requirements) || filled($governmentId->prerequisite_notes) ? 'Requirements' : null,
+                    'record-guide' => $structuredGuideTypes->isNotEmpty() ? 'Application Guide' : null,
+                    'record-fees' => $governmentId->fees->isNotEmpty() || filled($governmentId->fee) || $legacyGuideFields->isNotEmpty() ? 'Fees & saved steps' : null,
+                    'record-offices' => $governmentId->offices->isNotEmpty() || filled($governmentId->office_location) || filled($governmentId->office_hours) ? 'Offices' : null,
+                    'record-sources' => 'Sources & request methods',
+                    'record-history' => 'Edit history',
+                ]);
+            @endphp
+            @foreach($recordSections as $section => $label)
+                <a href="#{{ $section }}" class="rounded-md px-3 py-1.5 font-medium text-[#012877] hover:bg-slate-100">{{ $label }}</a>
+            @endforeach
+        </nav>
+
+            <section class="admin-panel" id="record-basics">
                 <h2>Basic information</h2>
                 <dl class="record-facts">
                     <div class="record-fact">
@@ -164,10 +178,9 @@
         </section>
     @endif
 
-    @include('admin.catalog.partials.encoding-summary')
-
     @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
 
+    <div id="record-requirements"></div>
     @include('admin.government_ids.partials.checklists', ['editable' => false])
 
     {{-- REQUIREMENTS --}}
@@ -187,11 +200,12 @@
         </section>
     @endif
 
+    @if($structuredGuideTypes->isNotEmpty())<div id="record-guide"></div>@endif
     @include('admin.government_ids.partials.application-guide-view')
 
     {{-- APPLICATION GUIDE --}}
     @if($governmentId->fees->isNotEmpty() || filled($governmentId->fee) || $legacyGuideFields->isNotEmpty())
-    <section class="admin-panel mt-6 p-6">
+    <section class="admin-panel mt-6 p-6" id="record-fees">
 
         <h2 class="mb-6 text-lg font-semibold text-slate-900">
             {{ $legacyGuideFields->isEmpty() ? 'Fees' : (($governmentId->fees->isNotEmpty() || filled($governmentId->fee)) ? 'Fees & Application Guide' : 'Application Guide') }}
@@ -368,6 +382,7 @@
     @endif
 
     {{-- LINKED OFFICES --}}
+    <div id="record-offices"></div>
     @if($governmentId->offices->isNotEmpty())
     <section class="admin-panel mt-6 p-6">
         <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
@@ -461,7 +476,9 @@
         </section>
     @endif
 
-    <section class="admin-panel record-history">
+    @include('admin.catalog.partials.encoding-summary')
+
+    <section class="admin-panel record-history" id="record-history">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Edit History</h2>
         <dl class="grid gap-4 sm:grid-cols-2">
             <div>

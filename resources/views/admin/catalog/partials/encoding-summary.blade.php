@@ -1,10 +1,24 @@
 @php($metadata = $governmentId->research_metadata ?? [])
-<section class="admin-panel space-y-4 p-6" aria-label="Saved research and request channels">
-    <h2 class="font-semibold">Saved research and request channels</h2>
+<section id="record-sources" class="admin-panel space-y-4 p-6" aria-label="Saved research and request channels">
+    <h2 class="font-semibold">Sources &amp; request methods</h2>
     @if(filled($metadata['validity_note'] ?? null))<p>{{ $metadata['validity_note'] }}</p>@endif
     @if(!empty($metadata['hidden_sections']))<p>Hidden resident sections (content retained): {{ implode(', ', $metadata['hidden_sections']) }}</p>@endif
-    @php($sourceCount = count($metadata['sources'] ?? []))
-    <p>Online sources: {{ $sourceCount === 0 ? 'none yet' : $sourceCount }} · managed on the Data Sources page.</p>
+    @if(!empty($metadata['sources']) && is_array($metadata['sources']))
+        <ul class="space-y-2 text-sm" aria-label="Official sources">
+            @foreach($metadata['sources'] as $source)
+                @if(is_array($source) && filled($source['title'] ?? null))
+                    <li class="break-words">
+                        @if(\App\Support\GuideRichText::safeUrl($source['url'] ?? null))
+                            <a class="font-medium text-blue-800 underline" href="{{ $source['url'] }}" target="_blank" rel="noopener noreferrer">{{ $source['title'] }}</a>
+                        @else
+                            <span class="font-medium">{{ $source['title'] }}</span>
+                        @endif
+                        @if(filled($source['checked_on'] ?? null))<span class="text-slate-600"> · Checked {{ $source['checked_on'] }}</span>@endif
+                    </li>
+                @endif
+            @endforeach
+        </ul>
+    @endif
     @foreach($governmentId->requirementSets as $set)
         @if($set->request_channel)
             @php($channel = $set->request_channel)

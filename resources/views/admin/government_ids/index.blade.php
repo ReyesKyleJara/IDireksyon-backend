@@ -423,189 +423,14 @@
 
     {{-- GRID VIEW --}}
     @if($viewMode === 'grid')
-
-        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-
-            @forelse($governmentIds as $governmentId)
-
-                <a
-                    href="{{ route(
-                        'admin.government-ids.show',
-                        array_merge(
-                            [
-                                'government_id' => $governmentId->id,
-                            ],
-                            $directoryQuery
-                        )
-                    ) }}"
-                    class="admin-panel block overflow-hidden transition
-                           hover:shadow-lg
-                           focus-visible:outline
-                           focus-visible:outline-2
-                           focus-visible:outline-offset-2
-                           focus-visible:outline-[#012877]"
-                >
-
-                    {{-- SQUARE IMAGE --}}
-                    <div class="flex h-44 items-center justify-center bg-slate-100 text-slate-400">
-                        @if($governmentId->image_url)
-                            <img src="{{ $governmentId->image_url }}" alt="" loading="lazy" class="h-36 w-36 rounded-lg object-cover">
-                        @else
-
-                        <div class="text-center">
-
-                            <svg
-                                aria-hidden="true"
-                                class="mx-auto mb-2 h-12 w-12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                            >
-                                <rect
-                                    x="2"
-                                    y="4"
-                                    width="20"
-                                    height="16"
-                                    rx="3"
-                                />
-
-                                <circle
-                                    cx="8"
-                                    cy="10"
-                                    r="2"
-                                />
-
-                                <path
-                                    d="M5 16c0-3 6-3 6 0M14 9h5M14 13h5"
-                                />
-                            </svg>
-
-                            <span class="text-xs">
-                                No image yet
-                            </span>
-
-                        </div>
-
-                        @endif
-                    </div>
-
-
-                    <div class="p-5">
-
-                        <h2 class="break-words text-lg font-bold text-slate-900">
-                            {{ \App\Services\CatalogEncoding::displayName($governmentId) }}@if($governmentId->hidden_at)<span class="ml-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700" data-hidden-badge>Hidden</span>@endif
-                        </h2>
-
-
-                        <p class="mt-2 break-words text-sm text-slate-500">
-
-                            @if($governmentId->agency)
-
-                                {{ $governmentId->agency->name }}
-
-                                @if($governmentId->agency->acronym)
-                                    ({{ $governmentId->agency->acronym }})
-                                @endif
-
-                            @else
-
-                                Issuing agency not provided
-
-                            @endif
-
-                        </p>
-
-
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-
-                            <span class="text-xs font-medium text-[#012877]">
-                                {{ $governmentId->category ?: 'No category' }}
-                            </span>
-
-                            <span class="text-xs text-slate-300">
-                                •
-                            </span>
-
-                            <span class="text-xs font-medium text-[#012877]">
-                                {{ $governmentId->level ?: 'No level' }}
-                            </span>
-
-                        </div>
-
-
-                        {{-- VERIFICATION STATUS --}}
-                        <div class="mt-4">
-
-                            @if($governmentId->last_verified_at)
-
-                                <span
-                                    class="inline-flex items-center rounded-full
-                                           bg-emerald-50 px-2.5 py-1
-                                           text-xs font-medium text-emerald-700"
-                                >
-                                    Verified
-                                    {{ $governmentId->last_verified_at->format('M j, Y') }}
-                                </span>
-
-                            @else
-
-                                <span
-                                    class="inline-flex items-center rounded-full
-                                           bg-amber-50 px-2.5 py-1
-                                           text-xs font-medium text-amber-700"
-                                >
-                                    Not yet verified
-                                </span>
-
-                            @endif
-
-                        </div>
-
-                    </div>
-
-                </a>
-
-            @empty
-
-                <div class="admin-panel p-8 text-center sm:col-span-2 xl:col-span-3">
-
-                    <p class="font-semibold text-slate-900">
-
-                        {{
-                            request()->filled('q')
-                            || request()->filled('level')
-                            || request()->filled('category')
-                                ? 'No matching IDs or credentials found.'
-                                : 'No IDs or credentials yet.'
-                        }}
-
-                    </p>
-
-
-                    @if(
-                        request()->filled('q')
-                        || request()->filled('level')
-                        || request()->filled('category')
-                    )
-
-                        <a
-                            href="{{ route('admin.government-ids.index', [
-                                'view' => $viewMode,
-                            ]) }}"
-                            class="admin-secondary mt-4"
-                        >
-                            Reset search and filters
-                        </a>
-
-                    @endif
-
-                </div>
-
-            @endforelse
-
-        </div>
-
+        @include('admin.catalog.partials.directory-grid', [
+            'records' => $governmentIds,
+            'directoryRoute' => 'admin.government-ids',
+            'directoryFiltered' => request()->anyFilled(['q', 'level', 'category']),
+            'directoryEmptyFiltered' => 'No matching IDs or credentials found.',
+            'directoryEmpty' => 'No IDs or credentials yet.',
+            'directoryCreateLabel' => 'Add ID or Credential',
+        ])
 
     {{-- TABLE VIEW --}}
     @else
@@ -638,21 +463,14 @@
                                 scope="col"
                                 class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
                             >
-                                Level
+                                Guidance mode
                             </th>
 
                             <th
                                 scope="col"
                                 class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
                             >
-                                Category
-                            </th>
-
-                            <th
-                                scope="col"
-                                class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-                            >
-                                Verification
+                                Updated / Reviewed
                             </th>
 
                             <th
@@ -720,57 +538,14 @@
                                 </td>
 
 
-                                {{-- LEVEL --}}
-                                <td class="px-6 py-4 text-sm text-slate-600">
-
-                                    {{ $governmentId->level ?: '—' }}
-
+                                <td class="px-5 py-4 text-sm font-medium text-slate-700">
+                                    {{ \App\Support\GuidanceMode::label($governmentId->guidance_mode) }}
                                 </td>
 
 
-                                {{-- CATEGORY --}}
-                                <td class="px-6 py-4 text-sm text-slate-600">
-
-                                    {{ $governmentId->category ?: '—' }}
-
-                                </td>
-
-
-                                {{-- VERIFICATION --}}
                                 <td class="px-6 py-4">
-
-                                    @if($governmentId->last_verified_at)
-
-                                        <div>
-
-                                            <span
-                                                class="inline-flex items-center rounded-full
-                                                       bg-emerald-50 px-2.5 py-1
-                                                       text-xs font-medium text-emerald-700"
-                                            >
-                                                Verified
-                                            </span>
-
-                                            <p class="mt-1 text-xs text-slate-400">
-                                                {{ $governmentId->last_verified_at->format('M j, Y') }}
-                                            </p>
-
-                                        </div>
-
-                                    @else
-
-                                        <span
-                                            class="inline-flex items-center rounded-full
-                                                   bg-amber-50 px-2.5 py-1
-                                                   text-xs font-medium text-amber-700"
-                                        >
-                                            Not verified
-                                        </span>
-
-                                    @endif
-
+                                    @include('admin.catalog.partials.directory-dates', ['record' => $governmentId])
                                 </td>
-
 
                                 {{-- ACTIONS --}}
                                 <td class="px-6 py-4 text-right">
@@ -814,7 +589,7 @@
                             <tr>
 
                                 <td
-                                    colspan="6"
+                                    colspan="5"
                                     class="px-6 py-10 text-center"
                                 >
 
