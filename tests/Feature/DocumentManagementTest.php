@@ -33,6 +33,32 @@ it('creates basic document information and opens read only details with no empty
     $this->get('/admin/documents')->assertOk()->assertSee(route('admin.documents.show', $document), false);
 });
 
+it('renders document details with a partially configured request method', function () {
+    $document = Document::create(['name' => 'Document with legacy method']);
+    $set = $document->requirementSets()->create([
+        'application_type' => 'new',
+        'applicant_type' => 'all',
+        'request_channel' => ['provider' => 'Example Agency'],
+    ]);
+
+    $this->get(route('admin.documents.show', $document))->assertOk()
+        ->assertSee('Example Agency')
+        ->assertSee('Appointment: not specified');
+    expect($set->fresh()->request_channel)->toBe(['provider' => 'Example Agency']);
+});
+
+it('opens read-only document details from a bookmarked view URL', function () {
+    $document = Document::create(['name' => 'Bookmarked document']);
+    $url = '/admin/documents/'.$document->id.'/view';
+
+    $this->get($url)->assertRedirect(route('admin.documents.show', $document));
+    $this->followingRedirects()->get($url)->assertOk()->assertSee('Bookmarked document');
+    $this->get('/admin/documents/999999/view')->assertNotFound();
+
+    auth()->logout();
+    $this->get($url)->assertRedirect('/login');
+});
+
 it('edits the same document and preserves optional details omitted by a basic only update', function () {
     $document = Document::create(['name' => 'Existing document', 'requirements' => 'Bring the original.', 'fee' => '0']);
     $this->get(route('admin.documents.edit', $document))->assertOk()->assertSee('Edit Document');

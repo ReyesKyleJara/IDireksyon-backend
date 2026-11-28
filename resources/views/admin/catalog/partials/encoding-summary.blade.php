@@ -9,9 +9,9 @@
         @if($set->request_channel)
             @php($channel = $set->request_channel)
             <article class="space-y-2 rounded border p-4">
-                <h3 class="font-semibold">{{ $channel['label'] }}</h3>
-                <p>{{ $set->display_label }} · {{ ucfirst($channel['channel']) }} · {{ $channel['provider'] ?? '' }}</p>
-                <p>Appointment: {{ str_replace('_', ' ', $channel['appointment']) }} · Fulfillment: {{ implode(', ', $channel['fulfillment'] ?? []) }}</p>
+                <h3 class="font-semibold">{{ $channel['label'] ?? $channel['provider'] ?? $set->display_label }}</h3>
+                <p>{{ $set->display_label }} · {{ ucfirst($channel['channel'] ?? 'Not specified') }} · {{ $channel['provider'] ?? '' }}</p>
+                <p>Appointment: {{ str_replace('_', ' ', $channel['appointment'] ?? 'not specified') }} · Fulfillment: {{ implode(', ', $channel['fulfillment'] ?? []) }}</p>
                 @if(filled($channel['processing'] ?? null))<p>Processing / fulfillment: {{ $channel['processing'] }}</p>@endif
                 @if(filled($channel['applicability'] ?? null))<p class="whitespace-pre-line">{{ $channel['applicability'] }}</p>@endif
                 @if(\App\Support\GuideRichText::safeUrl($channel['portal_url'] ?? null))<a class="text-blue-800 underline" href="{{ $channel['portal_url'] }}" target="_blank" rel="noopener noreferrer">Official request portal ↗</a>@endif

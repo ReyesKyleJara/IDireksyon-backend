@@ -241,6 +241,9 @@ Route::prefix('admin')
             });
 
         // Documents
+        Route::get('documents/{document}/view', function (\App\Models\Document $document) {
+            return redirect()->route('admin.documents.show', $document);
+        })->whereNumber('document');
         Route::resource('documents', DocumentController::class);
 
         // Permanent catalog deletion: the warning modal reads this first.
