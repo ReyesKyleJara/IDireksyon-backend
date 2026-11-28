@@ -135,3 +135,39 @@ it('groups existing basic fields into three shared cards in Government ID and Do
         }
     }
 });
+
+it('shows saved preparation, guide and research details in the read-only record', function (string $model, string $resource) {
+    $record = $model::create([
+        'name' => 'Saved guide details',
+        'processing_time_note' => 'Allow extra time during peak season.',
+        'research_metadata' => [
+            'validity_note' => 'Check the printed date.',
+            'sources' => [[
+                'title' => 'Agency guide',
+                'url' => 'https://example.gov.ph/guide',
+                'section' => 'Application requirements',
+                'scope' => 'Supports the walk-in checklist.',
+            ]],
+        ],
+    ]);
+    $record->requirementSets()->create([
+        'application_type' => 'new',
+        'applicant_type' => 'all',
+        'request_channel' => [
+            'provider' => 'Example office',
+            'preparation' => 'Bring the completed form.',
+            'application_guide_text' => 'Ask for a queue number.',
+        ],
+    ]);
+
+    $this->get(route("admin.{$resource}.show", $record))->assertOk()
+        ->assertSee('Allow extra time during peak season.')
+        ->assertSee('Check the printed date.')
+        ->assertSee('Application requirements')
+        ->assertSee('Supports the walk-in checklist.')
+        ->assertSee('Bring the completed form.')
+        ->assertSee('Ask for a queue number.');
+})->with([
+    'government ID' => [\App\Models\GovernmentId::class, 'government-ids'],
+    'document' => [Document::class, 'documents'],
+]);

@@ -46,26 +46,31 @@
     .id-record { width: 100%; max-width: none; margin: 0 auto; color: #1e293b; }
     .id-record .record-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
     .id-record .record-actions { display: flex; align-items: center; gap: 10px; }
-    .id-record .record-sheet { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 32px; }
-    .id-record .record-header { padding-bottom: 28px; }
-    .id-record .record-header h1 { font-size: 26px; line-height: 1.3; font-weight: 650; letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .id-record .record-sheet { display: grid; gap: 20px; width: 100%; }
+    .id-record .record-header,
+    .id-record .record-sheet > .admin-panel {
+        min-width: 0; margin: 0; padding: clamp(18px, 3vw, 32px);
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: none;
+    }
+    .id-record .record-header h1 { font-size: clamp(23px, 3vw, 32px); line-height: 1.25; font-weight: 700; letter-spacing: -.025em; overflow-wrap: anywhere; }
     .id-record .record-meta { margin-bottom: 8px; color: #64748b; font-size: 13px; }
-    .id-record .record-sheet > .admin-panel { margin: 0; padding: 26px 0; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; box-shadow: none; }
-    .id-record .record-sheet h2 { font-size: 16px; line-height: 1.5; font-weight: 600; margin-bottom: 14px; }
-    .id-record .record-facts { display: grid; gap: 14px; }
-    .id-record .record-fact { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; font-size: 14px; line-height: 1.75; }
-    .id-record .record-fact dt { color: #64748b; }
-    .id-record .record-fact dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+    .id-record .record-sheet h2 { font-size: 18px; line-height: 1.4; font-weight: 700; margin-bottom: 16px; }
+    .id-record .record-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .id-record .record-fact { min-width: 0; padding: 14px 16px; border-radius: 10px; background: #f8fafc; font-size: 14px; line-height: 1.55; }
+    .id-record .record-fact dt { margin-bottom: 4px; color: #475569; font-size: 13px; }
+    .id-record .record-fact dd { margin: 0; font-weight: 600; white-space: pre-line; overflow-wrap: anywhere; }
+    .id-record .record-fact-wide { grid-column: 1 / -1; background: #fff; padding: 12px 0; border-top: 1px solid #e2e8f0; }
+    .id-record .record-fact-wide dd { font-weight: 400; max-width: 85ch; }
     .id-record .record-offices > article { padding: 18px 0; border: 0; border-bottom: 1px solid #e2e8f0; border-radius: 0; }
     .id-record .record-offices > article:last-child { border-bottom: 0; padding-bottom: 0; }
     .id-record .record-history { color: #64748b; }
-    .id-record .record-history h2 { font-size: 14px; }
     .id-record [id^="record-"] { scroll-margin-top: 5rem; }
-    @media (max-width: 640px) {
-        .id-record .record-sheet { padding: 20px; }
-        .id-record .record-header h1 { font-size: 23px; }
-        .id-record .record-fact { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-        .id-record .record-toolbar { gap: 8px; }
+    .id-record .record-anchor { height: 0; margin-bottom: -20px; }
+    @media (max-width: 960px) { .id-record .record-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 540px) {
+        .id-record .record-facts { grid-template-columns: 1fr; }
+        .id-record .record-toolbar { flex-wrap: wrap; gap: 12px; }
+        .id-record .record-actions { flex-wrap: wrap; }
     }
 </style>
 
@@ -118,7 +123,7 @@
             </div>
         </header>
 
-        <nav aria-label="Record sections" class="mb-5 flex flex-wrap gap-2 border-y border-slate-200 py-3 text-sm" data-record-sections>
+        <nav aria-label="Record sections" class="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm" data-record-sections>
             @php
                 $recordSections = array_filter([
                     'record-basics' => 'Basic information',
@@ -160,9 +165,17 @@
                         <dt>Include in Smart Sequencing</dt>
                         <dd>{{ $governmentId->include_in_smart_sequencing ? 'Yes' : 'No' }}</dd>
                     </div>
-                    @foreach(['description' => 'Description', 'purpose' => 'Purpose / Use', 'validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
+                    @foreach(['validity' => 'Validity Period', 'processing_time' => 'Processing Time'] as $field => $label)
                         @if(filled($governmentId->$field) && ! ($field === 'validity' && $governmentId->validity_type === 'not_applicable'))
                             <div class="record-fact">
+                                <dt>{{ $label }}</dt>
+                                <dd>{{ $governmentId->$field }}</dd>
+                            </div>
+                        @endif
+                    @endforeach
+                    @foreach(['description' => 'Description', 'purpose' => 'Purpose / Use', 'processing_time_note' => 'Processing time notes'] as $field => $label)
+                        @if(filled($governmentId->$field))
+                            <div class="record-fact record-fact-wide">
                                 <dt>{{ $label }}</dt>
                                 <dd>{{ $governmentId->$field }}</dd>
                             </div>
@@ -180,7 +193,7 @@
 
     @include('admin.catalog.partials.prerequisites', ['prerequisiteOwner' => $governmentId])
 
-    <div id="record-requirements"></div>
+    <div id="record-requirements" class="record-anchor"></div>
     @include('admin.government_ids.partials.checklists', ['editable' => false])
 
     {{-- REQUIREMENTS --}}
@@ -200,7 +213,7 @@
         </section>
     @endif
 
-    @if($structuredGuideTypes->isNotEmpty())<div id="record-guide"></div>@endif
+    @if($structuredGuideTypes->isNotEmpty())<div id="record-guide" class="record-anchor"></div>@endif
     @include('admin.government_ids.partials.application-guide-view')
 
     {{-- APPLICATION GUIDE --}}
@@ -382,7 +395,7 @@
     @endif
 
     {{-- LINKED OFFICES --}}
-    <div id="record-offices"></div>
+    <div id="record-offices" class="record-anchor"></div>
     @if($governmentId->offices->isNotEmpty())
     <section class="admin-panel mt-6 p-6">
         <h2 class="text-lg font-semibold text-slate-900">Linked Offices</h2>
